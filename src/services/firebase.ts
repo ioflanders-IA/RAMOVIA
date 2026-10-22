@@ -23,7 +23,7 @@ import {
   Firestore,
 } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
-import { User } from '../types';
+import { User, UserRole } from '../types';
 
 export interface FirebaseCustomConfig {
   apiKey?: string;
@@ -69,15 +69,15 @@ export interface SignInResult {
   unauthorizedDomain?: string;
 }
 
-// Sign in with Google
-export const signInWithGoogle = async (): Promise<SignInResult> => {
+// Sign in with Google accepting a preferred role chosen by user
+export const signInWithGoogle = async (preferredRole: UserRole = 'admin'): Promise<SignInResult> => {
   if (!auth) return { user: null, error: 'Firebase Auth non inizializzato' };
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const fbUser = result.user;
     if (!fbUser) return { user: null, error: 'Nessun utente restituito da Google' };
 
-    const user = await handleUserDocOnLogin(fbUser);
+    const user = await handleUserDocOnLogin(fbUser, preferredRole);
     return { user };
   } catch (err: any) {
     if (
@@ -106,19 +106,23 @@ export const logoutFromFirebase = async (): Promise<void> => {
 };
 
 // Handle creation or retrieval of user doc in Firestore upon login
-export const handleUserDocOnLogin = async (fbUser: FirebaseUser): Promise<User> => {
+export const handleUserDocOnLogin = async (
+  fbUser: FirebaseUser,
+  preferredRole: UserRole = 'admin'
+): Promise<User> => {
   const emailLower = (fbUser.email || '').toLowerCase();
-  const isAdminEmail = emailLower === 'andblasi@gmail.com' || emailLower.includes('admin');
+  const isAdminEmail = emailLower === 'andblasi@gmail.com' || emailLower.includes('admin') || preferredRole === 'admin';
 
+  const role: UserRole = preferredRole;
   const fallbackUser: User = {
     uid: fbUser.uid,
     email: emailLower,
     displayName: fbUser.displayName || emailLower.split('@')[0] || 'Utente RAMOVIA',
     photoURL: fbUser.photoURL || undefined,
-    role: isAdminEmail ? 'admin' : 'worker',
+    role,
     active: true,
-    workerCode: isAdminEmail ? undefined : 'OP-' + fbUser.uid.substring(0, 6).toUpperCase(),
-    linkedToAdmin: isAdminEmail ? true : false,
+    workerCode: role === 'worker' ? 'OP-' + fbUser.uid.substring(0, 6).toUpperCase() : undefined,
+    linkedToAdmin: role === 'admin' ? true : false,
     createdAt: new Date().toISOString(),
   };
 
@@ -129,25 +133,11 @@ export const handleUserDocOnLogin = async (fbUser: FirebaseUser): Promise<User> 
     const userSnap = await getDoc(userRef);
 
     if (!userSnap.exists()) {
-      let noUsersYet = false;
-      try {
-        const usersColl = collection(db, 'users');
-        const existingUsersSnap = await getDocs(usersColl);
-        noUsersYet = existingUsersSnap.empty;
-      } catch {
-        // ignore
-      }
-
-      const isAdmin = isAdminEmail || noUsersYet;
-      const role = isAdmin ? 'admin' : 'worker';
-      const workerCode = isAdmin ? undefined : generateWorkerCode();
-      const linkedToAdmin = isAdmin ? true : false;
-
       const newUser: User = {
         ...fallbackUser,
         role,
-        workerCode,
-        linkedToAdmin,
+        workerCode: role === 'worker' ? generateWorkerCode() : undefined,
+        linkedToAdmin: role === 'admin' ? true : false,
       };
 
       setDoc(userRef, newUser).catch((e) => console.warn('setDoc user error:', e));
@@ -158,10 +148,10 @@ export const handleUserDocOnLogin = async (fbUser: FirebaseUser): Promise<User> 
         displayName: fbUser.displayName || existingData.displayName,
         photoURL: fbUser.photoURL || existingData.photoURL,
         email: emailLower || existingData.email,
+        role: preferredRole || existingData.role,
       };
 
-      if (isAdminEmail && existingData.role !== 'admin') {
-        updatedData.role = 'admin';
+      if (preferredRole === 'admin') {
         updatedData.linkedToAdmin = true;
       }
 

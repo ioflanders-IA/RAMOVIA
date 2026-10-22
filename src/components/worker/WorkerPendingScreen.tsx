@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User } from '../../types';
+import { useApp } from '../../context/AppContext';
 import {
   Copy,
   Check,
@@ -7,8 +8,8 @@ import {
   LogOut,
   Clock,
   ShieldAlert,
-  Smartphone,
   HardHat,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface WorkerPendingScreenProps {
@@ -20,6 +21,7 @@ export const WorkerPendingScreen: React.FC<WorkerPendingScreenProps> = ({
   currentUser,
   onLogout,
 }) => {
+  const { updateUserRole } = useApp();
   const [copied, setCopied] = useState(false);
 
   const code = currentUser.workerCode || 'OP-PENDING';
@@ -28,6 +30,12 @@ export const WorkerPendingScreen: React.FC<WorkerPendingScreenProps> = ({
     navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleSwitchToAdmin = async () => {
+    if (confirm('Vuoi modificare il tuo profilo e accedere come Titolare (Admin)?')) {
+      await updateUserRole(currentUser.uid, 'admin');
+    }
   };
 
   const whatsappMessage = encodeURIComponent(
@@ -93,7 +101,7 @@ export const WorkerPendingScreen: React.FC<WorkerPendingScreenProps> = ({
             <div className="flex items-center justify-center gap-[7px] pt-1">
               <button
                 onClick={handleCopy}
-                className="flex-1 flex items-center justify-center gap-[7px] p-[7px] bg-white text-emerald-950 hover:bg-emerald-50 rounded-[7px] text-xs font-bold transition-colors shadow-xs"
+                className="flex-1 flex items-center justify-center gap-[7px] p-[7px] bg-white text-emerald-950 hover:bg-emerald-50 rounded-[7px] text-xs font-bold transition-colors shadow-xs cursor-pointer"
               >
                 {copied ? (
                   <>
@@ -140,13 +148,24 @@ export const WorkerPendingScreen: React.FC<WorkerPendingScreenProps> = ({
             <Clock className="w-3.5 h-3.5 text-slate-400" />
             <span>In ascolto in tempo reale per la conferma del Titolare...</span>
           </div>
+
+          {/* Switch Role Action if user picked wrong role */}
+          <div className="pt-2 border-t border-slate-100 text-center">
+            <button
+              onClick={handleSwitchToAdmin}
+              className="text-xs text-emerald-800 hover:text-emerald-950 font-bold underline flex items-center justify-center gap-1 mx-auto cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-700" />
+              <span>Sei il Titolare dell'azienda? Passa al profilo Admin</span>
+            </button>
+          </div>
         </div>
 
         {/* Logout Action */}
         <div className="text-center pt-2">
           <button
             onClick={onLogout}
-            className="w-full flex items-center justify-center gap-[7px] p-[7px] bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-[7px] text-xs font-bold transition-colors"
+            className="w-full flex items-center justify-center gap-[7px] p-[7px] bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-[7px] text-xs font-bold transition-colors cursor-pointer"
           >
             <LogOut className="w-4 h-4 text-rose-600" />
             <span>Disconnetti Account ({currentUser.displayName})</span>
