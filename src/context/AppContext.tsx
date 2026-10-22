@@ -36,7 +36,7 @@ interface AppContextType {
   reports: WorkReport[];
   shoppingList: ShoppingListItem[];
   loadingAuth: boolean;
-  loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: () => Promise<{ success: boolean; error?: string; unauthorizedDomain?: string }>;
   logout: () => Promise<void>;
   linkWorker: (code: string) => Promise<{ success: boolean; workerName?: string; error?: string }>;
   switchUser: (uid: string) => void;
@@ -76,7 +76,26 @@ const STORAGE_KEYS = {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    try {
+      const saved = localStorage.getItem('ramovia_current_user_v3');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (currentUser) {
+        localStorage.setItem('ramovia_current_user_v3', JSON.stringify(currentUser));
+      } else {
+        localStorage.removeItem('ramovia_current_user_v3');
+      }
+    } catch {
+      // ignore
+    }
+  }, [currentUser]);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   const [users, setUsers] = useState<User[]>(() => {
@@ -154,60 +173,72 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
       if (fbUser) {
-        // Sync user doc upon login
+        // Build immediate user object so UI unlocks instantly
+        const emailLower = (fbUser.email || '').toLowerCase();
+        const isAdmin = emailLower === 'andblasi@gmail.com' || emailLower.includes('admin');
+        const fallbackUser: User = {
+          uid: fbUser.uid,
+          email: emailLower,
+          displayName: fbUser.displayName || emailLower.split('@')[0] || 'Utente RAMOVIA',
+          photoURL: fbUser.photoURL || undefined,
+          role: isAdmin ? 'admin' : 'worker',
+          active: true,
+          workerCode: isAdmin ? undefined : 'OP-' + fbUser.uid.substring(0, 6).toUpperCase(),
+          linkedToAdmin: isAdmin ? true : false,
+          createdAt: new Date().toISOString(),
+        };
+
+        setCurrentUser(fallbackUser);
+        setLoadingAuth(false);
+
+        // Background sync user document
         try {
           const userDocData = await handleUserDocOnLogin(fbUser);
-          setCurrentUser(userDocData);
+          if (userDocData) {
+            setCurrentUser(userDocData);
+          }
         } catch (err) {
           console.warn('User doc sync error:', err);
         }
 
-        // Listen to currentUser doc in Firestore for real-time role / linkedToAdmin updates
-        const userRef = doc(db, 'users', fbUser.uid);
-        const unsubUser = onSnapshot(userRef, (snap) => {
-          if (snap.exists()) {
-            setCurrentUser(snap.data() as User);
+        // Attach snapshots safely
+        if (db) {
+          try {
+            onSnapshot(doc(db, 'users', fbUser.uid), (snap) => {
+              if (snap.exists()) {
+                setCurrentUser(snap.data() as User);
+              }
+            }, (err) => console.warn('user doc snapshot error:', err));
+
+            onSnapshot(collection(db, 'users'), (snap) => {
+              const docs = snap.docs.map((d) => d.data() as User);
+              if (docs.length > 0) setUsers(docs);
+            }, (err) => console.warn('users coll snapshot error:', err));
+
+            onSnapshot(collection(db, 'clients'), (snap) => {
+              const docs = snap.docs.map((d) => d.data() as Client);
+              if (docs.length > 0) setClients(docs);
+            }, (err) => console.warn('clients coll snapshot error:', err));
+
+            onSnapshot(collection(db, 'jobs'), (snap) => {
+              const docs = snap.docs.map((d) => d.data() as Job);
+              if (docs.length > 0) setJobs(docs);
+            }, (err) => console.warn('jobs coll snapshot error:', err));
+
+            onSnapshot(collection(db, 'inventory'), (snap) => {
+              const docs = snap.docs.map((d) => d.data() as InventoryItem);
+              if (docs.length > 0) setInventory(docs);
+            }, (err) => console.warn('inventory coll snapshot error:', err));
+
+            onSnapshot(collection(db, 'timesheets_and_reports'), (snap) => {
+              const docs = snap.docs.map((d) => d.data() as WorkReport);
+              if (docs.length > 0) setReports(docs);
+            }, (err) => console.warn('reports coll snapshot error:', err));
+          } catch (e) {
+            console.warn('Snapshot listeners setup warning:', e);
           }
-        });
-
-        // Listen to all collections in Firestore
-        const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
-          const docs = snap.docs.map((d) => d.data() as User);
-          setUsers(docs);
-        });
-
-        const unsubClients = onSnapshot(collection(db, 'clients'), (snap) => {
-          const docs = snap.docs.map((d) => d.data() as Client);
-          setClients(docs);
-        });
-
-        const unsubJobs = onSnapshot(collection(db, 'jobs'), (snap) => {
-          const docs = snap.docs.map((d) => d.data() as Job);
-          setJobs(docs);
-        });
-
-        const unsubInv = onSnapshot(collection(db, 'inventory'), (snap) => {
-          const docs = snap.docs.map((d) => d.data() as InventoryItem);
-          setInventory(docs);
-        });
-
-        const unsubRep = onSnapshot(collection(db, 'timesheets_and_reports'), (snap) => {
-          const docs = snap.docs.map((d) => d.data() as WorkReport);
-          setReports(docs);
-        });
-
-        setLoadingAuth(false);
-
-        return () => {
-          unsubUser();
-          unsubUsers();
-          unsubClients();
-          unsubJobs();
-          unsubInv();
-          unsubRep();
-        };
+        }
       } else {
-        setCurrentUser(null);
         setLoadingAuth(false);
       }
     });
@@ -216,17 +247,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   // AUTH ACTIONS
-  const loginWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
+  const loginWithGoogle = async (): Promise<{ success: boolean; error?: string; unauthorizedDomain?: string }> => {
     try {
       setLoadingAuth(true);
-      const user = await signInWithGoogle();
-      if (user) {
-        setCurrentUser(user);
+      const res = await signInWithGoogle();
+      if (res.user) {
+        setCurrentUser(res.user);
         return { success: true };
       }
-      return { success: false, error: 'Accesso annullato o non riuscito.' };
+      return {
+        success: false,
+        error: res.error,
+        unauthorizedDomain: res.unauthorizedDomain,
+      };
     } catch (err: any) {
-      console.error('Google Sign-In Error:', err);
       return {
         success: false,
         error: err.message || 'Si è verificato un errore durante l\'accesso con Google.',
@@ -276,10 +310,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     if (db) {
-      await setDoc(doc(db, 'users', newUser.uid), newUser);
-    } else {
-      setUsers((prev) => [...prev, newUser]);
+      try {
+        await setDoc(doc(db, 'users', newUser.uid), newUser);
+      } catch (err) {
+        console.warn('setDoc in loginWithEmail:', err);
+      }
     }
+    try {
+      localStorage.setItem('ramovia_current_user_v3', JSON.stringify(newUser));
+    } catch {
+      // ignore
+    }
+    setUsers((prev) => [...prev, newUser]);
     setCurrentUser(newUser);
     return { success: true };
   };

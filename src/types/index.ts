@@ -14,6 +14,11 @@ export interface User {
   createdAt?: string;
 }
 
+export interface PolygonPoint {
+  lat: number;
+  lng: number;
+}
+
 export interface GardenNotes {
   squareMeters: number;
   irrigationDetails: string;
@@ -21,6 +26,7 @@ export interface GardenNotes {
   gateCode: string;
   dogPresent: boolean;
   notes?: string;
+  polygonPoints?: PolygonPoint[];
 }
 
 export interface Client {

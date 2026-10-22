@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { Job } from '../../types';
+import { Job, PolygonPoint, Client } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { Calendar, CheckCircle2, Clock, MapPin, Navigation, User, AlertTriangle } from 'lucide-react';
+import { MapPin, Search, Layers, Compass } from 'lucide-react';
 
 interface MapViewProps {
   onSelectJob?: (job: Job) => void;
@@ -10,20 +10,22 @@ interface MapViewProps {
 }
 
 export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) => {
-  const { jobs, users } = useApp();
+  const { jobs, users, clients } = useApp();
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const polygonsLayerRef = useRef<L.LayerGroup | null>(null);
 
   // Filters
   const [workerFilter, setWorkerFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [dateFilter, setDateFilter] = useState<string>('all'); // 'all', 'today', 'week'
+  const [dateFilter, setDateFilter] = useState<string>('all');
 
   const todayStr = new Date().toISOString().split('T')[0];
 
   // Filter jobs
-  const filteredJobs = jobs.filter((job) => {
+  const activeJobs = jobs.filter((job) => {
     if (workerFilter !== 'all' && job.assignedWorkerId !== workerFilter) return false;
     if (statusFilter !== 'all' && job.status !== statusFilter) return false;
     if (dateFilter === 'today' && job.date !== todayStr) return false;
@@ -36,50 +38,104 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
 
     if (!mapInstanceRef.current) {
       const map = L.map(mapContainerRef.current, {
-        center: [42.0, 12.5],
-        zoom: 6,
+        center: [45.65, 9.32],
+        zoom: 12,
         zoomControl: true,
       });
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 19,
       }).addTo(map);
 
       markersLayerRef.current = L.layerGroup().addTo(map);
+      polygonsLayerRef.current = L.layerGroup().addTo(map);
       mapInstanceRef.current = map;
     }
 
+    const invalidate = () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
+    };
+
+    invalidate();
+    const t1 = setTimeout(invalidate, 150);
+    const t2 = setTimeout(invalidate, 500);
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (mapContainerRef.current && typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        invalidate();
+      });
+      resizeObserver.observe(mapContainerRef.current);
+    }
+
     return () => {
-      // Map instance is kept or cleanup on unmount
+      clearTimeout(t1);
+      clearTimeout(t2);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
     };
   }, []);
 
-  // Update Markers
+  // Update Markers for ALL Registered Clients + Active Job Overlays
   useEffect(() => {
     const map = mapInstanceRef.current;
     const markersLayer = markersLayerRef.current;
-    if (!map || !markersLayer) return;
+    const polygonsLayer = polygonsLayerRef.current;
+    if (!map || !markersLayer || !polygonsLayer) return;
 
     markersLayer.clearLayers();
-
-    if (filteredJobs.length === 0) return;
+    polygonsLayer.clearLayers();
 
     const bounds: [number, number][] = [];
 
-    filteredJobs.forEach((job) => {
-      const isSelected = selectedJobId === job.id;
+    // 1. Render Polygons for all Clients with polygon data
+    clients.forEach((client) => {
+      if (client.gardenNotes?.polygonPoints && client.gardenNotes.polygonPoints.length >= 3) {
+        const latLngs = client.gardenNotes.polygonPoints.map((p: PolygonPoint) => [p.lat, p.lng] as [number, number]);
+        const poly = L.polygon(latLngs, {
+          color: '#10b981',
+          fillColor: '#10b981',
+          fillOpacity: 0.3,
+          weight: 2,
+        });
 
-      // Color coding
-      let colorBg = '#ea580c'; // scheduled = orange
-      let statusLabel = 'Programmato';
-      if (job.status === 'in_progress') {
-        colorBg = '#0284c7'; // in progress = cyan/blue
-        statusLabel = 'In Corso';
-      } else if (job.status === 'completed') {
-        colorBg = '#16a34a'; // completed = green
-        statusLabel = 'Completato';
+        poly.bindTooltip(
+          `<b>${client.name}</b><br/>Area: ${client.gardenNotes.squareMeters || 'N/D'} mq`,
+          { sticky: true }
+        );
+
+        polygonsLayer.addLayer(poly);
       }
+    });
+
+    // 2. Render Markers for ALL Saved Clients
+    clients.forEach((client) => {
+      // Find if this client has an active job matching current filters
+      const matchingJob = activeJobs.find(
+        (j) => j.clientId === client.id || j.clientName.toLowerCase() === client.name.toLowerCase()
+      );
+
+      let colorBg = '#059669'; // Default Saved Client Cantiere = Emerald Green
+      let statusBadgeLabel = 'Cantiere Registrato';
+
+      if (matchingJob) {
+        if (matchingJob.status === 'scheduled') {
+          colorBg = '#ea580c'; // Scheduled = Orange
+          statusBadgeLabel = '⚡ In Programma';
+        } else if (matchingJob.status === 'in_progress') {
+          colorBg = '#0284c7'; // In Progress = Cyan/Blue
+          statusBadgeLabel = '🌀 In Corso';
+        } else if (matchingJob.status === 'completed') {
+          colorBg = '#16a34a'; // Completed = Green
+          statusBadgeLabel = '✅ Completato';
+        }
+      }
+
+      const isSelected = matchingJob && selectedJobId === matchingJob.id;
 
       const customIcon = L.divIcon({
         className: 'custom-pin-marker',
@@ -98,15 +154,15 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
               padding: 4px 8px;
               border-radius: 6px;
               font-size: 11px;
-              font-weight: 600;
-              box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+              font-weight: 700;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.35);
               border: ${isSelected ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.4)'};
               display: flex;
               align-items: center;
               gap: 4px;
               white-space: nowrap;
             ">
-              <span>${job.clientName.replace('Residenza ', '').replace('Condominio ', '').replace('Villa ', 'V. ')}</span>
+              <span>📍 ${client.name.replace('Residenza ', '').replace('Condominio ', '').replace('Villa ', 'V. ')}</span>
             </div>
             <div style="
               width: 0; 
@@ -122,10 +178,10 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
         iconAnchor: [0, 0],
       });
 
-      const marker = L.marker([job.lat, job.lng], { icon: customIcon });
+      const marker = L.marker([client.lat || 45.65, client.lng || 9.32], { icon: customIcon });
 
       const popupHtml = `
-        <div style="min-width: 220px; font-family: inherit; font-size: 13px; color: #1e293b;">
+        <div style="min-width: 230px; font-family: inherit; font-size: 13px; color: #0f172a;">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
             <span style="
               display: inline-block; 
@@ -133,22 +189,36 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
               border-radius: 4px; 
               font-size: 10px; 
               font-weight: 700; 
-              background: ${colorBg}15; 
+              background: ${colorBg}18; 
               color: ${colorBg};
             ">
-              ${statusLabel.toUpperCase()}
+              ${statusBadgeLabel.toUpperCase()}
             </span>
-            <span style="font-size: 11px; color: #64748b; font-family: monospace;">${job.timeSlot}</span>
+            <span style="font-size: 11px; color: #059669; font-weight: 700;">${client.gardenNotes?.squareMeters || '0'} mq</span>
           </div>
-          <h4 style="margin: 0 0 2px 0; font-size: 14px; font-weight: 700; color: #0f172a;">${job.clientName}</h4>
-          <p style="margin: 0 0 8px 0; font-size: 11px; color: #475569;">${job.clientAddress}</p>
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 8px; margin-bottom: 8px;">
-            <div style="font-weight: 600; color: #1e293b; margin-bottom: 2px;">${job.title}</div>
-            <div style="font-size: 11px; color: #64748b;">Assegnato a: <strong>${job.assignedWorkerName}</strong></div>
-          </div>
+          <h4 style="margin: 0 0 2px 0; font-size: 14px; font-weight: 700; color: #0f172a;">${client.name}</h4>
+          <p style="margin: 0 0 8px 0; font-size: 11px; color: #475569;">${client.address}</p>
+          
+          ${
+            matchingJob
+              ? `
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 8px; margin-bottom: 8px;">
+              <div style="font-weight: 600; color: #1e293b; margin-bottom: 2px;">${matchingJob.title}</div>
+              <div style="font-size: 11px; color: #64748b;">Orario: <strong>${matchingJob.timeSlot}</strong></div>
+              <div style="font-size: 11px; color: #64748b;">Assegnato a: <strong>${matchingJob.assignedWorkerName}</strong></div>
+            </div>
+            `
+              : `
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; font-size: 11px; color: #166534;">
+              📞 Tel: <strong>${client.phone || 'N/D'}</strong><br/>
+              🔑 Codice cancello: <strong>${client.gardenNotes?.gateCode || 'N/D'}</strong>
+            </div>
+            `
+          }
+
           <div style="display: flex; gap: 6px;">
             <a 
-              href="https://www.google.com/maps/dir/?api=1&destination=${job.lat},${job.lng}" 
+              href="https://www.google.com/maps/dir/?api=1&destination=${client.lat},${client.lng}" 
               target="_blank" 
               rel="noreferrer"
               style="
@@ -157,16 +227,16 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
                 align-items: center; 
                 justify-content: center; 
                 gap: 4px; 
-                background: #1e293b; 
+                background: #059669; 
                 color: white; 
                 text-decoration: none; 
                 padding: 6px 8px; 
                 border-radius: 6px; 
                 font-size: 11px; 
-                font-weight: 500;
+                font-weight: 600;
               "
             >
-              Naviga
+              🧭 Naviga con GPS
             </a>
           </div>
         </div>
@@ -174,65 +244,90 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
 
       marker.bindPopup(popupHtml);
 
-      marker.on('click', () => {
-        if (onSelectJob) {
-          onSelectJob(job);
-        }
-      });
+      if (matchingJob && onSelectJob) {
+        marker.on('click', () => {
+          onSelectJob(matchingJob);
+        });
+      }
 
       markersLayer.addLayer(marker);
-      bounds.push([job.lat, job.lng]);
+      bounds.push([client.lat, client.lng]);
     });
 
     if (bounds.length > 0) {
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
     }
-  }, [filteredJobs, selectedJobId, onSelectJob]);
+  }, [clients, activeJobs, selectedJobId, onSelectJob]);
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-[7px] border border-slate-200 shadow-sm overflow-hidden space-y-[7px]">
+    <div className="flex flex-col h-full min-h-[460px] bg-white dark:bg-slate-900 rounded-[7px] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden space-y-[7px]">
       {/* Map Header & Interactive Filter Bar */}
-      <div className="p-[7px] border-b border-slate-200 bg-slate-50/70 flex flex-wrap items-center justify-between gap-[7px]">
-        <div className="flex items-center gap-[7px]">
-          <MapPin className="w-4 h-4 text-emerald-700" />
-          <span className="text-xs font-semibold text-slate-800 uppercase tracking-wider">
-            Mappa Cantieri & Cantieri Attivi
-          </span>
-          <span className="text-xs text-slate-500 font-mono">({filteredJobs.length} interventi)</span>
+      <div className="p-[7px] border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/80 flex flex-col sm:flex-row sm:items-center justify-between gap-[7px]">
+        <div className="flex items-center justify-between gap-[7px]">
+          <div className="flex items-center gap-[7px]">
+            <MapPin className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+            <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+              Mappa Cantieri Registrati ({clients.length})
+            </span>
+          </div>
+
+          {/* Inline Legend in Header */}
+          <div className="flex items-center gap-2 text-[10px] text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 px-2 py-1 rounded-[7px] border border-slate-200 dark:border-slate-800 shrink-0">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span> Registrato
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-amber-600 inline-block"></span> Prog.
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-sky-600 inline-block"></span> Corso
+            </span>
+            <span className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-700 pl-1.5">
+              <span className="w-2.5 h-2.5 rounded-xs border border-emerald-500 bg-emerald-500/30 inline-block"></span> Mq
+            </span>
+          </div>
         </div>
 
         {/* Filter Controls */}
         <div className="flex items-center gap-[7px] flex-wrap text-xs">
           {/* Status Filter */}
-          <div className="flex items-center gap-[7px] bg-white border border-slate-200 rounded-[7px] p-[7px]">
+          <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-1">
             <button
               onClick={() => setStatusFilter('all')}
-              className={`px-2 py-1 rounded-[7px] font-medium transition-colors ${
-                statusFilter === 'all' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              className={`px-2 py-0.5 rounded-[7px] font-medium transition-colors ${
+                statusFilter === 'all'
+                  ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
               Tutti
             </button>
             <button
               onClick={() => setStatusFilter('scheduled')}
-              className={`px-2 py-1 rounded-[7px] font-medium transition-colors ${
-                statusFilter === 'scheduled' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              className={`px-2 py-0.5 rounded-[7px] font-medium transition-colors ${
+                statusFilter === 'scheduled'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
               Programmati
             </button>
             <button
               onClick={() => setStatusFilter('in_progress')}
-              className={`px-2 py-1 rounded-[7px] font-medium transition-colors ${
-                statusFilter === 'in_progress' ? 'bg-sky-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              className={`px-2 py-0.5 rounded-[7px] font-medium transition-colors ${
+                statusFilter === 'in_progress'
+                  ? 'bg-sky-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
               In Corso
             </button>
             <button
               onClick={() => setStatusFilter('completed')}
-              className={`px-2 py-1 rounded-[7px] font-medium transition-colors ${
-                statusFilter === 'completed' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              className={`px-2 py-0.5 rounded-[7px] font-medium transition-colors ${
+                statusFilter === 'completed'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
               Completati
@@ -243,7 +338,7 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
           <select
             value={workerFilter}
             onChange={(e) => setWorkerFilter(e.target.value)}
-            className="bg-white border border-slate-200 rounded-[7px] px-2.5 py-1 text-xs text-slate-700 focus:outline-emerald-600"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] px-2 py-1 text-xs text-slate-700 dark:text-slate-300 focus:outline-emerald-600"
           >
             <option value="all">Tutti gli Operai</option>
             {users
@@ -259,7 +354,7 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
           <select
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
-            className="bg-white border border-slate-200 rounded-[7px] px-2.5 py-1 text-xs text-slate-700 focus:outline-emerald-600"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] px-2 py-1 text-xs text-slate-700 dark:text-slate-300 focus:outline-emerald-600"
           >
             <option value="all">Tutte le date</option>
             <option value="today">Solo Oggi</option>
@@ -268,31 +363,15 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
       </div>
 
       {/* Map Render Area */}
-      <div className="relative flex-1 min-h-[360px] w-full">
-        <div ref={mapContainerRef} className="w-full h-full" />
+      <div className="relative flex-1 w-full min-h-[380px] rounded-[7px] overflow-hidden">
+        <div ref={mapContainerRef} className="w-full h-full min-h-[380px]" />
 
-        {filteredJobs.length === 0 && (
-          <div className="absolute top-[7px] left-1/2 -translate-x-1/2 z-[400] bg-white/95 backdrop-blur-xs border border-slate-200 p-[7px] rounded-[7px] shadow-md text-xs text-slate-600 flex items-center gap-[7px] pointer-events-none">
-            <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-            <span>Nessun cantiere programmato sulla mappa</span>
+        {clients.length === 0 && (
+          <div className="absolute top-[7px] left-1/2 -translate-x-1/2 z-[400] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xs border border-slate-200 dark:border-slate-800 p-[7px] px-3 rounded-[7px] shadow-md text-xs text-slate-600 dark:text-slate-300 flex items-center gap-[7px] pointer-events-none">
+            <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse"></span>
+            <span>Nessun cantiere salvato. Aggiungi nuovi clienti nella scheda Giardini!</span>
           </div>
         )}
-
-        {/* Floating Quick Legend */}
-        <div className="absolute bottom-[7px] left-[7px] z-[400] bg-white/95 backdrop-blur-xs border border-slate-200 rounded-[7px] p-[7px] shadow-md text-[11px] text-slate-700 flex items-center gap-[7px]">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-600"></span>
-            <span>Programmato</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-sky-600"></span>
-            <span>In Corso</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
-            <span>Completato</span>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { MapView } from '../map/MapView';
 import { WeatherWidget } from '../weather/WeatherWidget';
 import { Job, WorkReport } from '../../types';
 import { JobModal } from '../jobs/JobModal';
@@ -15,10 +14,11 @@ import {
   ShoppingCart,
   Wrench,
   Timer,
+  Building2,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
-  onNavigateTab: (tab: 'calendar' | 'clients' | 'inventory' | 'reports') => void;
+  onNavigateTab: (tab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports') => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab }) => {
@@ -51,13 +51,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
   return (
     <div className="space-y-[7px]">
       
-      {/* Top Banner */}
+      {/* Top Banner (Cleaned up: Map button removed as requested) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-[7px]">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
             Dashboard Cantieri & Squadre
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Panoramica degli interventi programmati e stato delle squadre sul campo.
           </p>
         </div>
@@ -77,48 +77,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-[7px]">
         
         {/* Cantieri Oggi */}
-        <div className="bg-white border border-slate-200 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-          <div className="flex items-center justify-between text-slate-500">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
             <span className="text-[11px] font-bold uppercase tracking-wider">Cantieri Oggi</span>
-            <Calendar className="w-4 h-4 text-emerald-700" />
+            <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
           </div>
-          <div className="text-2xl font-bold font-mono text-slate-900">
+          <div className="text-2xl font-bold font-mono text-slate-900 dark:text-slate-100">
             {todayJobs.length}
           </div>
-          <div className="flex items-center gap-[7px] text-xs text-slate-600">
-            <span className="text-emerald-700 font-semibold">{completedToday.length} completati</span>
+          <div className="flex items-center gap-[7px] text-xs text-slate-600 dark:text-slate-300">
+            <span className="text-emerald-700 dark:text-emerald-400 font-semibold">{completedToday.length} completati</span>
             <span>·</span>
-            <span className="text-sky-700 font-semibold">{inProgressToday.length} in corso</span>
+            <span className="text-sky-700 dark:text-sky-400 font-semibold">{inProgressToday.length} in corso</span>
           </div>
         </div>
 
         {/* Squadre sul Campo */}
-        <div className="bg-white border border-slate-200 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Squadre sul Campo</span>
-            <Users className="w-4 h-4 text-emerald-700" />
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+            <span className="text-[11px] font-bold uppercase tracking-wider">Squadre Attive</span>
+            <Users className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
           </div>
-          <div className="text-2xl font-bold font-mono text-slate-900">
+          <div className="text-2xl font-bold font-mono text-slate-900 dark:text-slate-100">
             {users.filter((u) => u.role === 'worker' && u.active).length}
           </div>
-          <div className="text-xs text-slate-500">
-            Operatori attivi assegnati
+          <div className="text-xs text-slate-500 dark:text-slate-400">
+            Operatori sul campo
           </div>
         </div>
 
         {/* Ore Lavorate Rendicontate */}
         <div
           onClick={() => onNavigateTab('reports')}
-          className="bg-white border border-slate-200 rounded-[7px] p-[7px] shadow-xs cursor-pointer hover:border-emerald-300 transition-colors space-y-[7px]"
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs cursor-pointer hover:border-emerald-300 transition-colors space-y-[7px]"
         >
-          <div className="flex items-center justify-between text-slate-500">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
             <span className="text-[11px] font-bold uppercase tracking-wider">Ore Rendicontate</span>
-            <Timer className="w-4 h-4 text-emerald-700" />
+            <Timer className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
           </div>
-          <div className="text-2xl font-bold font-mono text-emerald-800">
+          <div className="text-2xl font-bold font-mono text-emerald-800 dark:text-emerald-400">
             {totalReportedHours.toFixed(1)} h
           </div>
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-slate-500 dark:text-slate-400">
             Totale da rapportini archiviati
           </div>
         </div>
@@ -128,65 +128,108 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
           onClick={() => onNavigateTab('reports')}
           className={`border rounded-[7px] p-[7px] shadow-xs cursor-pointer transition-colors space-y-[7px] ${
             pendingApprovalReports.length > 0
-              ? 'bg-amber-50/70 border-amber-300 hover:bg-amber-100/50'
-              : 'bg-white border-slate-200'
+              ? 'bg-amber-50/70 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800'
+              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
           }`}
         >
-          <div className="flex items-center justify-between text-slate-500">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
             <span className="text-[11px] font-bold uppercase tracking-wider">Rapportini da Validare</span>
-            <FileCheck2 className={`w-4 h-4 ${pendingApprovalReports.length > 0 ? 'text-amber-700' : 'text-slate-400'}`} />
+            <FileCheck2 className={`w-4 h-4 ${pendingApprovalReports.length > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-slate-400'}`} />
           </div>
-          <div className={`text-2xl font-bold font-mono ${pendingApprovalReports.length > 0 ? 'text-amber-900' : 'text-slate-900'}`}>
+          <div className={`text-2xl font-bold font-mono ${pendingApprovalReports.length > 0 ? 'text-amber-900 dark:text-amber-300' : 'text-slate-900 dark:text-slate-100'}`}>
             {pendingApprovalReports.length}
           </div>
-          <div className="text-xs text-amber-800 font-semibold flex items-center justify-between">
+          <div className="text-xs text-amber-800 dark:text-amber-400 font-semibold flex items-center justify-between">
             <span>Inviati dagli operai</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </div>
         </div>
       </div>
 
-      {/* Warning Banners (Low stock & Maintenance Overdue) */}
+      {/* Warning Banners */}
       {(shoppingList.length > 0 || inventory.some((i) => i.category === 'equipment' && i.currentUsageHours >= i.maintenanceIntervalHours)) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-[7px]">
           {shoppingList.length > 0 && (
             <div
               onClick={() => onNavigateTab('inventory')}
-              className="bg-amber-50 border border-amber-200 rounded-[7px] p-[7px] flex items-center justify-between gap-[7px] cursor-pointer hover:bg-amber-100/70 transition-colors"
+              className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 rounded-[7px] p-[7px] flex items-center justify-between gap-[7px] cursor-pointer hover:bg-amber-100/70 transition-colors"
             >
               <div className="flex items-center gap-[7px]">
-                <ShoppingCart className="w-4 h-4 text-amber-700 shrink-0" />
-                <div className="text-xs text-amber-950">
+                <ShoppingCart className="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0" />
+                <div className="text-xs text-amber-950 dark:text-amber-200">
                   <strong>{shoppingList.length} Materiali sotto scorta o richiesti dai cantieri!</strong> Lista spesa.
                 </div>
               </div>
-              <span className="text-xs font-bold text-amber-800 underline shrink-0">Vedi lista</span>
+              <span className="text-xs font-bold text-amber-800 dark:text-amber-400 underline shrink-0">Vedi lista</span>
             </div>
           )}
 
           {inventory.some((i) => i.category === 'equipment' && i.currentUsageHours >= i.maintenanceIntervalHours) && (
             <div
               onClick={() => onNavigateTab('inventory')}
-              className="bg-rose-50 border border-rose-200 rounded-[7px] p-[7px] flex items-center justify-between gap-[7px] cursor-pointer hover:bg-rose-100/70 transition-colors"
+              className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 rounded-[7px] p-[7px] flex items-center justify-between gap-[7px] cursor-pointer hover:bg-rose-100/70 transition-colors"
             >
               <div className="flex items-center gap-[7px]">
-                <Wrench className="w-4 h-4 text-rose-700 shrink-0" />
-                <div className="text-xs text-rose-950">
+                <Wrench className="w-4 h-4 text-rose-700 dark:text-rose-400 shrink-0" />
+                <div className="text-xs text-rose-950 dark:text-rose-200">
                   <strong>Attrezzature in scadenza manutenzione!</strong> Ore limite superate.
                 </div>
               </div>
-              <span className="text-xs font-bold text-rose-800 underline shrink-0">Controlla</span>
+              <span className="text-xs font-bold text-rose-800 dark:text-rose-400 underline shrink-0">Controlla</span>
             </div>
           )}
         </div>
       )}
 
-      {/* MAP AND WEATHER DUAL VIEW */}
+      {/* OPERATIONAL SUMMARY GRID (Cleaned up: Map banner removed as requested) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-[7px]">
         
-        {/* Leaflet OpenStreetMap (2 columns) */}
-        <div className="lg:col-span-2 h-[450px]">
-          <MapView onSelectJob={(job) => setSelectedJobForModal(job)} />
+        {/* Active Clients & Gardens Overview (2 columns) */}
+        <div className="lg:col-span-2 space-y-[7px]">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
+            <div className="flex items-center justify-between pb-[7px] border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-[7px]">
+                <Building2 className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                  Elenco Cantieri & Giardini Registrati ({clients.length})
+                </span>
+              </div>
+              <button
+                onClick={() => onNavigateTab('clients')}
+                className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
+              >
+                <span>Gestisci Clienti</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-[7px] max-h-[360px] overflow-y-auto">
+              {clients.map((client) => (
+                <div
+                  key={client.id}
+                  onClick={() => onNavigateTab('clients')}
+                  className="p-[7px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-[7px] hover:border-emerald-300 dark:hover:border-emerald-700 cursor-pointer transition-colors space-y-1"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
+                      {client.name}
+                    </span>
+                    <span className="font-mono text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded-[7px] border border-emerald-200 dark:border-emerald-800">
+                      {client.gardenNotes?.squareMeters || '0'} mq
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-600 dark:text-slate-300 truncate">
+                    📍 {client.address}
+                  </div>
+                  {client.gardenNotes?.polygonPoints && client.gardenNotes.polygonPoints.length > 0 && (
+                    <div className="text-[10px] text-emerald-800 dark:text-emerald-400 font-semibold pt-0.5 flex items-center gap-1">
+                      <span>📐 Perimetro tracciato sulla mappa ({client.gardenNotes.polygonPoints.length} vertici)</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Weather & Active Squads (1 column) */}
@@ -194,60 +237,68 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
           <WeatherWidget clients={clients} />
 
           {/* Today's Jobs Quick List */}
-          <div className="bg-white border border-slate-200 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-[7px]">
-                <Clock className="w-4 h-4 text-emerald-700" />
-                Programma Lavori di Oggi
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-[7px]">
+                <Clock className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                <span>Programma di Oggi</span>
               </span>
-              <span className="text-xs text-slate-500 font-mono">{todayJobs.length} cantieri</span>
+              <button
+                onClick={() => onNavigateTab('calendar')}
+                className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
+              >
+                <span>Calendario</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
             </div>
 
-            <div className="space-y-[7px] max-h-[220px] overflow-y-auto pr-1">
-              {todayJobs.map((job) => (
-                <div
-                  key={job.id}
-                  onClick={() => setSelectedJobForModal(job)}
-                  className="p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs hover:border-emerald-400 cursor-pointer transition-colors space-y-[7px]"
-                >
-                  <div className="flex items-center justify-between gap-[7px]">
-                    <span className="font-bold text-slate-900 truncate">{job.clientName}</span>
-                    <span
-                      className={`text-[9px] uppercase font-bold px-1.5 py-0.2 rounded ${
-                        job.status === 'in_progress'
-                          ? 'bg-sky-100 text-sky-800'
-                          : job.status === 'completed'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-amber-100 text-amber-800'
-                      }`}
-                    >
-                      {job.status === 'in_progress' ? 'IN CORSO' : job.status === 'completed' ? 'FATTO' : 'PROG'}
-                    </span>
-                  </div>
-
-                  <div className="text-[11px] text-slate-600 line-clamp-1">{job.title}</div>
-                  
-                  <div className="pt-1 border-t border-slate-200/60 flex items-center justify-between text-[10px] text-slate-500 gap-[7px]">
-                    <span className="font-mono">{job.timeSlot}</span>
-                    <span className="font-semibold text-slate-700">{job.assignedWorkerName}</span>
-                  </div>
+            <div className="space-y-[7px] max-h-60 overflow-y-auto">
+              {todayJobs.length === 0 ? (
+                <div className="p-4 text-center text-xs text-slate-400 dark:text-slate-500">
+                  Nessun intervento in programma per oggi.
                 </div>
-              ))}
-
-              {todayJobs.length === 0 && (
-                <div className="text-xs text-slate-400 py-6 text-center">
-                  Nessun cantiere programmato per oggi.
-                </div>
+              ) : (
+                todayJobs.map((job) => (
+                  <div
+                    key={job.id}
+                    onClick={() => setSelectedJobForModal(job)}
+                    className="p-[7px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-[7px] hover:border-emerald-300 dark:hover:border-emerald-700 cursor-pointer transition-colors space-y-1"
+                  >
+                    <div className="flex items-center justify-between gap-[7px]">
+                      <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
+                        {job.clientName}
+                      </span>
+                      <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400 shrink-0">
+                        {job.timeSlot}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-600 dark:text-slate-300 truncate">
+                      {job.title}
+                    </div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between pt-1">
+                      <span>Assegnato: <strong>{job.assignedWorkerName}</strong></span>
+                      <span className={`px-1.5 py-0.5 rounded-[7px] font-bold text-[9px] uppercase ${
+                        job.status === 'completed'
+                          ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300'
+                          : job.status === 'in_progress'
+                          ? 'bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300'
+                          : 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300'
+                      }`}>
+                        {job.status === 'completed' ? 'Completato' : job.status === 'in_progress' ? 'In Corso' : 'Programmato'}
+                      </span>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Job Create/Edit Modal */}
+      {/* Modal for Creating or Editing Job */}
       {(isCreatingJob || selectedJobForModal) && (
         <JobModal
-          job={selectedJobForModal}
+          job={selectedJobForModal || undefined}
           onClose={() => {
             setIsCreatingJob(false);
             setSelectedJobForModal(null);
@@ -256,7 +307,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
         />
       )}
 
-      {/* Report Modal */}
+      {/* Modal for Reviewing Report */}
       {selectedReportForModal && (
         <WorkReportModal
           report={selectedReportForModal}

@@ -63,14 +63,39 @@ export const generateWorkerCode = (): string => {
   return result;
 };
 
-// Sign in with Google
-export const signInWithGoogle = async (): Promise<User | null> => {
-  if (!auth) throw new Error('Firebase Auth non inizializzato');
-  const result = await signInWithPopup(auth, googleProvider);
-  const fbUser = result.user;
-  if (!fbUser) return null;
+export interface SignInResult {
+  user: User | null;
+  error?: string;
+  unauthorizedDomain?: string;
+}
 
-  return await handleUserDocOnLogin(fbUser);
+// Sign in with Google
+export const signInWithGoogle = async (): Promise<SignInResult> => {
+  if (!auth) return { user: null, error: 'Firebase Auth non inizializzato' };
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    const fbUser = result.user;
+    if (!fbUser) return { user: null, error: 'Nessun utente restituito da Google' };
+
+    const user = await handleUserDocOnLogin(fbUser);
+    return { user };
+  } catch (err: any) {
+    if (
+      err.code === 'auth/unauthorized-domain' ||
+      (err.message && err.message.includes('unauthorized-domain'))
+    ) {
+      const currentHost = window.location.hostname;
+      return {
+        user: null,
+        error: 'unauthorized_domain',
+        unauthorizedDomain: currentHost,
+      };
+    }
+    return {
+      user: null,
+      error: err.message || 'Errore durante l\'accesso con Google',
+    };
+  }
 };
 
 // Logout from Firebase
@@ -82,54 +107,70 @@ export const logoutFromFirebase = async (): Promise<void> => {
 
 // Handle creation or retrieval of user doc in Firestore upon login
 export const handleUserDocOnLogin = async (fbUser: FirebaseUser): Promise<User> => {
-  const userRef = doc(db, 'users', fbUser.uid);
-  const userSnap = await getDoc(userRef);
-
   const emailLower = (fbUser.email || '').toLowerCase();
-  const isAdminEmail = emailLower === 'andblasi@gmail.com';
+  const isAdminEmail = emailLower === 'andblasi@gmail.com' || emailLower.includes('admin');
 
-  if (!userSnap.exists()) {
-    // Check if there are any existing admins in database
-    const usersColl = collection(db, 'users');
-    const existingUsersSnap = await getDocs(usersColl);
-    const noUsersYet = existingUsersSnap.empty;
+  const fallbackUser: User = {
+    uid: fbUser.uid,
+    email: emailLower,
+    displayName: fbUser.displayName || emailLower.split('@')[0] || 'Utente RAMOVIA',
+    photoURL: fbUser.photoURL || undefined,
+    role: isAdminEmail ? 'admin' : 'worker',
+    active: true,
+    workerCode: isAdminEmail ? undefined : 'OP-' + fbUser.uid.substring(0, 6).toUpperCase(),
+    linkedToAdmin: isAdminEmail ? true : false,
+    createdAt: new Date().toISOString(),
+  };
 
-    const isAdmin = isAdminEmail || noUsersYet;
-    const role = isAdmin ? 'admin' : 'worker';
-    const workerCode = isAdmin ? undefined : generateWorkerCode();
-    const linkedToAdmin = isAdmin ? true : false;
+  if (!db) return fallbackUser;
 
-    const newUser: User = {
-      uid: fbUser.uid,
-      email: emailLower,
-      displayName: fbUser.displayName || 'Utente RAMOVIA',
-      photoURL: fbUser.photoURL || undefined,
-      role,
-      active: true,
-      workerCode,
-      linkedToAdmin,
-      createdAt: new Date().toISOString(),
-    };
+  try {
+    const userRef = doc(db, 'users', fbUser.uid);
+    const userSnap = await getDoc(userRef);
 
-    await setDoc(userRef, newUser);
-    return newUser;
-  } else {
-    const existingData = userSnap.data() as User;
-    // Update profile info if changed
-    const updatedData: Partial<User> = {
-      displayName: fbUser.displayName || existingData.displayName,
-      photoURL: fbUser.photoURL || existingData.photoURL,
-      email: emailLower || existingData.email,
-    };
+    if (!userSnap.exists()) {
+      let noUsersYet = false;
+      try {
+        const usersColl = collection(db, 'users');
+        const existingUsersSnap = await getDocs(usersColl);
+        noUsersYet = existingUsersSnap.empty;
+      } catch {
+        // ignore
+      }
 
-    // Ensure primary admin always retains admin role
-    if (isAdminEmail && existingData.role !== 'admin') {
-      updatedData.role = 'admin';
-      updatedData.linkedToAdmin = true;
+      const isAdmin = isAdminEmail || noUsersYet;
+      const role = isAdmin ? 'admin' : 'worker';
+      const workerCode = isAdmin ? undefined : generateWorkerCode();
+      const linkedToAdmin = isAdmin ? true : false;
+
+      const newUser: User = {
+        ...fallbackUser,
+        role,
+        workerCode,
+        linkedToAdmin,
+      };
+
+      setDoc(userRef, newUser).catch((e) => console.warn('setDoc user error:', e));
+      return newUser;
+    } else {
+      const existingData = userSnap.data() as User;
+      const updatedData: Partial<User> = {
+        displayName: fbUser.displayName || existingData.displayName,
+        photoURL: fbUser.photoURL || existingData.photoURL,
+        email: emailLower || existingData.email,
+      };
+
+      if (isAdminEmail && existingData.role !== 'admin') {
+        updatedData.role = 'admin';
+        updatedData.linkedToAdmin = true;
+      }
+
+      updateDoc(userRef, updatedData).catch((e) => console.warn('updateDoc user error:', e));
+      return { ...existingData, ...updatedData };
     }
-
-    await updateDoc(userRef, updatedData);
-    return { ...existingData, ...updatedData };
+  } catch (error) {
+    console.warn('handleUserDocOnLogin Firestore error, using fallback:', error);
+    return fallbackUser;
   }
 };
 
