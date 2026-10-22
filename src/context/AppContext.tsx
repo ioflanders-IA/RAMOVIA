@@ -1,0 +1,364 @@
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import {
+  INITIAL_CLIENTS,
+  INITIAL_INVENTORY,
+  INITIAL_JOBS,
+  INITIAL_REPORTS,
+  INITIAL_USERS,
+} from '../data/mockData';
+import {
+  Client,
+  InventoryItem,
+  Job,
+  ShoppingListItem,
+  User,
+  WorkReport,
+} from '../types';
+
+interface AppContextType {
+  currentUser: User;
+  users: User[];
+  clients: Client[];
+  jobs: Job[];
+  inventory: InventoryItem[];
+  reports: WorkReport[];
+  shoppingList: ShoppingListItem[];
+  switchUser: (uid: string) => void;
+  // Clients
+  addClient: (clientData: Omit<Client, 'id' | 'createdAt'>) => void;
+  updateClient: (client: Client) => void;
+  deleteClient: (id: string) => void;
+  // Jobs
+  addJob: (jobData: Omit<Job, 'id'>) => void;
+  updateJob: (job: Job) => void;
+  deleteJob: (id: string) => void;
+  startJob: (id: string) => void;
+  // Inventory
+  addInventoryItem: (itemData: Omit<InventoryItem, 'id'>) => void;
+  updateInventoryItem: (item: InventoryItem) => void;
+  deleteInventoryItem: (id: string) => void;
+  recordEquipmentMaintenance: (itemId: string, newUsageHours: number) => void;
+  // Reports
+  submitWorkReport: (reportData: Omit<WorkReport, 'id' | 'createdAt' | 'status'>) => void;
+  approveWorkReport: (reportId: string, adminNotes?: string) => void;
+  // Utility
+  resetToMockData: () => void;
+}
+
+const STORAGE_KEYS = {
+  USERS: 'ramovia_users_v1',
+  CURRENT_USER_ID: 'ramovia_current_uid_v1',
+  CLIENTS: 'ramovia_clients_v1',
+  JOBS: 'ramovia_jobs_v1',
+  INVENTORY: 'ramovia_inventory_v1',
+  REPORTS: 'ramovia_reports_v1',
+};
+
+const AppContext = createContext<AppContextType | undefined>(undefined);
+
+export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Initialize state with localStorage fallbacks
+  const [users, setUsers] = useState<User[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.USERS);
+    return saved ? JSON.parse(saved) : INITIAL_USERS;
+  });
+
+  const [currentUserId, setCurrentUserId] = useState<string>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+    return saved || INITIAL_USERS[0].uid;
+  });
+
+  const [clients, setClients] = useState<Client[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.CLIENTS);
+    return saved ? JSON.parse(saved) : INITIAL_CLIENTS;
+  });
+
+  const [jobs, setJobs] = useState<Job[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.JOBS);
+    return saved ? JSON.parse(saved) : INITIAL_JOBS;
+  });
+
+  const [inventory, setInventory] = useState<InventoryItem[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.INVENTORY);
+    return saved ? JSON.parse(saved) : INITIAL_INVENTORY;
+  });
+
+  const [reports, setReports] = useState<WorkReport[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.REPORTS);
+    return saved ? JSON.parse(saved) : INITIAL_REPORTS;
+  });
+
+  // Sync to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+  }, [users]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, currentUserId);
+  }, [currentUserId]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients));
+  }, [clients]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(jobs));
+  }, [jobs]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(inventory));
+  }, [inventory]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+  }, [reports]);
+
+  const currentUser = users.find((u) => u.uid === currentUserId) || users[0];
+
+  const switchUser = (uid: string) => {
+    const found = users.find((u) => u.uid === uid);
+    if (found) {
+      setCurrentUserId(uid);
+    }
+  };
+
+  // CLIENT MANAGEMENT
+  const addClient = (clientData: Omit<Client, 'id' | 'createdAt'>) => {
+    const newClient: Client = {
+      ...clientData,
+      id: `cli_${Date.now()}`,
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    setClients((prev) => [newClient, ...prev]);
+  };
+
+  const updateClient = (updated: Client) => {
+    setClients((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    // Also sync client name & address to uncompleted jobs
+    setJobs((prev) =>
+      prev.map((j) =>
+        j.clientId === updated.id
+          ? {
+              ...j,
+              clientName: updated.name,
+              clientAddress: updated.address,
+              clientPhone: updated.phone,
+              lat: updated.lat,
+              lng: updated.lng,
+            }
+          : j
+      )
+    );
+  };
+
+  const deleteClient = (id: string) => {
+    setClients((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  // JOB MANAGEMENT
+  const addJob = (jobData: Omit<Job, 'id'>) => {
+    const newJob: Job = {
+      ...jobData,
+      id: `job_${Date.now()}`,
+    };
+    setJobs((prev) => [newJob, ...prev]);
+  };
+
+  const updateJob = (updated: Job) => {
+    setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+  };
+
+  const deleteJob = (id: string) => {
+    setJobs((prev) => prev.filter((j) => j.id !== id));
+  };
+
+  const startJob = (id: string) => {
+    setJobs((prev) =>
+      prev.map((j) => (j.id === id ? { ...j, status: 'in_progress' } : j))
+    );
+  };
+
+  // INVENTORY MANAGEMENT
+  const addInventoryItem = (itemData: Omit<InventoryItem, 'id'>) => {
+    const newItem: InventoryItem = {
+      ...itemData,
+      id: `inv_${itemData.category === 'equipment' ? 'eq' : 'mat'}_${Date.now()}`,
+    };
+    setInventory((prev) => [newItem, ...prev]);
+  };
+
+  const updateInventoryItem = (updated: InventoryItem) => {
+    setInventory((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+  };
+
+  const deleteInventoryItem = (id: string) => {
+    setInventory((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const recordEquipmentMaintenance = (itemId: string, newUsageHours: number) => {
+    setInventory((prev) =>
+      prev.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              currentUsageHours: newUsageHours,
+              status: 'available',
+              lastMaintenanceDate: new Date().toISOString().split('T')[0],
+            }
+          : item
+      )
+    );
+  };
+
+  // REPORT & TIMESHEET SUBMISSION
+  const submitWorkReport = (reportData: Omit<WorkReport, 'id' | 'createdAt' | 'status'>) => {
+    const newReport: WorkReport = {
+      ...reportData,
+      id: `rep_${Date.now()}`,
+      status: 'submitted',
+      createdAt: new Date().toISOString(),
+    };
+
+    setReports((prev) => [newReport, ...prev]);
+
+    // 1. Mark corresponding job as completed
+    setJobs((prev) =>
+      prev.map((j) => (j.id === reportData.jobId ? { ...j, status: 'completed' } : j))
+    );
+
+    // 2. Automatically deduct materials used from inventory
+    if (reportData.materialsUsed && reportData.materialsUsed.length > 0) {
+      setInventory((prev) =>
+        prev.map((inv) => {
+          const used = reportData.materialsUsed.find((m) => m.itemId === inv.id);
+          if (used) {
+            const newQty = Math.max(0, inv.quantity - used.qty);
+            return { ...inv, quantity: newQty };
+          }
+          return inv;
+        })
+      );
+    }
+  };
+
+  const approveWorkReport = (reportId: string, adminNotes?: string) => {
+    setReports((prev) =>
+      prev.map((r) =>
+        r.id === reportId
+          ? {
+              ...r,
+              status: 'approved',
+              adminNotes: adminNotes ?? r.adminNotes,
+            }
+          : r
+      )
+    );
+  };
+
+  // CALCULATE SHOPPING LIST (Lista Spesa / Da Acquistare)
+  // Compares current stock of materials with minThreshold AND materials needed for scheduled/in-progress jobs
+  const calculateShoppingList = (): ShoppingListItem[] => {
+    const materialsNeededMap = new Map<string, number>();
+
+    // Sum needed materials from all pending jobs (scheduled or in_progress)
+    const pendingJobs = jobs.filter(
+      (j) => j.status === 'scheduled' || j.status === 'in_progress'
+    );
+
+    for (const job of pendingJobs) {
+      for (const req of job.materialsRequired || []) {
+        const current = materialsNeededMap.get(req.itemId) || 0;
+        materialsNeededMap.set(req.itemId, current + req.qtyNeeded);
+      }
+    }
+
+    const itemsToBuy: ShoppingListItem[] = [];
+
+    // Filter only materials
+    const materials = inventory.filter((item) => item.category === 'material');
+
+    for (const mat of materials) {
+      const neededForJobs = materialsNeededMap.get(mat.id) || 0;
+      const effectiveAvailable = mat.quantity;
+      const shortfallFromMin = Math.max(0, mat.minThreshold - effectiveAvailable);
+      const shortfallFromJobs = Math.max(0, neededForJobs - effectiveAvailable);
+
+      // Trigger reorder if below minThreshold or jobs require more than on hand
+      if (effectiveAvailable < mat.minThreshold || neededForJobs > effectiveAvailable) {
+        const toOrder = Math.max(
+          shortfallFromMin + (neededForJobs > effectiveAvailable ? shortfallFromJobs : 0),
+          Math.max(1, mat.minThreshold)
+        );
+
+        itemsToBuy.push({
+          itemId: mat.id,
+          name: mat.name,
+          currentStock: mat.quantity,
+          minThreshold: mat.minThreshold,
+          neededForScheduledJobs: neededForJobs,
+          toOrder,
+          unit: mat.unit,
+          urgency: neededForJobs > effectiveAvailable || mat.quantity <= mat.minThreshold / 2 ? 'high' : 'medium',
+        });
+      }
+    }
+
+    return itemsToBuy;
+  };
+
+  const shoppingList = calculateShoppingList();
+
+  const resetToMockData = () => {
+    localStorage.removeItem(STORAGE_KEYS.USERS);
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+    localStorage.removeItem(STORAGE_KEYS.CLIENTS);
+    localStorage.removeItem(STORAGE_KEYS.JOBS);
+    localStorage.removeItem(STORAGE_KEYS.INVENTORY);
+    localStorage.removeItem(STORAGE_KEYS.REPORTS);
+    setUsers(INITIAL_USERS);
+    setCurrentUserId(INITIAL_USERS[0].uid);
+    setClients(INITIAL_CLIENTS);
+    setJobs(INITIAL_JOBS);
+    setInventory(INITIAL_INVENTORY);
+    setReports(INITIAL_REPORTS);
+  };
+
+  return (
+    <AppContext.Provider
+      value={{
+        currentUser,
+        users,
+        clients,
+        jobs,
+        inventory,
+        reports,
+        shoppingList,
+        switchUser,
+        addClient,
+        updateClient,
+        deleteClient,
+        addJob,
+        updateJob,
+        deleteJob,
+        startJob,
+        addInventoryItem,
+        updateInventoryItem,
+        deleteInventoryItem,
+        recordEquipmentMaintenance,
+        submitWorkReport,
+        approveWorkReport,
+        resetToMockData,
+      }}
+    >
+      {children}
+    </AppContext.Provider>
+  );
+};
+
+export const useApp = () => {
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error('useApp must be used within an AppProvider');
+  }
+  return context;
+};

@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "RAMOVIA - Gestionale Verde",
+  "short_name": "RAMOVIA",
+  "description": "Gestionale operativo per ditte di manutenzione del verde e giardinaggio",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1b4332",
+  "theme_color": "#1b4332",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

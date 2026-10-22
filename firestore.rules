@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function: Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function: Get current user role
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    // Helper function: Check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && (getUserRole() == 'admin' || request.auth.token.admin == true);
+    }
+    
+    // Helper function: Check if user is worker
+    function isWorker() {
+      return isAuthenticated() && getUserRole() == 'worker';
+    }
+
+    // USERS
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // CLIENTS & GARDENS
+    match /clients/{clientId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // JOBS / INTERVENTI
+    match /jobs/{jobId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.assignedWorkerId == request.auth.uid
+      );
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isWorker() && 
+        resource.data.assignedWorkerId == request.auth.uid
+      );
+    }
+
+    // INVENTORY / MAGAZZINO & ATTREZZATURE
+    match /inventory/{itemId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+      // Workers can decrement quantities when reporting used materials
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quantity', 'currentUsageHours']))
+      );
+    }
+
+    // TIMESHEETS & RAPPORTINI DI LAVORO
+    match /timesheets_and_reports/{reportId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.workerId == request.auth.uid
+      );
+      allow create: if isAuthenticated() && (
+        isAdmin() || 
+        request.resource.data.workerId == request.auth.uid
+      );
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        (resource.data.workerId == request.auth.uid && resource.data.status != 'approved')
+      );
+      allow delete: if isAdmin();
+    }
+  }
+}

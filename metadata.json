@@ -1,0 +1,10 @@
+{
+  "name": "RAMOVIA - Gestionale Manutenzione Verde & Giardinaggio",
+  "description": "Gestionale operativo per ditte di manutenzione del verde e giardinaggio con tracciamento cantieri, mappa interattiva, meteo Open-Meteo, magazzino e rapportini di lavoro digitali.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
