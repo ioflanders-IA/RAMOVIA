@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CloudRain, Sun, Wind, Droplets, AlertTriangle, CloudSun } from 'lucide-react';
+import { Sun, Wind, Droplets, AlertTriangle, CloudSun } from 'lucide-react';
 import { fetchWeatherForLocation } from '../../services/weatherService';
 import { WeatherData, Client } from '../../types';
 
@@ -9,7 +9,7 @@ interface WeatherWidgetProps {
 }
 
 export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ clients, selectedClientId }) => {
-  const [activeClient, setActiveClient] = useState<Client>(() => {
+  const [activeClient, setActiveClient] = useState<Client | undefined>(() => {
     return clients.find((c) => c.id === selectedClientId) || clients[0];
   });
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -18,7 +18,9 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ clients, selectedC
   useEffect(() => {
     if (selectedClientId) {
       const match = clients.find((c) => c.id === selectedClientId);
-      if (match) setActiveClient(match);
+      setActiveClient(match || clients[0]);
+    } else {
+      setActiveClient(clients[0]);
     }
   }, [selectedClientId, clients]);
 
@@ -44,7 +46,21 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ clients, selectedC
     };
   }, [activeClient]);
 
-  if (!activeClient) return null;
+  if (!activeClient) {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+        <div className="flex items-center gap-2 mb-2">
+          <CloudSun className="w-4 h-4 text-emerald-700" />
+          <span className="text-xs font-semibold text-slate-800 uppercase tracking-wider">
+            Meteo Cantieri
+          </span>
+        </div>
+        <p className="text-xs text-slate-500 py-3">
+          Nessun cantiere presente. Inserisci un cliente con coordinate per monitorare le condizioni meteo e l'allerta pioggia.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col justify-between">
@@ -57,20 +73,22 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ clients, selectedC
           </span>
         </div>
 
-        <select
-          value={activeClient.id}
-          onChange={(e) => {
-            const found = clients.find((c) => c.id === e.target.value);
-            if (found) setActiveClient(found);
-          }}
-          className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-700 max-w-[170px] truncate focus:outline-emerald-600"
-        >
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        {clients.length > 1 && (
+          <select
+            value={activeClient.id}
+            onChange={(e) => {
+              const found = clients.find((c) => c.id === e.target.value);
+              if (found) setActiveClient(found);
+            }}
+            className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-700 max-w-[170px] truncate focus:outline-emerald-600"
+          >
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Main Weather Information */}
@@ -86,7 +104,9 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ clients, selectedC
                 <span className="text-3xl font-bold font-mono tracking-tight text-slate-900">
                   {weather.temp}°C
                 </span>
-                <span className="text-xs text-slate-500 font-medium">Lombardia</span>
+                <span className="text-xs text-slate-500 font-medium truncate max-w-[120px]">
+                  {activeClient.address}
+                </span>
               </div>
               <div className="text-xs font-medium text-slate-700 mt-0.5">{weather.condition}</div>
             </div>
@@ -103,7 +123,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ clients, selectedC
             </div>
           </div>
 
-          {/* Rain Alert Box (Critical for Gardening & Landscaping) */}
+          {/* Rain Alert Box */}
           {weather.rainAlert ? (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
@@ -114,7 +134,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ clients, selectedC
           ) : (
             <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-lg p-2 flex items-center gap-2 text-xs text-emerald-900">
               <Sun className="w-4 h-4 text-emerald-700 shrink-0" />
-              <span>Condizioni ottimali per sfalci, potature e concimazione.</span>
+              <span>Condizioni ottimali per lavori all'aperto.</span>
             </div>
           )}
         </div>

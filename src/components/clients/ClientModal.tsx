@@ -15,7 +15,6 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
   const [address, setAddress] = useState(client?.address || '');
   const [lat, setLat] = useState<number>(client?.lat || 45.65);
   const [lng, setLng] = useState<number>(client?.lng || 9.32);
-  const [hourlyPriceCharged, setHourlyPriceCharged] = useState<number>(client?.hourlyPriceCharged || 45);
 
   // Garden Notes
   const [squareMeters, setSquareMeters] = useState<number>(client?.gardenNotes.squareMeters || 500);
@@ -34,7 +33,6 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
       address,
       lat: Number(lat),
       lng: Number(lng),
-      hourlyPriceCharged: Number(hourlyPriceCharged),
       gardenNotes: {
         squareMeters: Number(squareMeters),
         irrigationDetails,
@@ -67,30 +65,30 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
           {/* Anagrafica Base */}
           <div className="space-y-3">
             <h3 className="font-bold text-slate-900 uppercase tracking-wider text-[11px]">
-              Dati Generali Committente
+              Dati Committente
             </h3>
 
             <div>
-              <label className="font-medium text-slate-600 block mb-1">Nome Cliente / Villa / Condominio *</label>
+              <label className="font-medium text-slate-600 block mb-1">Nome Cliente / Cantiere *</label>
               <input
                 type="text"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="es. Villa Bellavista o Condominio Le Ginestre"
+                placeholder="es. Villa Visconti"
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-emerald-600 text-xs"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="font-medium text-slate-600 block mb-1">Telefono / Cellulare *</label>
+                <label className="font-medium text-slate-600 block mb-1">Telefono *</label>
                 <input
                   type="text"
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+39 347 ..."
+                  placeholder="+39 ..."
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-emerald-600 text-xs"
                 />
               </div>
@@ -101,25 +99,25 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="amministrazione@..."
+                  placeholder="info@..."
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-emerald-600 text-xs"
                 />
               </div>
             </div>
 
             <div>
-              <label className="font-medium text-slate-600 block mb-1">Indirizzo Completo Cantiere *</label>
+              <label className="font-medium text-slate-600 block mb-1">Indirizzo Cantiere *</label>
               <input
                 type="text"
                 required
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="Via Roma 12, Monza (MB)"
+                placeholder="Via Roma 12"
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-emerald-600 text-xs"
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="font-medium text-slate-600 block mb-1">Latitudine</label>
                 <input
@@ -138,16 +136,6 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
                   value={lng}
                   onChange={(e) => setLng(parseFloat(e.target.value) || 0)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono"
-                />
-              </div>
-              <div>
-                <label className="font-medium text-slate-600 block mb-1">Tariffa Oraria (€/h)</label>
-                <input
-                  type="number"
-                  step="1"
-                  value={hourlyPriceCharged}
-                  onChange={(e) => setHourlyPriceCharged(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-emerald-800"
                 />
               </div>
             </div>
@@ -192,7 +180,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
                 className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
               />
               <label htmlFor="dogPresentCheck" className="text-xs font-semibold text-amber-950 cursor-pointer">
-                Presenza Cani in Giardino (Alert di sicurezza per operai e macchinari)
+                Presenza Cani in Giardino
               </label>
             </div>
 
@@ -202,18 +190,18 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
                 type="text"
                 value={irrigationDetails}
                 onChange={(e) => setIrrigationDetails(e.target.value)}
-                placeholder="es. 6 zone a scomparsa Hunter + pozzo artesiano"
+                placeholder="es. 6 zone a scomparsa + centralina"
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
               />
             </div>
 
             <div>
-              <label className="font-medium text-slate-600 block mb-1">Essenze e Piante Delicate / Prescrizioni</label>
+              <label className="font-medium text-slate-600 block mb-1">Essenze e Piante Delicate</label>
               <textarea
                 rows={2}
                 value={delicatePlants}
                 onChange={(e) => setDelicatePlants(e.target.value)}
-                placeholder="es. Acero palmato secolare, siepe alloro, aiuola rose inglesi..."
+                placeholder="es. Acero palmato, aiuola rose..."
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
               />
             </div>
@@ -224,7 +212,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="es. Punto acqua nel retro, parcheggio furgone sul passo carraio..."
+                placeholder="es. Punto acqua nel retro..."
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
               />
             </div>

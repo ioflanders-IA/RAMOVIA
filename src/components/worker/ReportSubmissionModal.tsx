@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Job, WorkReport } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { SignaturePad } from '../report/SignaturePad';
-import { SAMPLE_GARDEN_PHOTOS } from '../../data/mockData';
 import {
   X,
   Camera,
@@ -50,16 +49,14 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
   // Selected additional material from inventory
   const [selectedExtraMatId, setSelectedExtraMatId] = useState<string>('');
 
-  // Photos
-  const [photoBefore, setPhotoBefore] = useState<string>(SAMPLE_GARDEN_PHOTOS.before1);
-  const [photoAfter, setPhotoAfter] = useState<string>(SAMPLE_GARDEN_PHOTOS.after1);
+  // Photos: empty by default, loaded from camera/file
+  const [photoBefore, setPhotoBefore] = useState<string>('');
+  const [photoAfter, setPhotoAfter] = useState<string>('');
 
   // Signature & Notes
   const [signatureDataUrl, setSignatureDataUrl] = useState<string>('');
   const [clientSigneeName, setClientSigneeName] = useState<string>('');
-  const [clientNotes, setClientNotes] = useState<string>(
-    'Intervento eseguito secondo le istruzioni concordate. Pulizia e smaltimento completati.'
-  );
+  const [clientNotes, setClientNotes] = useState<string>('');
 
   const [errorMsg, setErrorMsg] = useState<string>('');
 
@@ -137,11 +134,10 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
       photosAfter: photoAfter ? [photoAfter] : [],
       materialsUsed,
       signatureDataUrl,
-      clientSigneeName: clientSigneeName || 'Cliente / Referente cantiere',
+      clientSigneeName: clientSigneeName || 'Cliente',
       clientNotes,
     });
 
-    // Trigger celebration confetti
     try {
       confetti({
         particleCount: 80,
@@ -149,7 +145,7 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
         origin: { y: 0.7 },
         colors: ['#10b981', '#1b4332', '#f97316'],
       });
-    } catch (e) {
+    } catch {
       // ignore
     }
 
@@ -291,7 +287,7 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
                 onChange={(e) => setSelectedExtraMatId(e.target.value)}
                 className="flex-1 text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700"
               >
-                <option value="">+ Aggiungi altro materiale dal furgone...</option>
+                <option value="">+ Aggiungi materiale utilizzato...</option>
                 {inventory
                   .filter((i) => i.category === 'material')
                   .map((m) => (
@@ -324,7 +320,7 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
                   <span>Foto Iniziale (Prima)</span>
                   <label className="cursor-pointer text-slate-600 hover:text-emerald-700 flex items-center gap-1 text-[11px]">
                     <Upload className="w-3 h-3" />
-                    <span>Carica</span>
+                    <span>{photoBefore ? 'Cambia' : 'Carica'}</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -334,13 +330,27 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
                     />
                   </label>
                 </div>
-                <div className="aspect-video rounded-lg overflow-hidden bg-slate-200 relative border border-slate-300">
-                  <img
-                    src={photoBefore}
-                    alt="Prima"
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
+                <div className="aspect-video rounded-lg overflow-hidden bg-slate-200 relative border border-slate-300 flex items-center justify-center">
+                  {photoBefore ? (
+                    <img
+                      src={photoBefore}
+                      alt="Prima"
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <label className="cursor-pointer flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 p-4 text-center">
+                      <Camera className="w-6 h-6 mb-1 text-slate-400" />
+                      <span className="text-[11px]">Scatta o carica foto prima</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={(e) => handleFileUpload(e, 'before')}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
                 </div>
               </div>
 
@@ -350,7 +360,7 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
                   <span>Foto Finale (Dopo)</span>
                   <label className="cursor-pointer text-slate-600 hover:text-emerald-700 flex items-center gap-1 text-[11px]">
                     <Upload className="w-3 h-3" />
-                    <span>Carica</span>
+                    <span>{photoAfter ? 'Cambia' : 'Carica'}</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -360,13 +370,27 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
                     />
                   </label>
                 </div>
-                <div className="aspect-video rounded-lg overflow-hidden bg-slate-200 relative border border-slate-300">
-                  <img
-                    src={photoAfter}
-                    alt="Dopo"
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
+                <div className="aspect-video rounded-lg overflow-hidden bg-slate-200 relative border border-slate-300 flex items-center justify-center">
+                  {photoAfter ? (
+                    <img
+                      src={photoAfter}
+                      alt="Dopo"
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <label className="cursor-pointer flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 p-4 text-center">
+                      <Camera className="w-6 h-6 mb-1 text-slate-400" />
+                      <span className="text-[11px]">Scatta o carica foto dopo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={(e) => handleFileUpload(e, 'after')}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
                 </div>
               </div>
             </div>
@@ -381,7 +405,7 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
               rows={2}
               value={clientNotes}
               onChange={(e) => setClientNotes(e.target.value)}
-              placeholder="Descrivi eventuali criticità rilevate, rami pericolanti segnalati o dettagli per la prossima manutenzione..."
+              placeholder="Inserisci note o dettagli sull'intervento eseguito..."
               className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-lg focus:outline-emerald-600"
             />
           </div>
@@ -398,7 +422,7 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
             <div className="mb-2">
               <input
                 type="text"
-                placeholder="Nome e cognome di chi firma a schermo (es. Ing. Fumagalli)..."
+                placeholder="Nome e cognome di chi firma a schermo..."
                 value={clientSigneeName}
                 onChange={(e) => setClientSigneeName(e.target.value)}
                 className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg focus:outline-emerald-600"

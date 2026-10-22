@@ -2,19 +2,18 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { usePWAInstall } from '../../hooks/usePWA';
 import {
-  Sprout,
   Users,
   Calendar,
   Package,
   FileCheck2,
   LayoutDashboard,
   Download,
-  RotateCcw,
-  UserCheck,
   ChevronDown,
   Menu,
   X,
   Smartphone,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -23,19 +22,38 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
-  const { currentUser, users, switchUser, resetToMockData } = useApp();
+  const { currentUser, users, switchUser, addUser, clearAllData } = useApp();
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
 
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showAddWorkerModal, setShowAddWorkerModal] = useState(false);
+  const [newWorkerName, setNewWorkerName] = useState('');
+  const [newWorkerPhone, setNewWorkerPhone] = useState('');
+
+  const handleAddWorker = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newWorkerName.trim()) return;
+    addUser({
+      displayName: newWorkerName.trim(),
+      email: '',
+      phone: newWorkerPhone.trim(),
+      role: 'worker',
+      active: true,
+    });
+    setNewWorkerName('');
+    setNewWorkerPhone('');
+    setShowAddWorkerModal(false);
+    setShowUserMenu(false);
+  };
 
   return (
     <>
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-8">
           
-          {/* Zone 1: Brand Wordmark (Clean single-line brand mark) */}
+          {/* Zone 1: Brand Wordmark */}
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => onSelectTab('dashboard')}
@@ -55,7 +73,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
             </button>
           </div>
 
-          {/* Zone 2: Navigation Links (Single-line whitespace-nowrap links) */}
+          {/* Zone 2: Navigation Links */}
           <nav className="hidden md:flex items-center gap-1 sm:gap-2 text-xs font-semibold text-slate-600">
             {currentUser.role === 'admin' ? (
               <>
@@ -149,7 +167,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
             )}
           </nav>
 
-          {/* Zone 3: Primary Action & Profile Switcher */}
+          {/* Zone 3: Primary Action & Role Switcher */}
           <div className="flex items-center gap-2.5 shrink-0">
             
             {/* PWA Install Button */}
@@ -173,21 +191,21 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
               </button>
             )}
 
-            {/* Role Switcher Menu (Instant toggle between Admin and Operai) */}
+            {/* Role Switcher Menu */}
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl text-xs transition-colors"
               >
                 <div className="w-6 h-6 rounded-full bg-emerald-800 text-white flex items-center justify-center font-bold text-[10px]">
-                  {currentUser.displayName.charAt(0)}
+                  {currentUser.role === 'admin' ? 'A' : 'O'}
                 </div>
                 <div className="text-left hidden sm:block">
                   <div className="font-bold text-slate-800 leading-none truncate max-w-[120px]">
-                    {currentUser.displayName.split(' ')[0]}
+                    {currentUser.displayName}
                   </div>
                   <div className="text-[10px] text-emerald-800 font-semibold uppercase leading-none mt-0.5">
-                    {currentUser.role === 'admin' ? 'Titolare' : 'Operaio'}
+                    {currentUser.role === 'admin' ? 'Titolare (Admin)' : 'Operaio'}
                   </div>
                 </div>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
@@ -197,7 +215,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
               {showUserMenu && (
                 <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 text-xs">
                   <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                    Cambia Ruolo / Utente di Test
+                    Seleziona Ruolo Attivo
                   </div>
 
                   <div className="py-1 space-y-1">
@@ -206,6 +224,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
                         key={u.uid}
                         onClick={() => {
                           switchUser(u.uid);
+                          onSelectTab('dashboard');
                           setShowUserMenu(false);
                         }}
                         className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors ${
@@ -220,12 +239,12 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
                               u.role === 'admin' ? 'bg-amber-600 text-white' : 'bg-emerald-700 text-white'
                             }`}
                           >
-                            {u.displayName.charAt(0)}
+                            {u.role === 'admin' ? 'A' : 'O'}
                           </div>
                           <div>
                             <div className="font-semibold text-slate-800">{u.displayName}</div>
                             <div className="text-[10px] text-slate-500">
-                              {u.role === 'admin' ? 'Admin / Titolare (Accesso Totale)' : 'Operaio (Vista Mobile Cantiere)'}
+                              {u.role === 'admin' ? 'Accesso Completo' : 'Vista Mobile Cantiere'}
                             </div>
                           </div>
                         </div>
@@ -237,20 +256,33 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
                     ))}
                   </div>
 
-                  <div className="pt-2 border-t border-slate-100 mt-1">
-                    <button
-                      onClick={() => {
-                        if (confirm('Ripristinare tutti i dati di esempio iniziali (cantieri, clienti, magazzino)?')) {
-                          resetToMockData();
+                  {currentUser.role === 'admin' && (
+                    <div className="pt-2 border-t border-slate-100 mt-1 space-y-1">
+                      <button
+                        onClick={() => {
+                          setShowAddWorkerModal(true);
                           setShowUserMenu(false);
-                        }
-                      }}
-                      className="w-full flex items-center gap-1.5 px-3 py-1.5 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors text-left"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Ripristina Dati Demo</span>
-                    </button>
-                  </div>
+                        }}
+                        className="w-full flex items-center gap-1.5 px-3 py-1.5 text-emerald-800 hover:text-emerald-950 rounded-lg hover:bg-emerald-50 transition-colors text-left font-medium"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Aggiungi Operaio</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          if (confirm('Confermi di voler cancellare tutti i dati salvati e ripartire da zero?')) {
+                            clearAllData();
+                            setShowUserMenu(false);
+                          }
+                        }}
+                        className="w-full flex items-center gap-1.5 px-3 py-1.5 text-slate-500 hover:text-rose-700 rounded-lg hover:bg-rose-50 transition-colors text-left"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Azzera Dati</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -265,7 +297,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
           </div>
         </div>
 
-        {/* Mobile Dropdown Menu for Small screens */}
+        {/* Mobile Dropdown Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-slate-200 bg-white p-4 space-y-2 text-xs font-semibold">
             {currentUser.role === 'admin' ? (
@@ -362,6 +394,64 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
           </div>
         )}
       </header>
+
+      {/* Add Worker Modal */}
+      {showAddWorkerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl text-slate-900 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900">Aggiungi Nuovo Operaio</h3>
+              <button
+                onClick={() => setShowAddWorkerModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddWorker} className="space-y-3 text-xs">
+              <div>
+                <label className="font-medium text-slate-600 block mb-1">Nome e Cognome *</label>
+                <input
+                  type="text"
+                  required
+                  value={newWorkerName}
+                  onChange={(e) => setNewWorkerName(e.target.value)}
+                  placeholder="Nome dell'operaio"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="font-medium text-slate-600 block mb-1">Telefono</label>
+                <input
+                  type="text"
+                  value={newWorkerPhone}
+                  onChange={(e) => setNewWorkerPhone(e.target.value)}
+                  placeholder="+39 ..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddWorkerModal(false)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-medium"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 rounded-lg bg-emerald-700 text-white font-bold"
+                >
+                  Salva Operaio
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* iOS Install Prompt Guide Modal */}
       {showIOSGuide && (

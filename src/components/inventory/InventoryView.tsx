@@ -15,7 +15,6 @@ import {
   Edit2,
   Trash2,
   Printer,
-  Sparkles,
 } from 'lucide-react';
 
 export const InventoryView: React.FC = () => {
@@ -52,8 +51,7 @@ export const InventoryView: React.FC = () => {
   const equipmentAlerts = inventory.filter(
     (i) =>
       i.category === 'equipment' &&
-      i.maintenanceIntervalHours &&
-      i.currentUsageHours &&
+      i.maintenanceIntervalHours > 0 &&
       i.currentUsageHours >= i.maintenanceIntervalHours
   );
 
@@ -86,7 +84,7 @@ export const InventoryView: React.FC = () => {
             <span>Magazzino, Attrezzature & Giacenze</span>
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Tracciamento consumabili furgone, registro ore macchine e generazione automatica lista della spesa.
+            Monitoraggio scorte, registro ore di utilizzo macchine e calcolo automatico fabbisogni.
           </p>
         </div>
 
@@ -152,7 +150,7 @@ export const InventoryView: React.FC = () => {
           }`}>
             {equipmentAlerts.length}
           </span>
-          <span className="text-[11px] text-rose-700 font-medium">Ore limite superate</span>
+          <span className="text-[11px] text-rose-700 font-medium">Ore limite raggiunte</span>
         </div>
 
         <div
@@ -226,7 +224,7 @@ export const InventoryView: React.FC = () => {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Cerca per modello o marca..."
+              placeholder="Cerca per articolo o marca..."
               className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg shadow-xs focus:outline-emerald-600"
             />
           </div>
@@ -243,11 +241,11 @@ export const InventoryView: React.FC = () => {
                   <ShoppingCart className="w-4 h-4" />
                 </span>
                 <h2 className="text-base font-bold text-slate-900">
-                  Lista della Spesa Automatica per Fornitori & Consorzio
+                  Lista della Spesa Automatica
                 </h2>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Generata automaticamente confrontando le giacenze attuali con i fabbisogni degli interventi programmati questa settimana.
+                Generata dal confronto tra le giacenze attuali e i materiali necessari per gli interventi programmati.
               </p>
             </div>
 
@@ -256,14 +254,14 @@ export const InventoryView: React.FC = () => {
               className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shrink-0 transition-colors"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Stampa Lista d'Acquisto</span>
+              <span>Stampa Lista Spesa</span>
             </button>
           </div>
 
           {shoppingList.length === 0 ? (
             <div className="py-12 text-center text-slate-500 text-xs">
               <CheckCircle className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
-              Nessun articolo da riordinare al momento. Tutte le scorte sono sufficienti per i lavori pianificati!
+              Nessun articolo da riordinare al momento. Scorte sufficienti per i lavori pianificati.
             </div>
           ) : (
             <div className="border border-slate-200 rounded-xl overflow-hidden">
@@ -273,7 +271,7 @@ export const InventoryView: React.FC = () => {
                     <th className="py-2.5 px-4">Articolo da Acquistare</th>
                     <th className="py-2.5 px-3 text-right">Giacenza Attuale</th>
                     <th className="py-2.5 px-3 text-right">Soglia Minima</th>
-                    <th className="py-2.5 px-3 text-right">Necessari Cantieri</th>
+                    <th className="py-2.5 px-3 text-right">Richiesti dai Cantieri</th>
                     <th className="py-2.5 px-4 text-right">Quantità da Ordinare</th>
                     <th className="py-2.5 px-3 text-center">Urgenza</th>
                   </tr>
@@ -312,20 +310,56 @@ export const InventoryView: React.FC = () => {
             </div>
           )}
         </div>
-      ) : (
-        /* STANDARD INVENTORY GRID */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      ) : filteredInventory.length === 0 ? (
+          <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center space-y-3 shadow-xs">
+            <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+              <Package className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-slate-800">Nessun articolo a magazzino</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                {searchTerm
+                  ? 'Nessun risultato corrispondente ai criteri di ricerca inseriti.'
+                  : 'Il magazzino è attualmente vuoto. Inserisci i materiali da consumo (concimi, sementi, terriccio) o le macchine (tosaerba, decespugliatori) per monitorare scorte e manutenzioni.'}
+              </p>
+            </div>
+            {currentUser.role === 'admin' && !searchTerm && (
+              <div className="pt-2 flex items-center justify-center gap-2 flex-wrap">
+                <button
+                  onClick={() => {
+                    setNewCategoryType('material');
+                    setIsCreatingNew(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Aggiungi Materiale</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setNewCategoryType('equipment');
+                    setIsCreatingNew(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Aggiungi Attrezzatura</span>
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredInventory.map((item) => {
             const isEquipment = item.category === 'equipment';
             const isLowStock = !isEquipment && item.quantity <= item.minThreshold;
             const isMaintenanceAlert =
               isEquipment &&
-              item.maintenanceIntervalHours &&
-              item.currentUsageHours &&
+              item.maintenanceIntervalHours > 0 &&
               item.currentUsageHours >= item.maintenanceIntervalHours;
 
             const usagePercent =
-              isEquipment && item.maintenanceIntervalHours && item.currentUsageHours
+              isEquipment && item.maintenanceIntervalHours > 0
                 ? Math.min(100, Math.round((item.currentUsageHours / item.maintenanceIntervalHours) * 100))
                 : 0;
 
@@ -442,7 +476,7 @@ export const InventoryView: React.FC = () => {
                         <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg text-rose-900 text-xs flex items-center gap-1.5">
                           <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
                           <span>
-                            <strong>Manutenzione Scaduta!</strong> Cambio olio / affilatura lame obbligatoria.
+                            <strong>Manutenzione richiesta!</strong> Ore limite raggiunte.
                           </span>
                         </div>
                       )}
@@ -458,7 +492,7 @@ export const InventoryView: React.FC = () => {
                         type="button"
                         onClick={() => {
                           const confirmService = prompt(
-                            `Inserisci le nuove ore di conteggio per ${item.name} dopo il tagliando (default 0 per azzeramento):`,
+                            `Inserisci le nuove ore per ${item.name} dopo la manutenzione (default 0 per reset):`,
                             '0'
                           );
                           if (confirmService !== null) {
@@ -468,11 +502,11 @@ export const InventoryView: React.FC = () => {
                         className="flex items-center gap-1 px-2.5 py-1 text-slate-700 hover:text-emerald-800 bg-slate-100 hover:bg-slate-200 rounded-lg font-medium transition-colors"
                       >
                         <RotateCcw className="w-3 h-3" />
-                        <span>Registra Tagliando / Manutenzione</span>
+                        <span>Registra Manutenzione</span>
                       </button>
                     ) : (
                       <span className="text-slate-400 font-mono text-[11px]">
-                        Stato: {item.status === 'available' ? 'In Servizio' : 'Fermo Macchina'}
+                        Stato: {item.status === 'available' ? 'Disponibile' : 'In Manutenzione'}
                       </span>
                     )
                   ) : (
@@ -503,12 +537,6 @@ export const InventoryView: React.FC = () => {
                       </div>
                     )
                   )}
-
-                  {currentUser.role === 'admin' && item.unitCost ? (
-                    <span className="font-mono text-slate-500 text-[11px]">
-                      €{item.unitCost} / {item.unit}
-                    </span>
-                  ) : null}
                 </div>
               </div>
             );

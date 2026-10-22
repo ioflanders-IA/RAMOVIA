@@ -24,6 +24,7 @@ interface AppContextType {
   reports: WorkReport[];
   shoppingList: ShoppingListItem[];
   switchUser: (uid: string) => void;
+  addUser: (userData: Omit<User, 'uid'>) => void;
   // Clients
   addClient: (clientData: Omit<Client, 'id' | 'createdAt'>) => void;
   updateClient: (client: Client) => void;
@@ -41,23 +42,32 @@ interface AppContextType {
   // Reports
   submitWorkReport: (reportData: Omit<WorkReport, 'id' | 'createdAt' | 'status'>) => void;
   approveWorkReport: (reportId: string, adminNotes?: string) => void;
-  // Utility
-  resetToMockData: () => void;
+  // Clear all data
+  clearAllData: () => void;
 }
 
 const STORAGE_KEYS = {
-  USERS: 'ramovia_users_v1',
-  CURRENT_USER_ID: 'ramovia_current_uid_v1',
-  CLIENTS: 'ramovia_clients_v1',
-  JOBS: 'ramovia_jobs_v1',
-  INVENTORY: 'ramovia_inventory_v1',
-  REPORTS: 'ramovia_reports_v1',
+  USERS: 'ramovia_users_v2',
+  CURRENT_USER_ID: 'ramovia_current_uid_v2',
+  CLIENTS: 'ramovia_clients_v2',
+  JOBS: 'ramovia_jobs_v2',
+  INVENTORY: 'ramovia_inventory_v2',
+  REPORTS: 'ramovia_reports_v2',
 };
+
+// Clear any old v1 mock/demo keys from previous runs
+try {
+  ['ramovia_users_v1', 'ramovia_current_uid_v1', 'ramovia_clients_v1', 'ramovia_jobs_v1', 'ramovia_inventory_v1', 'ramovia_reports_v1'].forEach((k) => {
+    localStorage.removeItem(k);
+  });
+} catch {
+  // ignore
+}
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Initialize state with localStorage fallbacks
+  // Initialize state with localStorage fallbacks (defaulting to empty arrays)
   const [users, setUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.USERS);
     return saved ? JSON.parse(saved) : INITIAL_USERS;
@@ -120,6 +130,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (found) {
       setCurrentUserId(uid);
     }
+  };
+
+  const addUser = (userData: Omit<User, 'uid'>) => {
+    const newUser: User = {
+      ...userData,
+      uid: `usr_${Date.now()}`,
+    };
+    setUsers((prev) => [...prev, newUser]);
   };
 
   // CLIENT MANAGEMENT
@@ -255,12 +273,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
-  // CALCULATE SHOPPING LIST (Lista Spesa / Da Acquistare)
-  // Compares current stock of materials with minThreshold AND materials needed for scheduled/in-progress jobs
+  // CALCULATE SHOPPING LIST
   const calculateShoppingList = (): ShoppingListItem[] => {
     const materialsNeededMap = new Map<string, number>();
 
-    // Sum needed materials from all pending jobs (scheduled or in_progress)
     const pendingJobs = jobs.filter(
       (j) => j.status === 'scheduled' || j.status === 'in_progress'
     );
@@ -273,8 +289,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const itemsToBuy: ShoppingListItem[] = [];
-
-    // Filter only materials
     const materials = inventory.filter((item) => item.category === 'material');
 
     for (const mat of materials) {
@@ -283,7 +297,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const shortfallFromMin = Math.max(0, mat.minThreshold - effectiveAvailable);
       const shortfallFromJobs = Math.max(0, neededForJobs - effectiveAvailable);
 
-      // Trigger reorder if below minThreshold or jobs require more than on hand
       if (effectiveAvailable < mat.minThreshold || neededForJobs > effectiveAvailable) {
         const toOrder = Math.max(
           shortfallFromMin + (neededForJobs > effectiveAvailable ? shortfallFromJobs : 0),
@@ -308,19 +321,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const shoppingList = calculateShoppingList();
 
-  const resetToMockData = () => {
-    localStorage.removeItem(STORAGE_KEYS.USERS);
-    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
-    localStorage.removeItem(STORAGE_KEYS.CLIENTS);
-    localStorage.removeItem(STORAGE_KEYS.JOBS);
-    localStorage.removeItem(STORAGE_KEYS.INVENTORY);
-    localStorage.removeItem(STORAGE_KEYS.REPORTS);
+  const clearAllData = () => {
+    Object.values(STORAGE_KEYS).forEach((k) => localStorage.removeItem(k));
     setUsers(INITIAL_USERS);
     setCurrentUserId(INITIAL_USERS[0].uid);
-    setClients(INITIAL_CLIENTS);
-    setJobs(INITIAL_JOBS);
-    setInventory(INITIAL_INVENTORY);
-    setReports(INITIAL_REPORTS);
+    setClients([]);
+    setJobs([]);
+    setInventory([]);
+    setReports([]);
   };
 
   return (
@@ -334,6 +342,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         reports,
         shoppingList,
         switchUser,
+        addUser,
         addClient,
         updateClient,
         deleteClient,
@@ -347,7 +356,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         recordEquipmentMaintenance,
         submitWorkReport,
         approveWorkReport,
-        resetToMockData,
+        clearAllData,
       }}
     >
       {children}

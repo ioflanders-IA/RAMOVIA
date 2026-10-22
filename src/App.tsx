@@ -55,10 +55,9 @@ const MainAppContent: React.FC = () => {
             {activeTab === 'reports' && <ReportsHub />}
           </>
         ) : (
-          /* WORKER (OPERAIO) VIEW - Mobile-First & Strictly Isolated from Financial Data */
+          /* WORKER (OPERAIO) VIEW - Mobile-First & Isolated from Financial Data */
           <>
-            {activeTab === 'dashboard' && <WorkerView />}
-            {activeTab === 'reports' && <ReportsHub />}
+            {activeTab !== 'reports' ? <WorkerView /> : <ReportsHub />}
           </>
         )}
       </main>
@@ -137,30 +136,28 @@ const MainAppContent: React.FC = () => {
         )}
       </nav>
 
-      {/* Quiet Footer with Firebase & PWA indicator */}
+      {/* Footer */}
       <footer className="no-print hidden md:block border-t border-slate-200 bg-white py-4 px-6 text-xs text-slate-500">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="font-bold text-slate-700">RAMOVIA</span>
             <span>·</span>
-            <span>Gestionale Manutenzione Verde & Giardinaggio</span>
-            <span>·</span>
-            <span>Versione PWA 1.0</span>
+            <span>Gestionale Operativo Manutenzione del Verde</span>
           </div>
 
           <div className="flex items-center gap-4">
             <button
               onClick={() => setShowFirebaseModal(true)}
-              className="flex items-center gap-1.5 text-slate-600 hover:text-amber-600 transition-colors"
+              className="flex items-center gap-1.5 text-slate-600 hover:text-emerald-700 transition-colors"
             >
-              <Flame className="w-3.5 h-3.5 text-amber-500" />
-              <span>Stato Firebase & Regole</span>
+              <Flame className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Configurazione Firebase</span>
             </button>
           </div>
         </div>
       </footer>
 
-      {/* Firebase Info & Configuration Modal */}
+      {/* Firebase Modal */}
       {showFirebaseModal && (
         <FirebaseConfigModal onClose={() => setShowFirebaseModal(false)} />
       )}

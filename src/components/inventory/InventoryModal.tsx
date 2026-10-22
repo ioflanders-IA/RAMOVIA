@@ -24,7 +24,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
   const [quantity, setQuantity] = useState<number>(item?.quantity ?? 10);
   const [unit, setUnit] = useState<InventoryUnit>(item?.unit || 'pz');
   const [minThreshold, setMinThreshold] = useState<number>(item?.minThreshold ?? 5);
-  const [unitCost, setUnitCost] = useState<number>(item?.unitCost ?? 0);
 
   // Equipment specific
   const [assignedToWorkerId, setAssignedToWorkerId] = useState<string>(item?.assignedToWorkerId || '');
@@ -46,11 +45,10 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
       quantity: Number(quantity),
       unit,
       minThreshold: Number(minThreshold),
-      unitCost: Number(unitCost),
       assignedToWorkerId: assignedToWorkerId || null,
       assignedWorkerName: assignedWorker ? assignedWorker.displayName : undefined,
-      maintenanceIntervalHours: category === 'equipment' ? Number(maintenanceIntervalHours) : undefined,
-      currentUsageHours: category === 'equipment' ? Number(currentUsageHours) : undefined,
+      maintenanceIntervalHours: category === 'equipment' ? Number(maintenanceIntervalHours) : 0,
+      currentUsageHours: category === 'equipment' ? Number(currentUsageHours) : 0,
       status: category === 'equipment' ? status : 'available',
     });
   };
@@ -108,33 +106,20 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="es. Tosaerba semovente Honda o Concime NPK Gold"
+              placeholder="es. Tosaerba semovente o Concime prato"
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-emerald-600"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="font-semibold text-slate-600 block mb-1">Produttore / Marchio</label>
-              <input
-                type="text"
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-                placeholder="es. Stihl, Honda, Compo..."
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg"
-              />
-            </div>
-
-            <div>
-              <label className="font-semibold text-slate-600 block mb-1">Costo Unitario Stimato (€)</label>
-              <input
-                type="number"
-                step="0.5"
-                value={unitCost}
-                onChange={(e) => setUnitCost(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-mono"
-              />
-            </div>
+          <div>
+            <label className="font-semibold text-slate-600 block mb-1">Produttore / Marchio</label>
+            <input
+              type="text"
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              placeholder="es. Stihl, Honda..."
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg"
+            />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -180,17 +165,17 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
           {category === 'equipment' && (
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
               <span className="font-bold text-slate-800 uppercase tracking-wider block text-[11px]">
-                Manutenzione & Assegnazione Furgone
+                Manutenzione & Assegnazione
               </span>
 
               <div>
-                <label className="font-medium text-slate-600 block mb-1">Assegnato all'Operaio / Furgone</label>
+                <label className="font-medium text-slate-600 block mb-1">Assegnato all'Operaio</label>
                 <select
                   value={assignedToWorkerId}
                   onChange={(e) => setAssignedToWorkerId(e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg"
                 >
-                  <option value="">Non assegnato (Sede centrale)</option>
+                  <option value="">Non assegnato</option>
                   {users
                     .filter((u) => u.role === 'worker')
                     .map((w) => (
@@ -230,8 +215,8 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                   onChange={(e) => setStatus(e.target.value as any)}
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg font-medium"
                 >
-                  <option value="available">Disponibile / In Servizio</option>
-                  <option value="maintenance">In Manutenzione / Fermo Officina</option>
+                  <option value="available">Disponibile</option>
+                  <option value="maintenance">In Manutenzione</option>
                 </select>
               </div>
             </div>

@@ -8,17 +8,13 @@ import { WorkReportModal } from '../report/WorkReportModal';
 import {
   Calendar,
   Clock,
-  Compass,
-  CheckCircle2,
-  AlertTriangle,
   Users,
-  Package,
   Plus,
   ArrowRight,
-  TrendingUp,
   FileCheck2,
   ShoppingCart,
   Wrench,
+  Timer,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -36,12 +32,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
   const todayJobs = jobs.filter((j) => j.date === todayStr);
   const completedToday = todayJobs.filter((j) => j.status === 'completed');
   const inProgressToday = todayJobs.filter((j) => j.status === 'in_progress');
-  const scheduledToday = todayJobs.filter((j) => j.status === 'scheduled');
 
   const pendingApprovalReports = reports.filter((r) => r.status === 'submitted');
 
-  // Revenue calculation (only visible to Admin)
-  const todayRevenue = todayJobs.reduce((sum, j) => sum + (j.agreedPrice || 0), 0);
+  // Real operational hours logged across all reports
+  const totalReportedHours = reports.reduce((sum, r) => sum + r.totalHours, 0);
 
   const handleSaveJob = (jobData: any) => {
     if (selectedJobForModal) {
@@ -56,17 +51,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
   return (
     <div className="space-y-6">
       
-      {/* Top Banner / Welcome & Quick Action */}
+      {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">
-            Panoramica Direzione Operativa
-          </div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">
             Dashboard Cantieri & Squadre
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Monitoraggio in tempo reale degli interventi su Monza, Brianza e hinterland milanese.
+            Panoramica degli interventi programmati e stato delle squadre sul campo.
           </p>
         </div>
 
@@ -110,25 +102,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
             {users.filter((u) => u.role === 'worker' && u.active).length}
           </div>
           <div className="mt-1 text-xs text-slate-500">
-            Operatori attivi con automezzi
+            Operatori attivi assegnati
           </div>
         </div>
 
-        {/* Preventivi Cantieri Giornalieri (Admin Only) */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+        {/* Ore Lavorate Rendicontate */}
+        <div
+          onClick={() => onNavigateTab('reports')}
+          className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs cursor-pointer hover:border-emerald-300 transition-colors"
+        >
           <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Fatturato Stimato Oggi</span>
-            <TrendingUp className="w-4 h-4 text-emerald-700" />
+            <span className="text-[11px] font-bold uppercase tracking-wider">Ore Rendicontate</span>
+            <Timer className="w-4 h-4 text-emerald-700" />
           </div>
           <div className="text-2xl font-bold font-mono text-emerald-800">
-            € {todayRevenue.toLocaleString('it-IT')}
+            {totalReportedHours.toFixed(1)} h
           </div>
           <div className="mt-1 text-xs text-slate-500">
-            Tariffe interventi di giornata
+            Totale da rapportini archiviati
           </div>
         </div>
 
-        {/* Rapportini da Approvare */}
+        {/* Rapportini da Validare */}
         <div
           onClick={() => onNavigateTab('reports')}
           className={`border rounded-2xl p-4 shadow-xs cursor-pointer transition-colors ${
@@ -152,7 +147,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
       </div>
 
       {/* Warning Banners (Low stock & Maintenance Overdue) */}
-      {(shoppingList.length > 0 || inventory.some((i) => i.category === 'equipment' && i.currentUsageHours && i.maintenanceIntervalHours && i.currentUsageHours >= i.maintenanceIntervalHours)) && (
+      {(shoppingList.length > 0 || inventory.some((i) => i.category === 'equipment' && i.currentUsageHours >= i.maintenanceIntervalHours)) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {shoppingList.length > 0 && (
             <div
@@ -169,7 +164,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
             </div>
           )}
 
-          {inventory.some((i) => i.category === 'equipment' && i.currentUsageHours && i.maintenanceIntervalHours && i.currentUsageHours >= i.maintenanceIntervalHours) && (
+          {inventory.some((i) => i.category === 'equipment' && i.currentUsageHours >= i.maintenanceIntervalHours) && (
             <div
               onClick={() => onNavigateTab('inventory')}
               className="bg-rose-50 border border-rose-200 rounded-xl p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-rose-100/70 transition-colors"

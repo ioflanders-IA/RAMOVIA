@@ -6,17 +6,12 @@ import {
   Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Plus,
   User,
-  MapPin,
-  CheckCircle2,
-  AlertCircle,
-  FileText,
 } from 'lucide-react';
 
 export const CalendarView: React.FC = () => {
-  const { jobs, users, addJob, updateJob, deleteJob, currentUser } = useApp();
+  const { jobs, users, addJob, updateJob, currentUser } = useApp();
 
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [workerFilter, setWorkerFilter] = useState<string>('all');
@@ -28,7 +23,7 @@ export const CalendarView: React.FC = () => {
   const getWeekDates = (baseDate: Date) => {
     const current = new Date(baseDate);
     const day = current.getDay();
-    const diff = current.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+    const diff = current.getDate() - day + (day === 0 ? -6 : 1);
     const monday = new Date(current.setDate(diff));
 
     const week: Date[] = [];
@@ -77,7 +72,7 @@ export const CalendarView: React.FC = () => {
             <span>Pianificazione Settimanale Squadre</span>
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Calendario operativo assegnazioni cantieri, fasce orarie e monitoraggio avanzamento.
+            Calendario operativo assegnazioni cantieri e fasce orarie.
           </p>
         </div>
 
@@ -215,11 +210,6 @@ export const CalendarView: React.FC = () => {
                             <User className="w-3 h-3 text-slate-400 shrink-0" />
                             {job.assignedWorkerName.split(' ')[0]}
                           </span>
-                          {currentUser.role === 'admin' && job.agreedPrice && (
-                            <span className="font-mono font-bold text-emerald-800">
-                              €{job.agreedPrice}
-                            </span>
-                          )}
                         </div>
                       </div>
                     );

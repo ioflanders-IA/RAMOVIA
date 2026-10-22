@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Job, JobStatus, MaterialRequirement } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { X, Check, Plus, Trash2, Calendar, Clock, MapPin, User, Package } from 'lucide-react';
+import { X, Check, Trash2, Package } from 'lucide-react';
 
 interface JobModalProps {
   job?: Job | null;
@@ -25,8 +25,6 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
   const [title, setTitle] = useState<string>(job?.title || '');
   const [description, setDescription] = useState<string>(job?.description || '');
   const [notes, setNotes] = useState<string>(job?.notes || '');
-  const [estimatedHours, setEstimatedHours] = useState<number>(job?.estimatedHours || 4);
-  const [agreedPrice, setAgreedPrice] = useState<number>(job?.agreedPrice || 250);
 
   // Materials Required
   const [materialsRequired, setMaterialsRequired] = useState<MaterialRequirement[]>(
@@ -88,8 +86,6 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
       description,
       notes,
       materialsRequired,
-      estimatedHours: Number(estimatedHours),
-      agreedPrice: Number(agreedPrice),
     });
   };
 
@@ -99,7 +95,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
         {/* Header */}
         <div className="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between shrink-0">
           <h2 className="text-sm font-bold">
-            {job ? 'Modifica Intervento di Manutenzione' : 'Pianifica Nuovo Intervento / Cantiere'}
+            {job ? 'Modifica Intervento' : 'Pianifica Nuovo Intervento'}
           </h2>
           <button
             onClick={onClose}
@@ -114,7 +110,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
           
           {/* Client Selection */}
           <div className="space-y-1">
-            <label className="font-semibold text-slate-700 block">Committente / Giardino *</label>
+            <label className="font-semibold text-slate-700 block">Committente / Cantiere *</label>
             <select
               required
               value={clientId}
@@ -180,18 +176,29 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="es. Sfalcio prato, rifinitura bordi e potatura siepe"
+              placeholder="es. Sfalcio prato e potatura siepe"
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-emerald-600 font-semibold"
             />
           </div>
 
           <div>
-            <label className="font-semibold text-slate-700 block mb-1">Istruzioni Operative Dettagliate</label>
+            <label className="font-semibold text-slate-700 block mb-1">Descrizione Intervento</label>
             <textarea
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Dettagli lavorazione, attrezzi consigliati, smaltimento sfalci..."
+              placeholder="Dettagli lavorazione..."
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="font-semibold text-slate-700 block mb-1">Note per l'Operaio</label>
+            <input
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="es. Attenzione cancelli o istruzioni speciali..."
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
             />
           </div>
@@ -200,7 +207,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
             <span className="font-bold text-slate-800 uppercase tracking-wider block text-[11px] flex items-center gap-1.5">
               <Package className="w-3.5 h-3.5 text-emerald-700" />
-              Materiali e Consumabili Richiesti dal Magazzino
+              Materiali Richiesti dal Magazzino
             </span>
 
             {materialsRequired.length > 0 && (
@@ -263,43 +270,19 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
             </div>
           </div>
 
-          {/* Admin financial data */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-200">
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Stato Lavoro</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as JobStatus)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
-              >
-                <option value="scheduled">Programmato</option>
-                <option value="in_progress">In Corso</option>
-                <option value="completed">Completato</option>
-                <option value="cancelled">Annullato</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Ore Previste</label>
-              <input
-                type="number"
-                step="0.5"
-                value={estimatedHours}
-                onChange={(e) => setEstimatedHours(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono"
-              />
-            </div>
-
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Preventivo Concordato (€)</label>
-              <input
-                type="number"
-                step="10"
-                value={agreedPrice}
-                onChange={(e) => setAgreedPrice(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-emerald-800"
-              />
-            </div>
+          {/* Status */}
+          <div className="pt-2 border-t border-slate-200">
+            <label className="font-semibold text-slate-700 block mb-1">Stato Lavoro</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as JobStatus)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+            >
+              <option value="scheduled">Programmato</option>
+              <option value="in_progress">In Corso</option>
+              <option value="completed">Completato</option>
+              <option value="cancelled">Annullato</option>
+            </select>
           </div>
 
           {/* Action Footer */}

@@ -28,7 +28,7 @@ export const WorkerView: React.FC = () => {
   const [expandedGardenJobId, setExpandedGardenJobId] = useState<string | null>(null);
 
   // Live timer for jobs in progress
-  const [elapsedSeconds, setElapsedSeconds] = useState<number>(3600 * 2 + 15 * 60 + 20); // sample initial elapsed for demo
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -348,7 +348,7 @@ export const WorkerView: React.FC = () => {
       {selectedJobForReport && (
         <ReportSubmissionModal
           job={selectedJobForReport}
-          initialHours={Number((elapsedSeconds / 3600).toFixed(2)) || 2.5}
+          initialHours={elapsedSeconds > 0 ? Number((elapsedSeconds / 3600).toFixed(2)) : 1.0}
           onClose={() => setSelectedJobForReport(null)}
           onSuccess={() => setSelectedJobForReport(null)}
         />

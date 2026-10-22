@@ -7,9 +7,6 @@ export interface User {
   role: UserRole;
   phone?: string;
   active: boolean;
-  avatar?: string;
-  hourlyCost?: number; // Costo orario operaio (visible only to admin)
-  hourlyBillableRate?: number; // Tariffa oraria fatturabile al cliente
 }
 
 export interface GardenNotes {
@@ -31,7 +28,6 @@ export interface Client {
   lng: number;
   gardenNotes: GardenNotes;
   createdAt: string;
-  hourlyPriceCharged?: number;
 }
 
 export interface MaterialRequirement {
@@ -60,8 +56,6 @@ export interface Job {
   materialsRequired: MaterialRequirement[];
   lat: number;
   lng: number;
-  estimatedHours?: number;
-  agreedPrice?: number; // Visibile solo ad Admin
 }
 
 export type InventoryCategory = 'equipment' | 'material';
@@ -77,12 +71,11 @@ export interface InventoryItem {
   minThreshold: number;
   assignedToWorkerId: string | null;
   assignedWorkerName?: string;
-  maintenanceIntervalHours?: number; // e.g. every 50h
-  currentUsageHours?: number; // e.g. 48h
+  maintenanceIntervalHours: number; // e.g. every 50h
+  currentUsageHours: number; // e.g. 48h
   status: EquipmentStatus;
   brand?: string;
   lastMaintenanceDate?: string;
-  unitCost?: number;
 }
 
 export interface MaterialUsed {

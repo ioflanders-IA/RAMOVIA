@@ -36,8 +36,8 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
 
     if (!mapInstanceRef.current) {
       const map = L.map(mapContainerRef.current, {
-        center: [45.64, 9.32],
-        zoom: 11,
+        center: [42.0, 12.5],
+        zoom: 6,
         zoomControl: true,
       });
 
@@ -270,6 +270,13 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
       {/* Map Render Area */}
       <div className="relative flex-1 min-h-[360px] w-full">
         <div ref={mapContainerRef} className="w-full h-full" />
+
+        {filteredJobs.length === 0 && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[400] bg-white/95 backdrop-blur-xs border border-slate-200 px-3.5 py-1.5 rounded-xl shadow-md text-xs text-slate-600 flex items-center gap-2 pointer-events-none">
+            <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+            <span>Nessun cantiere programmato sulla mappa</span>
+          </div>
+        )}
 
         {/* Floating Quick Legend */}
         <div className="absolute bottom-3 left-3 z-[400] bg-white/95 backdrop-blur-xs border border-slate-200 rounded-lg p-2 shadow-md text-[11px] text-slate-700 flex items-center gap-3">
