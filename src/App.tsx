@@ -19,6 +19,8 @@ import {
   WifiOff,
 } from 'lucide-react';
 
+import { LoginScreen } from './components/auth/LoginScreen';
+
 const MainAppContent: React.FC = () => {
   const { currentUser } = useApp();
   const isOnline = useOnlineStatus();
@@ -29,6 +31,11 @@ const MainAppContent: React.FC = () => {
 
   const [showFirebaseModal, setShowFirebaseModal] = useState(false);
 
+  // If user is logged out, render the login screen
+  if (!currentUser) {
+    return <LoginScreen />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
       {/* Top Navigation Bar */}
@@ -36,14 +43,14 @@ const MainAppContent: React.FC = () => {
 
       {/* Offline Status Warning Bar */}
       {!isOnline && (
-        <div className="bg-amber-600 text-white text-xs px-4 py-1.5 flex items-center justify-center gap-2 font-medium">
+        <div className="bg-amber-600 text-white text-xs px-[7px] py-[7px] flex items-center justify-center gap-[7px] font-medium m-[7px] rounded-[7px]">
           <WifiOff className="w-3.5 h-3.5" />
           <span>Modalità Offline attiva · I dati inseriti sono salvati in cache locale.</span>
         </div>
       )}
 
-      {/* Main Content Viewport */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 pb-24 md:pb-8">
+      {/* Main Content Viewport with 7px spacing from screen width */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-[7px] pb-24 md:pb-[7px] space-y-[7px]">
         {currentUser.role === 'admin' ? (
           <>
             {activeTab === 'dashboard' && (
@@ -62,53 +69,53 @@ const MainAppContent: React.FC = () => {
         )}
       </main>
 
-      {/* Mobile Bottom Navigation Bar (Quick Thumb Reachability) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-2 py-1.5 flex items-center justify-around text-[10px] font-semibold text-slate-600">
+      {/* Mobile Bottom Navigation Bar (Quick Thumb Reachability) with 7px spacing */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 p-[7px] flex items-center justify-around text-[10px] font-semibold text-slate-600 gap-[7px]">
         {currentUser.role === 'admin' ? (
           <>
             <button
               onClick={() => setActiveTab('dashboard')}
-              className={`flex flex-col items-center py-1 px-2 rounded-lg transition-colors ${
-                activeTab === 'dashboard' ? 'text-emerald-800 font-bold' : 'text-slate-500'
+              className={`flex flex-col items-center p-[7px] gap-[7px] rounded-[7px] transition-colors ${
+                activeTab === 'dashboard' ? 'text-emerald-800 font-bold bg-emerald-50' : 'text-slate-500'
               }`}
             >
-              <LayoutDashboard className="w-4 h-4 mb-0.5" />
+              <LayoutDashboard className="w-4 h-4" />
               <span>Mappa</span>
             </button>
             <button
               onClick={() => setActiveTab('calendar')}
-              className={`flex flex-col items-center py-1 px-2 rounded-lg transition-colors ${
-                activeTab === 'calendar' ? 'text-emerald-800 font-bold' : 'text-slate-500'
+              className={`flex flex-col items-center p-[7px] gap-[7px] rounded-[7px] transition-colors ${
+                activeTab === 'calendar' ? 'text-emerald-800 font-bold bg-emerald-50' : 'text-slate-500'
               }`}
             >
-              <Calendar className="w-4 h-4 mb-0.5" />
+              <Calendar className="w-4 h-4" />
               <span>Squadre</span>
             </button>
             <button
               onClick={() => setActiveTab('clients')}
-              className={`flex flex-col items-center py-1 px-2 rounded-lg transition-colors ${
-                activeTab === 'clients' ? 'text-emerald-800 font-bold' : 'text-slate-500'
+              className={`flex flex-col items-center p-[7px] gap-[7px] rounded-[7px] transition-colors ${
+                activeTab === 'clients' ? 'text-emerald-800 font-bold bg-emerald-50' : 'text-slate-500'
               }`}
             >
-              <Users className="w-4 h-4 mb-0.5" />
+              <Users className="w-4 h-4" />
               <span>Giardini</span>
             </button>
             <button
               onClick={() => setActiveTab('inventory')}
-              className={`flex flex-col items-center py-1 px-2 rounded-lg transition-colors ${
-                activeTab === 'inventory' ? 'text-emerald-800 font-bold' : 'text-slate-500'
+              className={`flex flex-col items-center p-[7px] gap-[7px] rounded-[7px] transition-colors ${
+                activeTab === 'inventory' ? 'text-emerald-800 font-bold bg-emerald-50' : 'text-slate-500'
               }`}
             >
-              <Package className="w-4 h-4 mb-0.5" />
+              <Package className="w-4 h-4" />
               <span>Magazzino</span>
             </button>
             <button
               onClick={() => setActiveTab('reports')}
-              className={`flex flex-col items-center py-1 px-2 rounded-lg transition-colors ${
-                activeTab === 'reports' ? 'text-emerald-800 font-bold' : 'text-slate-500'
+              className={`flex flex-col items-center p-[7px] gap-[7px] rounded-[7px] transition-colors ${
+                activeTab === 'reports' ? 'text-emerald-800 font-bold bg-emerald-50' : 'text-slate-500'
               }`}
             >
-              <FileCheck2 className="w-4 h-4 mb-0.5" />
+              <FileCheck2 className="w-4 h-4" />
               <span>Rapportini</span>
             </button>
           </>
@@ -116,20 +123,20 @@ const MainAppContent: React.FC = () => {
           <>
             <button
               onClick={() => setActiveTab('dashboard')}
-              className={`flex flex-col items-center py-1 px-6 rounded-lg transition-colors ${
-                activeTab === 'dashboard' ? 'text-emerald-800 font-bold' : 'text-slate-500'
+              className={`flex flex-col items-center p-[7px] gap-[7px] rounded-[7px] transition-colors flex-1 ${
+                activeTab === 'dashboard' ? 'text-emerald-800 font-bold bg-emerald-50' : 'text-slate-500'
               }`}
             >
-              <Calendar className="w-5 h-5 mb-0.5" />
+              <Calendar className="w-5 h-5" />
               <span>I Miei Interventi</span>
             </button>
             <button
               onClick={() => setActiveTab('reports')}
-              className={`flex flex-col items-center py-1 px-6 rounded-lg transition-colors ${
-                activeTab === 'reports' ? 'text-emerald-800 font-bold' : 'text-slate-500'
+              className={`flex flex-col items-center p-[7px] gap-[7px] rounded-[7px] transition-colors flex-1 ${
+                activeTab === 'reports' ? 'text-emerald-800 font-bold bg-emerald-50' : 'text-slate-500'
               }`}
             >
-              <FileCheck2 className="w-5 h-5 mb-0.5" />
+              <FileCheck2 className="w-5 h-5" />
               <span>Rapportini Chiusi</span>
             </button>
           </>
@@ -137,18 +144,19 @@ const MainAppContent: React.FC = () => {
       </nav>
 
       {/* Footer */}
-      <footer className="no-print hidden md:block border-t border-slate-200 bg-white py-4 px-6 text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <footer className="no-print hidden md:block border-t border-slate-200 bg-white p-[7px] text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-[7px] gap-[7px]">
+          <div className="flex items-center gap-[7px]">
+            <img src="/RAMOVIA_Logo.svg" alt="RAMOVIA" className="w-5 h-5 object-contain" />
             <span className="font-bold text-slate-700">RAMOVIA</span>
             <span>·</span>
             <span>Gestionale Operativo Manutenzione del Verde</span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-[7px]">
             <button
               onClick={() => setShowFirebaseModal(true)}
-              className="flex items-center gap-1.5 text-slate-600 hover:text-emerald-700 transition-colors"
+              className="flex items-center gap-[7px] p-[7px] text-slate-600 hover:text-emerald-700 transition-colors rounded-[7px]"
             >
               <Flame className="w-3.5 h-3.5 text-emerald-700" />
               <span>Configurazione Firebase</span>

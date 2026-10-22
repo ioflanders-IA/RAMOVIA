@@ -90,32 +90,32 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4 overflow-y-auto backdrop-blur-xs">
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-4 max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-[7px] overflow-y-auto backdrop-blur-xs">
+      <div className="relative w-full max-w-2xl bg-white rounded-[7px] shadow-2xl border border-slate-200 overflow-hidden my-2 max-h-[92vh] flex flex-col space-y-[7px]">
         {/* Header */}
-        <div className="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between shrink-0">
+        <div className="bg-slate-900 text-white p-[7px] px-3 flex items-center justify-between shrink-0">
           <h2 className="text-sm font-bold">
             {job ? 'Modifica Intervento' : 'Pianifica Nuovo Intervento'}
           </h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1 rounded-[7px] text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs text-slate-700">
+        <form onSubmit={handleSubmit} className="p-[7px] overflow-y-auto space-y-[7px] text-xs text-slate-700">
           
           {/* Client Selection */}
-          <div className="space-y-1">
+          <div className="space-y-[7px]">
             <label className="font-semibold text-slate-700 block">Committente / Cantiere *</label>
             <select
               required
               value={clientId}
               onChange={(e) => setClientId(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:outline-emerald-600"
+              className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs font-medium text-slate-900 focus:outline-emerald-600"
             >
               {clients.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -126,14 +126,14 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
           </div>
 
           {/* Worker, Date, TimeSlot */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Operaio Assegnato *</label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-[7px]">
+            <div className="space-y-[7px]">
+              <label className="font-semibold text-slate-700 block">Operaio Assegnato *</label>
               <select
                 required
                 value={assignedWorkerId}
                 onChange={(e) => setAssignedWorkerId(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:outline-emerald-600"
+                className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs font-medium text-slate-900 focus:outline-emerald-600"
               >
                 {users
                   .filter((u) => u.role === 'worker')
@@ -145,87 +145,87 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
               </select>
             </div>
 
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Data Intervento *</label>
+            <div className="space-y-[7px]">
+              <label className="font-semibold text-slate-700 block">Data Intervento *</label>
               <input
                 type="date"
                 required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono"
+                className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs font-mono"
               />
             </div>
 
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Fascia Oraria</label>
+            <div className="space-y-[7px]">
+              <label className="font-semibold text-slate-700 block">Fascia Oraria</label>
               <input
                 type="text"
                 value={timeSlot}
                 onChange={(e) => setTimeSlot(e.target.value)}
                 placeholder="es. 08:30 - 12:30"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono"
+                className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs font-mono"
               />
             </div>
           </div>
 
           {/* Title & Description */}
-          <div>
-            <label className="font-semibold text-slate-700 block mb-1">Titolo Intervento *</label>
+          <div className="space-y-[7px]">
+            <label className="font-semibold text-slate-700 block">Titolo Intervento *</label>
             <input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="es. Sfalcio prato e potatura siepe"
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-emerald-600 font-semibold"
+              className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs focus:outline-emerald-600 font-semibold"
             />
           </div>
 
-          <div>
-            <label className="font-semibold text-slate-700 block mb-1">Descrizione Intervento</label>
+          <div className="space-y-[7px]">
+            <label className="font-semibold text-slate-700 block">Descrizione Intervento</label>
             <textarea
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Dettagli lavorazione..."
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+              className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs"
             />
           </div>
 
-          <div>
-            <label className="font-semibold text-slate-700 block mb-1">Note per l'Operaio</label>
+          <div className="space-y-[7px]">
+            <label className="font-semibold text-slate-700 block">Note per l'Operaio</label>
             <input
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="es. Attenzione cancelli o istruzioni speciali..."
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+              className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs"
             />
           </div>
 
           {/* Materials Required Section */}
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-            <span className="font-bold text-slate-800 uppercase tracking-wider block text-[11px] flex items-center gap-1.5">
+          <div className="p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] space-y-[7px]">
+            <span className="font-bold text-slate-800 uppercase tracking-wider block text-[11px] flex items-center gap-[7px]">
               <Package className="w-3.5 h-3.5 text-emerald-700" />
               Materiali Richiesti dal Magazzino
             </span>
 
             {materialsRequired.length > 0 && (
-              <div className="space-y-1.5">
+              <div className="space-y-[7px]">
                 {materialsRequired.map((mat) => (
                   <div
                     key={mat.itemId}
-                    className="flex items-center justify-between p-2 bg-white border border-slate-200 rounded-lg text-xs"
+                    className="flex items-center justify-between p-[7px] bg-white border border-slate-200 rounded-[7px] text-xs"
                   >
                     <span className="font-medium text-slate-800">{mat.name}</span>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-[7px]">
                       <span className="font-mono font-bold text-emerald-800">
                         {mat.qtyNeeded} {mat.unit}
                       </span>
                       <button
                         type="button"
                         onClick={() => handleRemoveMaterial(mat.itemId)}
-                        className="text-slate-400 hover:text-rose-600"
+                        className="text-slate-400 hover:text-rose-600 rounded-[7px] p-1"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -236,11 +236,11 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
             )}
 
             {/* Selector to add requirement */}
-            <div className="flex items-center gap-2 pt-1">
+            <div className="flex items-center gap-[7px] pt-1">
               <select
                 value={selectedMatId}
                 onChange={(e) => setSelectedMatId(e.target.value)}
-                className="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                className="flex-1 p-[7px] bg-white border border-slate-200 rounded-[7px] text-xs"
               >
                 <option value="">Seleziona materiale da associare...</option>
                 {inventory
@@ -257,13 +257,13 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                 min="1"
                 value={selectedMatQty}
                 onChange={(e) => setSelectedMatQty(parseInt(e.target.value) || 1)}
-                className="w-16 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-right"
+                className="w-16 p-[7px] bg-white border border-slate-200 rounded-[7px] text-xs font-mono font-bold text-right"
               />
 
               <button
                 type="button"
                 onClick={handleAddMaterial}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg text-xs"
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-[7px] text-xs"
               >
                 Aggiungi
               </button>
@@ -271,12 +271,12 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
           </div>
 
           {/* Status */}
-          <div className="pt-2 border-t border-slate-200">
-            <label className="font-semibold text-slate-700 block mb-1">Stato Lavoro</label>
+          <div className="pt-[7px] border-t border-slate-200 space-y-[7px]">
+            <label className="font-semibold text-slate-700 block">Stato Lavoro</label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as JobStatus)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+              className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs font-bold"
             >
               <option value="scheduled">Programmato</option>
               <option value="in_progress">In Corso</option>
@@ -286,17 +286,17 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
           </div>
 
           {/* Action Footer */}
-          <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+          <div className="pt-[7px] border-t border-slate-200 flex items-center justify-end gap-[7px]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg font-medium"
+              className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-[7px] font-medium"
             >
               Annulla
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5"
+              className="px-5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] font-bold shadow-xs flex items-center gap-[7px]"
             >
               <Check className="w-4 h-4" />
               <span>Salva Intervento</span>

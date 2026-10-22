@@ -92,27 +92,27 @@ service cloud.firestore {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4 overflow-y-auto backdrop-blur-xs">
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-4 max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-[7px] overflow-y-auto backdrop-blur-xs">
+      <div className="relative w-full max-w-2xl bg-white rounded-[7px] shadow-2xl border border-slate-200 overflow-hidden my-2 max-h-[92vh] flex flex-col space-y-[7px]">
         {/* Header */}
-        <div className="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="bg-slate-900 text-white p-[7px] px-3 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-[7px]">
             <Flame className="w-5 h-5 text-amber-500" />
             <h2 className="text-sm font-bold">Integrazione Firebase Cloud & Regole di Sicurezza</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-[7px] rounded-[7px] text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 overflow-y-auto space-y-5 text-xs text-slate-700">
+        <div className="p-[7px] overflow-y-auto space-y-[7px] text-xs text-slate-700">
           
-          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
-            <span className="font-bold text-emerald-900 flex items-center gap-1.5 text-xs">
+          <div className="p-[7px] bg-emerald-50 border border-emerald-200 rounded-[7px] space-y-[7px]">
+            <span className="font-bold text-emerald-900 flex items-center gap-[7px] text-xs">
               <Check className="w-4 h-4 text-emerald-700" />
               Architettura Cloud Firestore & Storage Configurate
             </span>
@@ -122,49 +122,49 @@ service cloud.firestore {
           </div>
 
           {/* Config Form */}
-          <form onSubmit={handleSave} className="space-y-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
-            <h3 className="font-bold text-slate-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+          <form onSubmit={handleSave} className="space-y-[7px] bg-slate-50 border border-slate-200 rounded-[7px] p-[7px]">
+            <h3 className="font-bold text-slate-900 uppercase tracking-wider text-[11px] flex items-center gap-[7px]">
               <Database className="w-4 h-4 text-slate-600" />
               Credenziali Progetto Firebase (Opzionali)
             </h3>
 
             <div>
-              <label className="font-medium text-slate-600 block mb-1">Firebase Project ID</label>
+              <label className="font-semibold text-slate-700 block mb-1">Firebase Project ID</label>
               <input
                 type="text"
                 value={projectId}
                 onChange={(e) => setProjectId(e.target.value)}
                 placeholder="es. ramovia-prod"
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg font-mono text-xs"
+                className="w-full p-[7px] bg-white border border-slate-200 rounded-[7px] font-mono text-xs outline-none focus:border-emerald-600"
               />
             </div>
 
             <div>
-              <label className="font-medium text-slate-600 block mb-1">Firebase Web API Key</label>
+              <label className="font-semibold text-slate-700 block mb-1">Firebase Web API Key</label>
               <input
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder="AIzaSy..."
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg font-mono text-xs"
+                className="w-full p-[7px] bg-white border border-slate-200 rounded-[7px] font-mono text-xs outline-none focus:border-emerald-600"
               />
             </div>
 
             <div>
-              <label className="font-medium text-slate-600 block mb-1">Storage Bucket (per foto cantiere)</label>
+              <label className="font-semibold text-slate-700 block mb-1">Storage Bucket (per foto cantiere)</label>
               <input
                 type="text"
                 value={storageBucket}
                 onChange={(e) => setStorageBucket(e.target.value)}
                 placeholder="es. ramovia-prod.appspot.com"
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg font-mono text-xs"
+                className="w-full p-[7px] bg-white border border-slate-200 rounded-[7px] font-mono text-xs outline-none focus:border-emerald-600"
               />
             </div>
 
-            <div className="flex items-center justify-between pt-2">
+            <div className="flex items-center justify-between pt-1">
               <button
                 type="submit"
-                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-lg shadow-xs flex items-center gap-1.5"
+                className="p-[7px] px-3 bg-emerald-800 hover:bg-emerald-700 text-white font-bold rounded-[7px] shadow-xs flex items-center gap-[7px] transition-colors"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>Salva Configurazione Firebase</span>
@@ -177,33 +177,33 @@ service cloud.firestore {
           </form>
 
           {/* Firestore Rules */}
-          <div className="space-y-2">
+          <div className="space-y-[7px]">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+              <span className="font-bold text-slate-900 uppercase tracking-wider text-[11px] flex items-center gap-[7px]">
                 <Shield className="w-4 h-4 text-emerald-700" />
                 Regole di Sicurezza Firestore (firestore.rules)
               </span>
               <button
                 type="button"
                 onClick={copyRules}
-                className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium text-[11px]"
+                className="flex items-center gap-[7px] p-[7px] px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-[7px] font-semibold text-[11px] transition-colors"
               >
                 <Copy className="w-3 h-3" />
                 <span>{copied ? 'Copiato!' : 'Copia Regole'}</span>
               </button>
             </div>
 
-            <pre className="p-3 bg-slate-900 text-emerald-400 rounded-xl overflow-x-auto text-[11px] font-mono leading-relaxed border border-slate-800 max-h-40">
+            <pre className="p-[7px] bg-slate-900 text-emerald-400 rounded-[7px] overflow-x-auto text-[11px] font-mono leading-relaxed border border-slate-800 max-h-40">
               {firestoreRulesSnippet}
             </pre>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+        <div className="p-[7px] bg-slate-50 border-t border-slate-200 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-slate-800 text-white font-bold rounded-lg text-xs"
+            className="p-[7px] px-3.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-[7px] text-xs transition-colors"
           >
             Chiudi
           </button>

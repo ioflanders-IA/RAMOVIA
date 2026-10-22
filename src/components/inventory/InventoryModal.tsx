@@ -54,30 +54,30 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4 overflow-y-auto backdrop-blur-xs">
-      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-4">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-[7px] overflow-y-auto backdrop-blur-xs">
+      <div className="relative w-full max-w-lg bg-white rounded-[7px] shadow-2xl border border-slate-200 overflow-hidden my-2 space-y-[7px]">
         {/* Header */}
-        <div className="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between">
+        <div className="bg-slate-900 text-white p-[7px] px-3 flex items-center justify-between">
           <h2 className="text-sm font-bold">
             {item ? 'Modifica Articolo Magazzino' : 'Nuovo Articolo Magazzino / Attrezzatura'}
           </h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1 rounded-[7px] text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs text-slate-700">
-          <div>
-            <label className="font-semibold text-slate-600 block mb-1">Categoria Articolo</label>
-            <div className="grid grid-cols-2 gap-2">
+        <form onSubmit={handleSubmit} className="p-[7px] space-y-[7px] text-xs text-slate-700">
+          <div className="space-y-[7px]">
+            <label className="font-semibold text-slate-600 block">Categoria Articolo</label>
+            <div className="grid grid-cols-2 gap-[7px]">
               <button
                 type="button"
                 onClick={() => setCategory('material')}
-                className={`py-2 text-center rounded-lg border font-semibold transition-colors ${
+                className={`py-1.5 text-center rounded-[7px] border font-semibold transition-colors ${
                   category === 'material'
                     ? 'border-emerald-600 bg-emerald-50 text-emerald-900'
                     : 'border-slate-200 text-slate-600'
@@ -88,7 +88,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
               <button
                 type="button"
                 onClick={() => setCategory('equipment')}
-                className={`py-2 text-center rounded-lg border font-semibold transition-colors ${
+                className={`py-1.5 text-center rounded-[7px] border font-semibold transition-colors ${
                   category === 'equipment'
                     ? 'border-emerald-600 bg-emerald-50 text-emerald-900'
                     : 'border-slate-200 text-slate-600'
@@ -99,47 +99,47 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
             </div>
           </div>
 
-          <div>
-            <label className="font-semibold text-slate-600 block mb-1">Descrizione / Modello *</label>
+          <div className="space-y-[7px]">
+            <label className="font-semibold text-slate-600 block">Descrizione / Modello *</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="es. Tosaerba semovente o Concime prato"
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-emerald-600"
+              className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] focus:outline-emerald-600"
             />
           </div>
 
-          <div>
-            <label className="font-semibold text-slate-600 block mb-1">Produttore / Marchio</label>
+          <div className="space-y-[7px]">
+            <label className="font-semibold text-slate-600 block">Produttore / Marchio</label>
             <input
               type="text"
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
               placeholder="es. Stihl, Honda..."
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg"
+              className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px]"
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="font-semibold text-slate-600 block mb-1">Giacenza Attuale *</label>
+          <div className="grid grid-cols-3 gap-[7px]">
+            <div className="space-y-[7px]">
+              <label className="font-semibold text-slate-600 block">Giacenza *</label>
               <input
                 type="number"
                 required
                 value={quantity}
                 onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-mono font-bold text-slate-900"
+                className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] font-mono font-bold text-slate-900"
               />
             </div>
 
-            <div>
-              <label className="font-semibold text-slate-600 block mb-1">Unità di Misura</label>
+            <div className="space-y-[7px]">
+              <label className="font-semibold text-slate-600 block">Unità</label>
               <select
                 value={unit}
                 onChange={(e) => setUnit(e.target.value as InventoryUnit)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg"
+                className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px]"
               >
                 <option value="pz">Pezzi (pz)</option>
                 <option value="sacchi">Sacchi</option>
@@ -149,31 +149,31 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
               </select>
             </div>
 
-            <div>
-              <label className="font-semibold text-slate-600 block mb-1">Soglia Minima Scorta *</label>
+            <div className="space-y-[7px]">
+              <label className="font-semibold text-slate-600 block">Soglia Min *</label>
               <input
                 type="number"
                 required
                 value={minThreshold}
                 onChange={(e) => setMinThreshold(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-mono text-amber-800"
+                className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] font-mono text-amber-800"
               />
             </div>
           </div>
 
           {/* Attrezzatura Specific Fields */}
           {category === 'equipment' && (
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+            <div className="p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] space-y-[7px]">
               <span className="font-bold text-slate-800 uppercase tracking-wider block text-[11px]">
                 Manutenzione & Assegnazione
               </span>
 
-              <div>
-                <label className="font-medium text-slate-600 block mb-1">Assegnato all'Operaio</label>
+              <div className="space-y-[7px]">
+                <label className="font-medium text-slate-600 block">Assegnato all'Operaio</label>
                 <select
                   value={assignedToWorkerId}
                   onChange={(e) => setAssignedToWorkerId(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg"
+                  className="w-full p-[7px] bg-white border border-slate-200 rounded-[7px]"
                 >
                   <option value="">Non assegnato</option>
                   {users
@@ -186,34 +186,34 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-medium text-slate-600 block mb-1">Intervallo Manutenzione (Ore)</label>
+              <div className="grid grid-cols-2 gap-[7px]">
+                <div className="space-y-[7px]">
+                  <label className="font-medium text-slate-600 block">Intervallo Manutenzione (Ore)</label>
                   <input
                     type="number"
                     value={maintenanceIntervalHours}
                     onChange={(e) => setMaintenanceIntervalHours(parseInt(e.target.value) || 50)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg font-mono"
+                    className="w-full p-[7px] bg-white border border-slate-200 rounded-[7px] font-mono"
                   />
                 </div>
 
-                <div>
-                  <label className="font-medium text-slate-600 block mb-1">Ore Uso Attuali</label>
+                <div className="space-y-[7px]">
+                  <label className="font-medium text-slate-600 block">Ore Uso Attuali</label>
                   <input
                     type="number"
                     value={currentUsageHours}
                     onChange={(e) => setCurrentUsageHours(parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg font-mono font-bold"
+                    className="w-full p-[7px] bg-white border border-slate-200 rounded-[7px] font-mono font-bold"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="font-medium text-slate-600 block mb-1">Stato Operativo</label>
+              <div className="space-y-[7px]">
+                <label className="font-medium text-slate-600 block">Stato Operativo</label>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg font-medium"
+                  className="w-full p-[7px] bg-white border border-slate-200 rounded-[7px] font-medium"
                 >
                   <option value="available">Disponibile</option>
                   <option value="maintenance">In Manutenzione</option>
@@ -223,17 +223,17 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
           )}
 
           {/* Action Footer */}
-          <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+          <div className="pt-[7px] border-t border-slate-200 flex items-center justify-end gap-[7px]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg font-medium"
+              className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-[7px] font-medium"
             >
               Annulla
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5"
+              className="px-5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] font-bold shadow-xs flex items-center gap-[7px]"
             >
               <Check className="w-4 h-4" />
               <span>Salva in Magazzino</span>

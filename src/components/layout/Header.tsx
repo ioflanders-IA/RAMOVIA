@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { usePWAInstall } from '../../hooks/usePWA';
+import { TeamManagementModal } from '../admin/TeamManagementModal';
 import {
   Users,
   Calendar,
@@ -14,6 +15,9 @@ import {
   Smartphone,
   Plus,
   Trash2,
+  LogOut,
+  Shield,
+  HardHat,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -22,12 +26,13 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
-  const { currentUser, users, switchUser, addUser, clearAllData } = useApp();
+  const { currentUser, users, switchUser, addUser, clearAllData, logout } = useApp();
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
 
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showTeamModal, setShowTeamModal] = useState(false);
   const [showAddWorkerModal, setShowAddWorkerModal] = useState(false);
   const [newWorkerName, setNewWorkerName] = useState('');
   const [newWorkerPhone, setNewWorkerPhone] = useState('');
@@ -48,25 +53,31 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
     setShowUserMenu(false);
   };
 
+  if (!currentUser) return null;
+
   return (
     <>
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-8">
           
-          {/* Zone 1: Brand Wordmark */}
+          {/* Zone 1: Brand Wordmark with Official Logo */}
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => onSelectTab('dashboard')}
-              className="flex items-center gap-2.5 text-left focus:outline-none"
+              className="flex items-center gap-2.5 text-left focus:outline-none group"
             >
-              <div className="w-9 h-9 rounded-xl bg-emerald-900 flex items-center justify-center text-emerald-400 font-extrabold text-lg shadow-sm">
-                R
+              <div className="h-10 w-10 shrink-0 flex items-center justify-center p-0.5 bg-white rounded-xl border border-slate-200/80 shadow-xs group-hover:border-emerald-600 transition-colors">
+                <img
+                  src="/RAMOVIA_Logo.svg"
+                  alt="RAMOVIA"
+                  className="h-full w-full object-contain"
+                />
               </div>
               <div className="flex flex-col">
-                <span className="text-base font-extrabold tracking-tight text-slate-900 whitespace-nowrap">
+                <span className="text-base font-extrabold tracking-tight text-slate-900 whitespace-nowrap leading-tight">
                   RAMOVIA
                 </span>
-                <span className="text-[10px] font-semibold text-emerald-700 tracking-wider -mt-1 hidden sm:block">
+                <span className="text-[10px] font-semibold text-emerald-800 tracking-wider hidden sm:block">
                   GESTIONALE DEL VERDE
                 </span>
               </div>
@@ -167,14 +178,15 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
             )}
           </nav>
 
-          {/* Zone 3: Primary Action & Role Switcher */}
-          <div className="flex items-center gap-2.5 shrink-0">
+          {/* Zone 3: Primary Action, Team, Role Switcher & Direct Logout */}
+          <div className="flex items-center gap-[7px] shrink-0">
             
             {/* PWA Install Button */}
             {!isInstalled && isInstallable && (
               <button
                 onClick={install}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
+                className="hidden sm:flex items-center gap-[7px] p-[7px] px-2.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold rounded-[7px] shadow-xs transition-colors"
+                title="Installa RAMOVIA come applicazione"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Installa App</span>
@@ -184,10 +196,22 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
             {!isInstalled && isIOS && (
               <button
                 onClick={() => setShowIOSGuide(true)}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
+                className="hidden sm:flex items-center gap-[7px] p-[7px] px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-[7px] transition-colors"
               >
                 <Smartphone className="w-3.5 h-3.5" />
                 <span>Installa su iOS</span>
+              </button>
+            )}
+
+            {/* Quick Admin Team Button */}
+            {currentUser.role === 'admin' && (
+              <button
+                onClick={() => setShowTeamModal(true)}
+                className="hidden md:flex items-center gap-[7px] p-[7px] px-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-xs font-bold rounded-[7px] transition-colors"
+                title="Gestione Squadra e Operai"
+              >
+                <Users className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Squadra</span>
               </button>
             )}
 
@@ -195,13 +219,14 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl text-xs transition-colors"
+                className="flex items-center gap-[7px] p-[7px] px-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-[7px] text-xs transition-colors"
+                title="Cambia utente o ruolo"
               >
-                <div className="w-6 h-6 rounded-full bg-emerald-800 text-white flex items-center justify-center font-bold text-[10px]">
+                <div className="w-6 h-6 rounded-[7px] bg-emerald-800 text-white flex items-center justify-center font-bold text-[10px]">
                   {currentUser.role === 'admin' ? 'A' : 'O'}
                 </div>
                 <div className="text-left hidden sm:block">
-                  <div className="font-bold text-slate-800 leading-none truncate max-w-[120px]">
+                  <div className="font-bold text-slate-800 leading-none truncate max-w-[110px]">
                     {currentUser.displayName}
                   </div>
                   <div className="text-[10px] text-emerald-800 font-semibold uppercase leading-none mt-0.5">
@@ -213,9 +238,9 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
 
               {/* User Switcher Dropdown */}
               {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 text-xs">
-                  <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                    Seleziona Ruolo Attivo
+                <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-[7px] shadow-xl p-[7px] z-50 text-xs space-y-[7px]">
+                  <div className="p-[7px] text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                    Squadra & Ruolo Attivo
                   </div>
 
                   <div className="py-1 space-y-1">
@@ -257,16 +282,27 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
                   </div>
 
                   {currentUser.role === 'admin' && (
-                    <div className="pt-2 border-t border-slate-100 mt-1 space-y-1">
+                    <div className="pt-2 border-t border-slate-100 mt-1 space-y-[7px]">
+                      <button
+                        onClick={() => {
+                          setShowTeamModal(true);
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full flex items-center gap-[7px] p-[7px] text-emerald-800 hover:text-emerald-950 rounded-lg hover:bg-emerald-50 transition-colors text-left font-bold"
+                      >
+                        <Users className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>Gestione Squadra & Operai</span>
+                      </button>
+
                       <button
                         onClick={() => {
                           setShowAddWorkerModal(true);
                           setShowUserMenu(false);
                         }}
-                        className="w-full flex items-center gap-1.5 px-3 py-1.5 text-emerald-800 hover:text-emerald-950 rounded-lg hover:bg-emerald-50 transition-colors text-left font-medium"
+                        className="w-full flex items-center gap-[7px] p-[7px] text-slate-700 hover:text-slate-950 rounded-lg hover:bg-slate-50 transition-colors text-left font-medium"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        <span>Aggiungi Operaio</span>
+                        <span>Aggiungi Operaio Rapido</span>
                       </button>
 
                       <button
@@ -276,21 +312,46 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
                             setShowUserMenu(false);
                           }
                         }}
-                        className="w-full flex items-center gap-1.5 px-3 py-1.5 text-slate-500 hover:text-rose-700 rounded-lg hover:bg-rose-50 transition-colors text-left"
+                        className="w-full flex items-center gap-[7px] p-[7px] text-slate-500 hover:text-rose-700 rounded-lg hover:bg-rose-50 transition-colors text-left"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         <span>Azzera Dati</span>
                       </button>
                     </div>
                   )}
+
+                  {/* Disconnetti / Logout in dropdown */}
+                  <div className="pt-2 border-t border-slate-100 mt-1">
+                    <button
+                      onClick={() => {
+                        logout();
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full flex items-center gap-[7px] p-[7px] text-rose-700 hover:text-rose-900 rounded-[7px] hover:bg-rose-50 transition-colors text-left font-bold"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-rose-600" />
+                      <span>Disconnetti (Logout)</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
 
+            {/* Direct Visible Logout Button */}
+            <button
+              onClick={logout}
+              className="flex items-center gap-[7px] p-[7px] px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-900 border border-rose-200 rounded-[7px] text-xs font-bold transition-colors shadow-xs"
+              title="Disconnetti (Logout)"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Esci</span>
+            </button>
+
             {/* Mobile Menu Hamburger */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 text-slate-600 hover:text-slate-900 rounded-lg md:hidden"
+              className="p-[7px] text-slate-600 hover:text-slate-900 rounded-[7px] hover:bg-slate-100 transition-colors md:hidden"
+              title="Menu di navigazione"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -391,59 +452,91 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
                 </button>
               </>
             )}
+
+            {/* Common Mobile Actions: Team & Logout */}
+            <div className="pt-2 border-t border-slate-200 space-y-[7px]">
+              {currentUser.role === 'admin' && (
+                <button
+                  onClick={() => {
+                    setShowTeamModal(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-[7px] p-[7px] rounded-lg text-emerald-800 hover:bg-emerald-50 font-bold"
+                >
+                  <Users className="w-4 h-4 text-emerald-700" />
+                  <span>Gestione Squadra & Operai</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  logout();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-[7px] p-[7px] rounded-lg text-rose-700 hover:bg-rose-50 font-bold"
+              >
+                <LogOut className="w-4 h-4 text-rose-600" />
+                <span>Disconnetti (Logout)</span>
+              </button>
+            </div>
           </div>
         )}
       </header>
 
+      {/* Team Management Modal */}
+      {showTeamModal && (
+        <TeamManagementModal onClose={() => setShowTeamModal(false)} />
+      )}
+
       {/* Add Worker Modal */}
       {showAddWorkerModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl text-slate-900 space-y-4">
-            <div className="flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-[7px]">
+          <div className="w-full max-w-sm rounded-[7px] bg-white p-[7px] shadow-2xl text-slate-900 space-y-[7px] border border-slate-200">
+            <div className="flex items-center justify-between p-[7px] border-b border-slate-100">
               <h3 className="text-sm font-bold text-slate-900">Aggiungi Nuovo Operaio</h3>
               <button
                 onClick={() => setShowAddWorkerModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700"
+                className="p-[7px] rounded-[7px] text-slate-400 hover:text-slate-700 hover:bg-slate-100"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleAddWorker} className="space-y-3 text-xs">
+            <form onSubmit={handleAddWorker} className="p-[7px] space-y-[7px] text-xs">
               <div>
-                <label className="font-medium text-slate-600 block mb-1">Nome e Cognome *</label>
+                <label className="font-semibold text-slate-700 block mb-1">Nome e Cognome *</label>
                 <input
                   type="text"
                   required
                   value={newWorkerName}
                   onChange={(e) => setNewWorkerName(e.target.value)}
                   placeholder="Nome dell'operaio"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                  className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs outline-none focus:border-emerald-600 focus:bg-white"
                 />
               </div>
 
               <div>
-                <label className="font-medium text-slate-600 block mb-1">Telefono</label>
+                <label className="font-semibold text-slate-700 block mb-1">Telefono</label>
                 <input
                   type="text"
                   value={newWorkerPhone}
                   onChange={(e) => setNewWorkerPhone(e.target.value)}
                   placeholder="+39 ..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                  className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs outline-none focus:border-emerald-600 focus:bg-white"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-[7px] pt-1">
                 <button
                   type="button"
                   onClick={() => setShowAddWorkerModal(false)}
-                  className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-medium"
+                  className="p-[7px] px-3 rounded-[7px] bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors"
                 >
                   Annulla
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-lg bg-emerald-700 text-white font-bold"
+                  className="p-[7px] px-3.5 rounded-[7px] bg-emerald-800 text-white font-bold hover:bg-emerald-700 transition-colors shadow-xs"
                 >
                   Salva Operaio
                 </button>
@@ -455,22 +548,32 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab }) => {
 
       {/* iOS Install Prompt Guide Modal */}
       {showIOSGuide && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl text-slate-900 space-y-4">
-            <h3 className="text-base font-bold text-slate-900">
-              Installa RAMOVIA su iPhone / iPad
-            </h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              1. Tocca il pulsante <strong>Condividi</strong> nella barra di Safari in basso.<br />
-              2. Scorri verso il basso e tocca <strong>Aggiungi alla schermata Home</strong>.<br />
-              3. Avvia RAMOVIA direttamente come app nativa a schermo intero senza barre del browser!
-            </p>
-            <button
-              onClick={() => setShowIOSGuide(false)}
-              className="w-full rounded-xl bg-slate-900 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors"
-            >
-              Ho capito
-            </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-[7px]">
+          <div className="w-full max-w-sm rounded-[7px] bg-white p-[7px] shadow-2xl text-slate-900 space-y-[7px] border border-slate-200">
+            <div className="flex items-center justify-between p-[7px] border-b border-slate-100">
+              <h3 className="text-sm font-bold text-slate-900">
+                Installa RAMOVIA su iPhone / iPad
+              </h3>
+              <button
+                onClick={() => setShowIOSGuide(false)}
+                className="p-[7px] rounded-[7px] text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-[7px] space-y-[7px] text-xs text-slate-600 leading-relaxed">
+              <p>1. Tocca il pulsante <strong>Condividi</strong> (icona quadrato con freccia) nella barra di Safari in basso.</p>
+              <p>2. Scorri verso il basso nel menu e tocca <strong>Aggiungi alla schermata Home</strong>.</p>
+              <p>3. RAMOVIA verrà installata con l'icona ufficiale e si aprirà a schermo intero come app nativa.</p>
+            </div>
+            <div className="p-[7px] pt-0">
+              <button
+                onClick={() => setShowIOSGuide(false)}
+                className="w-full rounded-[7px] bg-slate-900 p-[7px] text-xs font-bold text-white hover:bg-slate-800 transition-colors shadow-xs"
+              >
+                Ho capito
+              </button>
+            </div>
           </div>
         </div>
       )}

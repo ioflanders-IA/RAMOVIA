@@ -190,10 +190,10 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
   }, [filteredJobs, selectedJobId, onSelectJob]);
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div className="flex flex-col h-full bg-white rounded-[7px] border border-slate-200 shadow-sm overflow-hidden space-y-[7px]">
       {/* Map Header & Interactive Filter Bar */}
-      <div className="p-3 border-b border-slate-200 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+      <div className="p-[7px] border-b border-slate-200 bg-slate-50/70 flex flex-wrap items-center justify-between gap-[7px]">
+        <div className="flex items-center gap-[7px]">
           <MapPin className="w-4 h-4 text-emerald-700" />
           <span className="text-xs font-semibold text-slate-800 uppercase tracking-wider">
             Mappa Cantieri & Cantieri Attivi
@@ -202,12 +202,12 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
         </div>
 
         {/* Filter Controls */}
-        <div className="flex items-center gap-2 flex-wrap text-xs">
+        <div className="flex items-center gap-[7px] flex-wrap text-xs">
           {/* Status Filter */}
-          <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5">
+          <div className="flex items-center gap-[7px] bg-white border border-slate-200 rounded-[7px] p-[7px]">
             <button
               onClick={() => setStatusFilter('all')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+              className={`px-2 py-1 rounded-[7px] font-medium transition-colors ${
                 statusFilter === 'all' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -215,7 +215,7 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
             </button>
             <button
               onClick={() => setStatusFilter('scheduled')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+              className={`px-2 py-1 rounded-[7px] font-medium transition-colors ${
                 statusFilter === 'scheduled' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -223,7 +223,7 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
             </button>
             <button
               onClick={() => setStatusFilter('in_progress')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+              className={`px-2 py-1 rounded-[7px] font-medium transition-colors ${
                 statusFilter === 'in_progress' ? 'bg-sky-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -231,7 +231,7 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
             </button>
             <button
               onClick={() => setStatusFilter('completed')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+              className={`px-2 py-1 rounded-[7px] font-medium transition-colors ${
                 statusFilter === 'completed' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -243,7 +243,7 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
           <select
             value={workerFilter}
             onChange={(e) => setWorkerFilter(e.target.value)}
-            className="bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700 focus:outline-emerald-600"
+            className="bg-white border border-slate-200 rounded-[7px] px-2.5 py-1 text-xs text-slate-700 focus:outline-emerald-600"
           >
             <option value="all">Tutti gli Operai</option>
             {users
@@ -259,7 +259,7 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
           <select
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
-            className="bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700 focus:outline-emerald-600"
+            className="bg-white border border-slate-200 rounded-[7px] px-2.5 py-1 text-xs text-slate-700 focus:outline-emerald-600"
           >
             <option value="all">Tutte le date</option>
             <option value="today">Solo Oggi</option>
@@ -272,14 +272,14 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
         <div ref={mapContainerRef} className="w-full h-full" />
 
         {filteredJobs.length === 0 && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[400] bg-white/95 backdrop-blur-xs border border-slate-200 px-3.5 py-1.5 rounded-xl shadow-md text-xs text-slate-600 flex items-center gap-2 pointer-events-none">
+          <div className="absolute top-[7px] left-1/2 -translate-x-1/2 z-[400] bg-white/95 backdrop-blur-xs border border-slate-200 p-[7px] rounded-[7px] shadow-md text-xs text-slate-600 flex items-center gap-[7px] pointer-events-none">
             <span className="w-2 h-2 rounded-full bg-slate-400"></span>
             <span>Nessun cantiere programmato sulla mappa</span>
           </div>
         )}
 
         {/* Floating Quick Legend */}
-        <div className="absolute bottom-3 left-3 z-[400] bg-white/95 backdrop-blur-xs border border-slate-200 rounded-lg p-2 shadow-md text-[11px] text-slate-700 flex items-center gap-3">
+        <div className="absolute bottom-[7px] left-[7px] z-[400] bg-white/95 backdrop-blur-xs border border-slate-200 rounded-[7px] p-[7px] shadow-md text-[11px] text-slate-700 flex items-center gap-[7px]">
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-600"></span>
             <span>Programmato</span>

@@ -12,11 +12,12 @@ import {
   Job,
   ShoppingListItem,
   User,
+  UserRole,
   WorkReport,
 } from '../types';
 
 interface AppContextType {
-  currentUser: User;
+  currentUser: User | null;
   users: User[];
   clients: Client[];
   jobs: Job[];
@@ -24,7 +25,13 @@ interface AppContextType {
   reports: WorkReport[];
   shoppingList: ShoppingListItem[];
   switchUser: (uid: string) => void;
-  addUser: (userData: Omit<User, 'uid'>) => void;
+  login: (user: User) => void;
+  logout: () => void;
+  loginWithEmail: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
+  registerAccount: (name: string, email: string, role: UserRole, phone?: string) => Promise<{ success: boolean; user?: User; error?: string }>;
+  addUser: (userData: Omit<User, 'uid'>) => User;
+  updateUserRole: (uid: string, role: UserRole) => void;
+  deleteUser: (uid: string) => void;
   // Clients
   addClient: (clientData: Omit<Client, 'id' | 'createdAt'>) => void;
   updateClient: (client: Client) => void;
@@ -123,7 +130,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
   }, [reports]);
 
-  const currentUser = users.find((u) => u.uid === currentUserId) || users[0];
+  const currentUser = currentUserId === 'logged_out' ? null : (users.find((u) => u.uid === currentUserId) || users[0] || null);
 
   const switchUser = (uid: string) => {
     const found = users.find((u) => u.uid === uid);
@@ -132,12 +139,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const addUser = (userData: Omit<User, 'uid'>) => {
+  const login = (user: User) => {
+    setCurrentUserId(user.uid);
+  };
+
+  const logout = () => {
+    setCurrentUserId('logged_out');
+  };
+
+  const loginWithEmail = async (email: string, _password?: string): Promise<{ success: boolean; error?: string }> => {
+    const cleanEmail = email.trim().toLowerCase();
+    const existing = users.find((u) => u.email && u.email.toLowerCase() === cleanEmail);
+    if (existing) {
+      setCurrentUserId(existing.uid);
+      return { success: true };
+    }
+    // If not found in local user registry, automatically create the user profile with worker role (or admin if keyword matched)
+    const isOwner = cleanEmail.includes('admin') || cleanEmail.includes('titolare') || cleanEmail.includes('andblasi');
+    const newUser: User = {
+      uid: `usr_${Date.now()}`,
+      email: cleanEmail,
+      displayName: cleanEmail.split('@')[0].replace(/[._-]/g, ' '),
+      role: isOwner ? 'admin' : 'worker',
+      active: true,
+    };
+    setUsers((prev) => [...prev, newUser]);
+    setCurrentUserId(newUser.uid);
+    return { success: true };
+  };
+
+  const registerAccount = async (
+    name: string,
+    email: string,
+    role: UserRole,
+    phone?: string
+  ): Promise<{ success: boolean; user?: User; error?: string }> => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (users.some((u) => u.email && u.email.toLowerCase() === cleanEmail)) {
+      return { success: false, error: 'Un account con questa email è già registrato.' };
+    }
+    const newUser: User = {
+      uid: `usr_${Date.now()}`,
+      email: cleanEmail,
+      displayName: name.trim(),
+      role,
+      phone: phone?.trim(),
+      active: true,
+    };
+    setUsers((prev) => [...prev, newUser]);
+    setCurrentUserId(newUser.uid);
+    return { success: true, user: newUser };
+  };
+
+  const addUser = (userData: Omit<User, 'uid'>): User => {
     const newUser: User = {
       ...userData,
       uid: `usr_${Date.now()}`,
     };
     setUsers((prev) => [...prev, newUser]);
+    return newUser;
+  };
+
+  const updateUserRole = (uid: string, role: UserRole) => {
+    setUsers((prev) => prev.map((u) => (u.uid === uid ? { ...u, role } : u)));
+  };
+
+  const deleteUser = (uid: string) => {
+    setUsers((prev) => prev.filter((u) => u.uid !== uid));
+    if (currentUserId === uid) {
+      const remaining = users.filter((u) => u.uid !== uid);
+      if (remaining.length > 0) {
+        setCurrentUserId(remaining[0].uid);
+      } else {
+        setCurrentUserId('logged_out');
+      }
+    }
   };
 
   // CLIENT MANAGEMENT
@@ -342,7 +418,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         reports,
         shoppingList,
         switchUser,
+        login,
+        logout,
+        loginWithEmail,
+        registerAccount,
         addUser,
+        updateUserRole,
+        deleteUser,
         addClient,
         updateClient,
         deleteClient,

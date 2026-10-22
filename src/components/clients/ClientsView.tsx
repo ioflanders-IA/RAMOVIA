@@ -39,12 +39,12 @@ export const ClientsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[7px]">
       
       {/* Top Action Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-[7px]">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-[7px]">
             <Users className="w-5 h-5 text-emerald-700" />
             <span>Anagrafica Clienti & Schede Giardino</span>
           </h1>
@@ -53,10 +53,10 @@ export const ClientsView: React.FC = () => {
           </p>
         </div>
 
-        {currentUser.role === 'admin' && (
+        {currentUser?.role === 'admin' && (
           <button
             onClick={() => setIsCreatingNew(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors shrink-0"
+            className="flex items-center gap-[7px] p-[7px] px-3 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold rounded-[7px] shadow-xs transition-colors shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Nuovo Cliente / Cantiere</span>
@@ -73,30 +73,32 @@ export const ClientsView: React.FC = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Cerca cliente per nome o indirizzo..."
-            className="w-full pl-9 pr-4 py-2 text-xs bg-white border border-slate-200 rounded-xl shadow-xs focus:outline-emerald-600"
+            className="w-full pl-9 pr-4 p-[7px] text-xs bg-white border border-slate-200 rounded-[7px] shadow-xs focus:outline-emerald-600"
           />
         </div>
       )}
 
       {/* Empty State */}
       {filteredClients.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-500 text-xs">
-          <Users className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-          <p className="font-semibold text-slate-700 mb-1">Nessun cliente o cantiere registrato</p>
-          <p className="text-slate-500 mb-4">Aggiungi il tuo primo cliente per iniziare a gestire i giardini e pianificare i lavori.</p>
-          {currentUser.role === 'admin' && (
-            <button
-              onClick={() => setIsCreatingNew(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl font-bold shadow-xs"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Crea Primo Cliente</span>
-            </button>
+        <div className="bg-white border border-slate-200 rounded-[7px] p-[7px] py-12 text-center text-slate-500 text-xs space-y-[7px]">
+          <Users className="w-8 h-8 text-slate-400 mx-auto" />
+          <p className="font-semibold text-slate-700">Nessun cliente o cantiere registrato</p>
+          <p className="text-slate-500">Aggiungi il tuo primo cliente per iniziare a gestire i giardini e pianificare i lavori.</p>
+          {currentUser?.role === 'admin' && (
+            <div className="pt-2">
+              <button
+                onClick={() => setIsCreatingNew(true)}
+                className="inline-flex items-center gap-[7px] p-[7px] px-3 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] font-bold shadow-xs text-xs"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Crea Primo Cliente</span>
+              </button>
+            </div>
           )}
         </div>
       ) : (
         /* Clients Cards Grid */
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-[7px]">
           {filteredClients.map((client) => {
             const clientJobs = jobs.filter((j) => j.clientId === client.id);
             const completedJobs = clientJobs.filter((j) => j.status === 'completed');
@@ -105,22 +107,22 @@ export const ClientsView: React.FC = () => {
             return (
               <div
                 key={client.id}
-                className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs hover:border-emerald-300 transition-all flex flex-col justify-between"
+                className="bg-white border border-slate-200 rounded-[7px] p-[7px] shadow-xs hover:border-emerald-300 transition-all flex flex-col justify-between space-y-[7px]"
               >
-                <div>
+                <div className="space-y-[7px]">
                   {/* Header card */}
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-[7px]">
                     <div>
                       <h3 className="text-base font-bold text-slate-900 leading-tight">
                         {client.name}
                       </h3>
-                      <div className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                      <div className="text-xs text-slate-500 flex items-center gap-[7px] mt-0.5">
                         <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <span>{client.address}</span>
                       </div>
                     </div>
 
-                    {currentUser.role === 'admin' && (
+                    {currentUser?.role === 'admin' && (
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => setSelectedClientForEdit(client)}

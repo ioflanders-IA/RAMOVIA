@@ -62,26 +62,26 @@ export const CalendarView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[7px]">
       
       {/* Top Header & Calendar Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-[7px]">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-[7px]">
             <CalendarIcon className="w-5 h-5 text-emerald-700" />
             <span>Pianificazione Settimanale Squadre</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 mt-[7px]">
             Calendario operativo assegnazioni cantieri e fasce orarie.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-[7px]">
           {/* Worker Filter */}
           <select
             value={workerFilter}
             onChange={(e) => setWorkerFilter(e.target.value)}
-            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs focus:outline-emerald-600"
+            className="bg-white border border-slate-200 rounded-[7px] px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs focus:outline-emerald-600"
           >
             <option value="all">Tutti gli Operai</option>
             {users
@@ -93,13 +93,13 @@ export const CalendarView: React.FC = () => {
               ))}
           </select>
 
-          {currentUser.role === 'admin' && (
+          {currentUser?.role === 'admin' && (
             <button
               onClick={() => {
                 setNewJobDate(todayStr);
                 setIsCreatingNew(true);
               }}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl shadow-xs transition-colors shrink-0"
+              className="flex items-center gap-[7px] px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-[7px] shadow-xs transition-colors shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>Nuovo Intervento</span>
@@ -109,10 +109,10 @@ export const CalendarView: React.FC = () => {
       </div>
 
       {/* Week Navigator */}
-      <div className="flex items-center justify-between bg-white border border-slate-200 rounded-2xl p-3 shadow-xs">
+      <div className="flex items-center justify-between bg-white border border-slate-200 rounded-[7px] p-[7px] shadow-xs">
         <button
           onClick={prevWeek}
-          className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+          className="p-1 rounded-[7px] text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -124,14 +124,14 @@ export const CalendarView: React.FC = () => {
 
         <button
           onClick={nextWeek}
-          className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+          className="p-1 rounded-[7px] text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
         >
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
 
       {/* 7-DAY WEEKLY GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-7 gap-[7px]">
         {weekDates.map((dayDate) => {
           const dateISO = dayDate.toISOString().split('T')[0];
           const isToday = dateISO === todayStr;
@@ -145,15 +145,15 @@ export const CalendarView: React.FC = () => {
           return (
             <div
               key={dateISO}
-              className={`bg-white border rounded-2xl p-3 flex flex-col justify-between min-h-[280px] shadow-xs ${
+              className={`bg-white border rounded-[7px] p-[7px] flex flex-col justify-between min-h-[280px] shadow-xs space-y-[7px] ${
                 isToday
                   ? 'border-emerald-600 ring-2 ring-emerald-50'
                   : 'border-slate-200'
               }`}
             >
-              <div>
+              <div className="space-y-[7px]">
                 {/* Day Header */}
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                <div className="flex items-center justify-between pb-[7px] border-b border-slate-100">
                   <div>
                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                       {dayDate.toLocaleDateString('it-IT', { weekday: 'short' })}
@@ -165,13 +165,13 @@ export const CalendarView: React.FC = () => {
                     </div>
                   </div>
 
-                  {currentUser.role === 'admin' && (
+                  {currentUser?.role === 'admin' && (
                     <button
                       onClick={() => {
                         setNewJobDate(dateISO);
                         setIsCreatingNew(true);
                       }}
-                      className="p-1 text-slate-400 hover:text-emerald-700 rounded hover:bg-emerald-50 transition-colors"
+                      className="p-1 text-slate-400 hover:text-emerald-700 rounded-[7px] hover:bg-emerald-50 transition-colors"
                       title="Pianifica intervento per questa data"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -180,7 +180,7 @@ export const CalendarView: React.FC = () => {
                 </div>
 
                 {/* Day Jobs List */}
-                <div className="space-y-2">
+                <div className="space-y-[7px]">
                   {dayJobs.map((job) => {
                     let statusColor = 'border-amber-200 bg-amber-50/60 text-amber-900';
                     if (job.status === 'in_progress') {
@@ -193,20 +193,20 @@ export const CalendarView: React.FC = () => {
                       <div
                         key={job.id}
                         onClick={() => setSelectedJobForEdit(job)}
-                        className={`p-2.5 rounded-xl border text-xs cursor-pointer hover:shadow-sm transition-all ${statusColor}`}
+                        className={`p-[7px] rounded-[7px] border text-xs cursor-pointer hover:shadow-sm transition-all space-y-[7px] ${statusColor}`}
                       >
-                        <div className="flex items-center justify-between text-[10px] font-mono mb-1">
+                        <div className="flex items-center justify-between text-[10px] font-mono">
                           <span className="font-bold truncate">{job.timeSlot}</span>
-                          <span className="text-[9px] uppercase font-bold px-1 rounded bg-white/70">
+                          <span className="text-[9px] uppercase font-bold px-1 rounded-[7px] bg-white/70">
                             {job.status === 'in_progress' ? 'IN CORSO' : job.status === 'completed' ? 'FATTO' : 'PROG'}
                           </span>
                         </div>
 
                         <div className="font-bold text-slate-900 truncate">{job.clientName}</div>
-                        <div className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">{job.title}</div>
+                        <div className="text-[11px] text-slate-600 line-clamp-1">{job.title}</div>
 
-                        <div className="mt-2 pt-1.5 border-t border-slate-200/60 flex items-center justify-between text-[10px] text-slate-500">
-                          <span className="flex items-center gap-1 font-medium truncate">
+                        <div className="pt-[7px] border-t border-slate-200/60 flex items-center justify-between text-[10px] text-slate-500">
+                          <span className="flex items-center gap-[7px] font-medium truncate">
                             <User className="w-3 h-3 text-slate-400 shrink-0" />
                             {job.assignedWorkerName.split(' ')[0]}
                           </span>

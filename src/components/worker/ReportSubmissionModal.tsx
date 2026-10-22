@@ -123,8 +123,8 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
       clientId: job.clientId,
       clientName: job.clientName,
       clientAddress: job.clientAddress,
-      workerId: currentUser.uid,
-      workerName: currentUser.displayName,
+      workerId: currentUser?.uid || '',
+      workerName: currentUser?.displayName || '',
       date: today,
       startTime,
       endTime,
@@ -153,11 +153,11 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4 overflow-y-auto backdrop-blur-xs">
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-4 max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-[7px] overflow-y-auto backdrop-blur-xs">
+      <div className="relative w-full max-w-2xl bg-white rounded-[7px] shadow-2xl border border-slate-200 overflow-hidden my-2 max-h-[92vh] flex flex-col space-y-[7px]">
         
         {/* Header */}
-        <div className="bg-emerald-900 text-white px-5 py-3.5 flex items-center justify-between shrink-0">
+        <div className="bg-emerald-900 text-white p-[7px] px-3 flex items-center justify-between shrink-0">
           <div>
             <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wider block">
               Compilazione Rapportino
@@ -167,35 +167,35 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-emerald-200 hover:text-white hover:bg-emerald-800 transition-colors"
+            className="p-1 rounded-[7px] text-emerald-200 hover:text-white hover:bg-emerald-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto space-y-5 text-slate-800">
+        <form onSubmit={handleSubmit} className="p-[7px] overflow-y-auto space-y-[7px] text-slate-800">
           
           {errorMsg && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2">
+            <div className="p-[7px] bg-rose-50 border border-rose-200 rounded-[7px] text-xs text-rose-800 flex items-center gap-[7px]">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
 
           {/* Section 1: Timesheet / Ore Lavorate */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+          <div className="bg-slate-50 border border-slate-200 rounded-[7px] p-[7px] space-y-[7px]">
+            <div className="flex items-center justify-between gap-[7px]">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-[7px]">
                 <Clock className="w-4 h-4 text-emerald-700" />
                 Ore Lavorate (Timesheet)
               </span>
 
-              <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 text-xs">
+              <div className="flex items-center gap-[7px] bg-white border border-slate-200 rounded-[7px] p-0.5 text-xs">
                 <button
                   type="button"
                   onClick={() => setTrackingType('timer')}
-                  className={`px-2 py-0.5 rounded font-medium ${
+                  className={`px-2 py-0.5 rounded-[7px] font-medium ${
                     trackingType === 'timer' ? 'bg-emerald-700 text-white' : 'text-slate-600'
                   }`}
                 >
@@ -204,7 +204,7 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setTrackingType('manual')}
-                  className={`px-2 py-0.5 rounded font-medium ${
+                  className={`px-2 py-0.5 rounded-[7px] font-medium ${
                     trackingType === 'manual' ? 'bg-emerald-700 text-white' : 'text-slate-600'
                   }`}
                 >
@@ -213,27 +213,27 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="text-[11px] text-slate-500 font-medium block mb-1">Inizio</label>
+            <div className="grid grid-cols-3 gap-[7px]">
+              <div className="space-y-[7px]">
+                <label className="text-[11px] text-slate-500 font-medium block">Inizio</label>
                 <input
                   type="time"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full text-xs font-mono px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg"
+                  className="w-full text-xs font-mono p-[7px] bg-white border border-slate-300 rounded-[7px]"
                 />
               </div>
-              <div>
-                <label className="text-[11px] text-slate-500 font-medium block mb-1">Fine</label>
+              <div className="space-y-[7px]">
+                <label className="text-[11px] text-slate-500 font-medium block">Fine</label>
                 <input
                   type="time"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full text-xs font-mono px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg"
+                  className="w-full text-xs font-mono p-[7px] bg-white border border-slate-300 rounded-[7px]"
                 />
               </div>
-              <div>
-                <label className="text-[11px] text-slate-500 font-medium block mb-1">Ore Totali</label>
+              <div className="space-y-[7px]">
+                <label className="text-[11px] text-slate-500 font-medium block">Ore Totali</label>
                 <input
                   type="number"
                   step="0.25"
@@ -241,29 +241,29 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
                   max="14"
                   value={hours}
                   onChange={(e) => setHours(parseFloat(e.target.value) || 0)}
-                  className="w-full text-xs font-mono font-bold text-emerald-800 px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg"
+                  className="w-full text-xs font-mono font-bold text-emerald-800 p-[7px] bg-white border border-slate-300 rounded-[7px]"
                 />
               </div>
             </div>
           </div>
 
           {/* Section 2: Materiali Utilizzati dal Magazzino Furgone */}
-          <div className="space-y-2.5">
+          <div className="space-y-[7px]">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-[7px]">
                 <Package className="w-4 h-4 text-emerald-700" />
                 Materiali Utilizzati (Scarico Magazzino)
               </span>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-[7px]">
               {materialsUsed.map((mat) => (
                 <div
                   key={mat.itemId}
-                  className="flex items-center justify-between gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                  className="flex items-center justify-between gap-[7px] p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs"
                 >
                   <span className="font-medium text-slate-800 flex-1">{mat.name}</span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-[7px]">
                     <input
                       type="number"
                       step="1"
@@ -272,7 +272,7 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
                       onChange={(e) =>
                         handleUpdateMaterialQty(mat.itemId, parseFloat(e.target.value) || 0)
                       }
-                      className="w-16 px-2 py-1 text-right font-mono bg-white border border-slate-300 rounded-md text-xs font-semibold"
+                      className="w-16 p-1 text-right font-mono bg-white border border-slate-300 rounded-[7px] text-xs font-semibold"
                     />
                     <span className="text-slate-500 w-10 text-xs">{mat.unit}</span>
                   </div>
@@ -281,11 +281,11 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
             </div>
 
             {/* Quick Add Extra Material from Available Stock */}
-            <div className="flex items-center gap-2 pt-1">
+            <div className="flex items-center gap-[7px] pt-1">
               <select
                 value={selectedExtraMatId}
                 onChange={(e) => setSelectedExtraMatId(e.target.value)}
-                className="flex-1 text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700"
+                className="flex-1 text-xs bg-white border border-slate-200 rounded-[7px] p-[7px] text-slate-700"
               >
                 <option value="">+ Aggiungi materiale utilizzato...</option>
                 {inventory
@@ -299,7 +299,7 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
               <button
                 type="button"
                 onClick={handleAddMaterial}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium rounded-lg"
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium rounded-[7px]"
               >
                 Aggiungi
               </button>
@@ -307,18 +307,18 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
           </div>
 
           {/* Section 3: Foto Prima / Dopo */}
-          <div className="space-y-2.5">
-            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+          <div className="space-y-[7px]">
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-[7px]">
               <Camera className="w-4 h-4 text-emerald-700" />
               Documentazione Fotografica Cantiere
             </span>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-[7px]">
               {/* Foto Prima */}
-              <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50 space-y-2">
+              <div className="border border-slate-200 rounded-[7px] p-[7px] bg-slate-50 space-y-[7px]">
                 <div className="flex items-center justify-between text-xs font-semibold text-rose-800">
                   <span>Foto Iniziale (Prima)</span>
-                  <label className="cursor-pointer text-slate-600 hover:text-emerald-700 flex items-center gap-1 text-[11px]">
+                  <label className="cursor-pointer text-slate-600 hover:text-emerald-700 flex items-center gap-[7px] text-[11px]">
                     <Upload className="w-3 h-3" />
                     <span>{photoBefore ? 'Cambia' : 'Carica'}</span>
                     <input
@@ -330,7 +330,7 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
                     />
                   </label>
                 </div>
-                <div className="aspect-video rounded-lg overflow-hidden bg-slate-200 relative border border-slate-300 flex items-center justify-center">
+                <div className="aspect-video rounded-[7px] overflow-hidden bg-slate-200 relative border border-slate-300 flex items-center justify-center">
                   {photoBefore ? (
                     <img
                       src={photoBefore}
@@ -339,8 +339,8 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
                       referrerPolicy="no-referrer"
                     />
                   ) : (
-                    <label className="cursor-pointer flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 p-4 text-center">
-                      <Camera className="w-6 h-6 mb-1 text-slate-400" />
+                    <label className="cursor-pointer flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 p-2 text-center space-y-1">
+                      <Camera className="w-6 h-6 text-slate-400 mx-auto" />
                       <span className="text-[11px]">Scatta o carica foto prima</span>
                       <input
                         type="file"
@@ -355,10 +355,10 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
               </div>
 
               {/* Foto Dopo */}
-              <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50 space-y-2">
+              <div className="border border-slate-200 rounded-[7px] p-[7px] bg-slate-50 space-y-[7px]">
                 <div className="flex items-center justify-between text-xs font-semibold text-emerald-800">
                   <span>Foto Finale (Dopo)</span>
-                  <label className="cursor-pointer text-slate-600 hover:text-emerald-700 flex items-center gap-1 text-[11px]">
+                  <label className="cursor-pointer text-slate-600 hover:text-emerald-700 flex items-center gap-[7px] text-[11px]">
                     <Upload className="w-3 h-3" />
                     <span>{photoAfter ? 'Cambia' : 'Carica'}</span>
                     <input
@@ -370,7 +370,7 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
                     />
                   </label>
                 </div>
-                <div className="aspect-video rounded-lg overflow-hidden bg-slate-200 relative border border-slate-300 flex items-center justify-center">
+                <div className="aspect-video rounded-[7px] overflow-hidden bg-slate-200 relative border border-slate-300 flex items-center justify-center">
                   {photoAfter ? (
                     <img
                       src={photoAfter}
@@ -379,8 +379,8 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
                       referrerPolicy="no-referrer"
                     />
                   ) : (
-                    <label className="cursor-pointer flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 p-4 text-center">
-                      <Camera className="w-6 h-6 mb-1 text-slate-400" />
+                    <label className="cursor-pointer flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 p-2 text-center space-y-1">
+                      <Camera className="w-6 h-6 text-slate-400 mx-auto" />
                       <span className="text-[11px]">Scatta o carica foto dopo</span>
                       <input
                         type="file"
@@ -397,7 +397,7 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
           </div>
 
           {/* Section 4: Note Intervento */}
-          <div className="space-y-1.5">
+          <div className="space-y-[7px]">
             <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
               Note sull'Intervento & Osservazioni
             </label>
@@ -406,26 +406,26 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
               value={clientNotes}
               onChange={(e) => setClientNotes(e.target.value)}
               placeholder="Inserisci note o dettagli sull'intervento eseguito..."
-              className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-lg focus:outline-emerald-600"
+              className="w-full text-xs p-[7px] bg-white border border-slate-300 rounded-[7px] focus:outline-emerald-600"
             />
           </div>
 
           {/* Section 5: Firma Digitale del Cliente */}
-          <div className="space-y-2 pt-2 border-t border-slate-200">
+          <div className="space-y-[7px] pt-[7px] border-t border-slate-200">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-[7px]">
                 <UserCheck className="w-4 h-4 text-emerald-700" />
                 Firma di Accettazione del Cliente
               </span>
             </div>
 
-            <div className="mb-2">
+            <div>
               <input
                 type="text"
                 placeholder="Nome e cognome di chi firma a schermo..."
                 value={clientSigneeName}
                 onChange={(e) => setClientSigneeName(e.target.value)}
-                className="w-full text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg focus:outline-emerald-600"
+                className="w-full text-xs p-[7px] bg-white border border-slate-300 rounded-[7px] focus:outline-emerald-600"
               />
             </div>
 
@@ -433,17 +433,17 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
           </div>
 
           {/* Submit Actions */}
-          <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-3">
+          <div className="pt-[7px] border-t border-slate-200 flex items-center justify-end gap-[7px]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 rounded-lg"
+              className="px-4 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 rounded-[7px]"
             >
               Annulla
             </button>
             <button
               type="submit"
-              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg shadow-md transition-colors"
+              className="flex items-center gap-[7px] px-5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-[7px] shadow-md transition-colors"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>Conferma e Invia Rapportino</span>

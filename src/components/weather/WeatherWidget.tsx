@@ -48,14 +48,14 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ clients, selectedC
 
   if (!activeClient) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-        <div className="flex items-center gap-2 mb-2">
+      <div className="bg-white rounded-[7px] border border-slate-200 p-[7px] shadow-sm space-y-[7px]">
+        <div className="flex items-center gap-[7px]">
           <CloudSun className="w-4 h-4 text-emerald-700" />
           <span className="text-xs font-semibold text-slate-800 uppercase tracking-wider">
             Meteo Cantieri
           </span>
         </div>
-        <p className="text-xs text-slate-500 py-3">
+        <p className="text-xs text-slate-500 py-2">
           Nessun cantiere presente. Inserisci un cliente con coordinate per monitorare le condizioni meteo e l'allerta pioggia.
         </p>
       </div>
@@ -63,10 +63,10 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ clients, selectedC
   }
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col justify-between">
+    <div className="bg-white rounded-[7px] border border-slate-200 p-[7px] shadow-sm flex flex-col justify-between space-y-[7px]">
       {/* Top Bar: Title & Client Selector */}
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-[7px]">
+        <div className="flex items-center gap-[7px]">
           <CloudSun className="w-4 h-4 text-emerald-700" />
           <span className="text-xs font-semibold text-slate-800 uppercase tracking-wider">
             Meteo Cantieri
@@ -80,7 +80,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ clients, selectedC
               const found = clients.find((c) => c.id === e.target.value);
               if (found) setActiveClient(found);
             }}
-            className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-700 max-w-[170px] truncate focus:outline-emerald-600"
+            className="bg-slate-50 border border-slate-200 rounded-[7px] px-2 py-1 text-xs text-slate-700 max-w-[170px] truncate focus:outline-emerald-600"
           >
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
@@ -97,10 +97,10 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ clients, selectedC
           <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
         </div>
       ) : weather ? (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
+        <div className="space-y-[7px]">
+          <div className="flex items-center justify-between gap-[7px]">
             <div>
-              <div className="flex items-baseline gap-1.5">
+              <div className="flex items-baseline gap-[7px]">
                 <span className="text-3xl font-bold font-mono tracking-tight text-slate-900">
                   {weather.temp}°C
                 </span>
@@ -111,12 +111,12 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ clients, selectedC
               <div className="text-xs font-medium text-slate-700 mt-0.5">{weather.condition}</div>
             </div>
 
-            <div className="text-right space-y-1 text-xs text-slate-600 font-mono">
-              <div className="flex items-center justify-end gap-1.5">
+            <div className="text-right space-y-[7px] text-xs text-slate-600 font-mono">
+              <div className="flex items-center justify-end gap-[7px]">
                 <Droplets className="w-3.5 h-3.5 text-sky-600" />
                 <span>Pioggia: <strong>{weather.precipitationProbability}%</strong></span>
               </div>
-              <div className="flex items-center justify-end gap-1.5">
+              <div className="flex items-center justify-end gap-[7px]">
                 <Wind className="w-3.5 h-3.5 text-slate-400" />
                 <span>Vento: <strong>{weather.windSpeed} km/h</strong></span>
               </div>
@@ -125,14 +125,14 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ clients, selectedC
 
           {/* Rain Alert Box */}
           {weather.rainAlert ? (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex items-start gap-2">
+            <div className="bg-amber-50 border border-amber-200 rounded-[7px] p-[7px] flex items-start gap-[7px]">
               <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
               <div className="text-xs text-amber-900 leading-snug">
                 <strong>Allerta Pioggia ({weather.precipitationProbability}%):</strong> Rischio bagnatura erba per sfalcio e dilavamento trattamenti fitosanitari. Considerare riprogrammazione.
               </div>
             </div>
           ) : (
-            <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-lg p-2 flex items-center gap-2 text-xs text-emerald-900">
+            <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-[7px] p-[7px] flex items-center gap-[7px] text-xs text-emerald-900">
               <Sun className="w-4 h-4 text-emerald-700 shrink-0" />
               <span>Condizioni ottimali per lavori all'aperto.</span>
             </div>

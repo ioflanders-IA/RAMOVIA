@@ -23,6 +23,8 @@ export const ReportsHub: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'submitted' | 'approved'>('all');
   const [selectedReport, setSelectedReport] = useState<WorkReport | null>(null);
 
+  if (!currentUser) return null;
+
   // If worker, only their reports; if admin, all reports
   const visibleReports = reports.filter((r) => {
     if (currentUser.role === 'worker' && r.workerId !== currentUser.uid) {
@@ -41,39 +43,39 @@ export const ReportsHub: React.FC = () => {
   const totalHoursWorked = visibleReports.reduce((sum, r) => sum + r.totalHours, 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[7px]">
       
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-[7px]">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-[7px]">
             <FileCheck2 className="w-5 h-5 text-emerald-700" />
             <span>Registro Rapportini di Lavoro Digitali</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 mt-[7px]">
             Archivio certificato con ore timesheet, materiali scaricati, rilievo fotografico e firma touch del committente.
           </p>
         </div>
 
         {/* Stats Strip */}
-        <div className="flex items-center gap-3">
-          <div className="bg-white border border-slate-200 rounded-xl px-3.5 py-2 shadow-xs text-xs">
+        <div className="flex items-center gap-[7px]">
+          <div className="bg-white border border-slate-200 rounded-[7px] p-[7px] shadow-xs text-xs space-y-[7px]">
             <span className="text-slate-500 text-[10px] uppercase font-bold block">Ore Rendicontate</span>
-            <span className="text-base font-mono font-bold text-emerald-800">{totalHoursWorked.toFixed(1)} ore</span>
+            <span className="text-base font-mono font-bold text-emerald-800 block">{totalHoursWorked.toFixed(1)} ore</span>
           </div>
-          <div className="bg-white border border-slate-200 rounded-xl px-3.5 py-2 shadow-xs text-xs">
+          <div className="bg-white border border-slate-200 rounded-[7px] p-[7px] shadow-xs text-xs space-y-[7px]">
             <span className="text-slate-500 text-[10px] uppercase font-bold block">Rapportini Archiviati</span>
-            <span className="text-base font-mono font-bold text-slate-900">{visibleReports.length}</span>
+            <span className="text-base font-mono font-bold text-slate-900 block">{visibleReports.length}</span>
           </div>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-[7px]">
+        <div className="flex items-center gap-[7px] bg-slate-100 p-[7px] rounded-[7px] text-xs">
           <button
             onClick={() => setStatusFilter('all')}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+            className={`px-3 py-1.5 rounded-[7px] font-semibold transition-colors ${
               statusFilter === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -81,7 +83,7 @@ export const ReportsHub: React.FC = () => {
           </button>
           <button
             onClick={() => setStatusFilter('submitted')}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+            className={`px-3 py-1.5 rounded-[7px] font-semibold transition-colors ${
               statusFilter === 'submitted' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -89,7 +91,7 @@ export const ReportsHub: React.FC = () => {
           </button>
           <button
             onClick={() => setStatusFilter('approved')}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+            className={`px-3 py-1.5 rounded-[7px] font-semibold transition-colors ${
               statusFilter === 'approved' ? 'bg-emerald-700 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -104,15 +106,15 @@ export const ReportsHub: React.FC = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Cerca per cliente o lavoro..."
-            className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-slate-200 rounded-xl shadow-xs focus:outline-emerald-600"
+            className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-[7px] shadow-xs focus:outline-emerald-600"
           />
         </div>
       </div>
 
       {/* Reports Table / Card List */}
-      <div className="space-y-3">
+      <div className="space-y-[7px]">
         {visibleReports.length === 0 ? (
-          <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-500 text-xs">
+          <div className="bg-white border border-slate-200 rounded-[7px] p-[7px] py-8 text-center text-slate-500 text-xs">
             Nessun rapportino trovato con i filtri selezionati.
           </div>
         ) : (
@@ -120,12 +122,12 @@ export const ReportsHub: React.FC = () => {
             <div
               key={report.id}
               onClick={() => setSelectedReport(report)}
-              className="bg-white border border-slate-200 hover:border-emerald-300 rounded-2xl p-4 sm:p-5 shadow-xs transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              className="bg-white border border-slate-200 hover:border-emerald-300 rounded-[7px] p-[7px] shadow-xs transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-[7px]"
             >
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
+              <div className="space-y-[7px]">
+                <div className="flex items-center gap-[7px]">
                   <span
-                    className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                    className={`inline-block px-2 py-0.5 rounded-[7px] text-[10px] font-bold ${
                       report.status === 'approved'
                         ? 'bg-emerald-100 text-emerald-800'
                         : 'bg-amber-100 text-amber-800'
@@ -139,30 +141,30 @@ export const ReportsHub: React.FC = () => {
                   <span className="text-xs text-slate-500 font-mono">· {report.date}</span>
                 </div>
 
-                <h3 className="text-base font-bold text-slate-900">{report.clientName}</h3>
+                <h3 className="text-sm font-bold text-slate-900">{report.clientName}</h3>
                 <div className="text-xs text-slate-600 font-medium">{report.jobTitle}</div>
 
-                <div className="flex items-center gap-4 text-xs text-slate-500 pt-1 font-mono">
-                  <span className="flex items-center gap-1">
+                <div className="flex items-center gap-[7px] text-xs text-slate-500 pt-[7px] font-mono flex-wrap">
+                  <span className="flex items-center gap-[7px]">
                     <User className="w-3.5 h-3.5 text-slate-400" />
                     <span>{report.workerName}</span>
                   </span>
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-[7px]">
                     <Clock className="w-3.5 h-3.5 text-slate-400" />
                     <span>{report.totalHours} ore ({report.startTime} - {report.endTime})</span>
                   </span>
                   {report.materialsUsed && report.materialsUsed.length > 0 && (
                     <span className="text-emerald-700">
-                      {report.materialsUsed.length} materiali utilizzati
+                      {report.materialsUsed.length} materiali
                     </span>
                   )}
                 </div>
               </div>
 
               {/* Right side: Photos thumbnail & View CTA */}
-              <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+              <div className="flex items-center gap-[7px] shrink-0 self-end sm:self-center">
                 {report.photosAfter && report.photosAfter.length > 0 && (
-                  <div className="w-14 h-14 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 hidden sm:block">
+                  <div className="w-12 h-12 rounded-[7px] overflow-hidden border border-slate-200 bg-slate-100 hidden sm:block">
                     <img
                       src={report.photosAfter[0]}
                       alt="Dopo"
@@ -174,7 +176,7 @@ export const ReportsHub: React.FC = () => {
 
                 <button
                   type="button"
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-emerald-700 hover:text-white text-slate-700 text-xs font-bold rounded-xl transition-all shadow-xs"
+                  className="flex items-center gap-[7px] px-3 py-1.5 bg-slate-100 hover:bg-emerald-700 hover:text-white text-slate-700 text-xs font-bold rounded-[7px] transition-all shadow-xs"
                 >
                   <Eye className="w-4 h-4" />
                   <span>Apri Scheda / PDF</span>

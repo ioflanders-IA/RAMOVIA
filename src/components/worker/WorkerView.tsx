@@ -45,7 +45,7 @@ export const WorkerView: React.FC = () => {
   };
 
   // Filter jobs strictly assigned to this worker
-  const myJobs = jobs.filter((j) => j.assignedWorkerId === currentUser.uid);
+  const myJobs = jobs.filter((j) => j.assignedWorkerId === currentUser?.uid);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const todayJobs = myJobs.filter((j) => j.date === todayStr);
@@ -57,24 +57,24 @@ export const WorkerView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto pb-12">
+    <div className="space-y-[7px] max-w-3xl mx-auto pb-12">
       
       {/* Top Mobile Welcome Card */}
-      <div className="bg-gradient-to-r from-emerald-900 to-emerald-950 text-white rounded-2xl p-5 shadow-lg border border-emerald-800">
-        <div className="flex items-center justify-between">
+      <div className="bg-gradient-to-r from-emerald-900 to-emerald-950 text-white rounded-[7px] p-[7px] shadow-sm border border-emerald-800 space-y-[7px]">
+        <div className="flex items-center justify-between gap-[7px]">
           <div>
-            <div className="text-xs text-emerald-300 font-semibold tracking-wider uppercase">
+            <div className="text-[10px] text-emerald-300 font-semibold tracking-wider uppercase">
               Operatore sul campo
             </div>
-            <h1 className="text-xl font-bold mt-0.5 text-white">{currentUser.displayName}</h1>
-            <div className="text-xs text-emerald-200/80 mt-1 flex items-center gap-1.5 font-mono">
+            <h1 className="text-lg font-bold text-white">{currentUser?.displayName}</h1>
+            <div className="text-[11px] text-emerald-200/80 flex items-center gap-[7px] font-mono">
               <Calendar className="w-3.5 h-3.5 text-emerald-400" />
               <span>Oggi: {new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
             </div>
           </div>
 
           <div className="text-right">
-            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-emerald-800/80 text-emerald-200 text-xs font-semibold border border-emerald-700 font-mono">
+            <span className="inline-flex items-center p-[7px] rounded-[7px] bg-emerald-800/80 text-emerald-200 text-xs font-semibold border border-emerald-700 font-mono">
               {todayJobs.length} interventi oggi
             </span>
           </div>
@@ -82,17 +82,17 @@ export const WorkerView: React.FC = () => {
       </div>
 
       {/* TODAY'S JOBS LIST */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+      <div className="space-y-[7px]">
+        <div className="flex items-center justify-between px-[7px]">
+          <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-[7px]">
             <Clock className="w-4 h-4 text-emerald-700" />
             <span>I Miei Interventi di Oggi</span>
           </h2>
-          <span className="text-xs text-slate-500 font-mono">Priorità giornaliera</span>
+          <span className="text-[10px] text-slate-500 font-mono">Priorità giornaliera</span>
         </div>
 
         {todayJobs.length === 0 ? (
-          <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-500">
+          <div className="bg-white border border-slate-200 rounded-[7px] p-[7px] py-8 text-center text-slate-500 text-xs">
             Nessun intervento programmato per oggi sul tuo profilo.
           </div>
         ) : (
@@ -104,7 +104,7 @@ export const WorkerView: React.FC = () => {
             return (
               <div
                 key={job.id}
-                className={`bg-white rounded-2xl border transition-all shadow-sm overflow-hidden ${
+                className={`bg-white rounded-[7px] border transition-all shadow-xs overflow-hidden space-y-[7px] p-[7px] ${
                   job.status === 'in_progress'
                     ? 'border-sky-500 ring-2 ring-sky-100'
                     : job.status === 'completed'
@@ -113,11 +113,11 @@ export const WorkerView: React.FC = () => {
                 }`}
               >
                 {/* Job Header Bar */}
-                <div className="p-4 sm:p-5">
-                  <div className="flex items-start justify-between gap-3">
+                <div className="space-y-[7px]">
+                  <div className="flex items-start justify-between gap-[7px]">
                     <div>
                       {/* Status badge */}
-                      <div className="flex items-center gap-2 mb-1.5">
+                      <div className="flex items-center gap-[7px]">
                         <span
                           className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${
                             job.status === 'in_progress'
@@ -133,7 +133,7 @@ export const WorkerView: React.FC = () => {
                             ? 'COMPLETATO'
                             : 'PROGRAMMATO'}
                         </span>
-                        <span className="text-xs text-slate-500 font-mono flex items-center gap-1">
+                        <span className="text-xs text-slate-500 font-mono flex items-center gap-[7px]">
                           <Clock className="w-3 h-3 text-slate-400" />
                           {job.timeSlot}
                         </span>
@@ -153,7 +153,7 @@ export const WorkerView: React.FC = () => {
                       href={`https://www.google.com/maps/dir/?api=1&destination=${job.lat},${job.lng}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors"
+                      className="shrink-0 flex items-center gap-[7px] p-[7px] bg-slate-900 hover:bg-slate-800 text-white rounded-[7px] text-xs font-semibold shadow-xs transition-colors"
                     >
                       <Compass className="w-4 h-4 text-emerald-400" />
                       <span>Naviga</span>
@@ -161,21 +161,21 @@ export const WorkerView: React.FC = () => {
                   </div>
 
                   {/* Job Title & Scope */}
-                  <div className="mt-3 p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs">
-                    <div className="font-bold text-slate-800 mb-0.5">{job.title}</div>
+                  <div className="p-[7px] bg-slate-50 border border-slate-200/80 rounded-[7px] text-xs space-y-[7px]">
+                    <div className="font-bold text-slate-800">{job.title}</div>
                     <div className="text-slate-600 leading-relaxed">{job.description}</div>
                   </div>
 
                   {/* Materials To Pick Up */}
                   {job.materialsRequired && job.materialsRequired.length > 0 && (
-                    <div className="mt-3 flex items-center gap-2 flex-wrap text-xs">
-                      <span className="text-slate-500 font-semibold flex items-center gap-1">
+                    <div className="flex items-center gap-[7px] flex-wrap text-xs">
+                      <span className="text-slate-500 font-semibold flex items-center gap-[7px]">
                         <Package className="w-3.5 h-3.5" /> Materiali necessari:
                       </span>
                       {job.materialsRequired.map((mat, idx) => (
                         <span
                           key={idx}
-                          className="bg-emerald-50 text-emerald-900 border border-emerald-200 px-2 py-0.5 rounded-md font-mono text-[11px]"
+                          className="bg-emerald-50 text-emerald-900 border border-emerald-200 p-[7px] py-0.5 rounded-[7px] font-mono text-[11px]"
                         >
                           {mat.qtyNeeded} {mat.unit} {mat.name}
                         </span>
@@ -183,17 +183,17 @@ export const WorkerView: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Garden Technical Card Dropdown (Crucial technical notes for the gardener) */}
+                  {/* Garden Technical Card Dropdown */}
                   {clientDetails && (
-                    <div className="mt-3 pt-3 border-t border-slate-100">
+                    <div className="pt-2 border-t border-slate-100">
                       <button
                         type="button"
                         onClick={() =>
                           setExpandedGardenJobId(isExpanded ? null : job.id)
                         }
-                        className="w-full flex items-center justify-between text-xs font-semibold text-slate-700 hover:text-emerald-800 transition-colors py-1"
+                        className="w-full flex items-center justify-between text-xs font-semibold text-slate-700 hover:text-emerald-800 transition-colors p-[7px]"
                       >
-                        <span className="flex items-center gap-1.5">
+                        <span className="flex items-center gap-[7px]">
                           <Info className="w-4 h-4 text-emerald-700" />
                           Scheda Tecnica Giardino (Codici cancelli, animali, irrigazione)
                         </span>
@@ -205,8 +205,8 @@ export const WorkerView: React.FC = () => {
                       </button>
 
                       {isExpanded && (
-                        <div className="mt-2.5 p-3.5 bg-emerald-950/5 border border-emerald-200/80 rounded-xl text-xs space-y-2 text-slate-800 animate-fadeIn">
-                          <div className="grid grid-cols-2 gap-2 pb-2 border-b border-emerald-100">
+                        <div className="p-[7px] bg-emerald-950/5 border border-emerald-200/80 rounded-[7px] text-xs space-y-[7px] text-slate-800">
+                          <div className="grid grid-cols-2 gap-[7px] pb-2 border-b border-emerald-100">
                             <div>
                               <span className="text-slate-500 block text-[10px] uppercase font-bold">
                                 Superficie Prato
@@ -219,14 +219,14 @@ export const WorkerView: React.FC = () => {
                               <span className="text-slate-500 block text-[10px] uppercase font-bold">
                                 Codice Cancello / Accesso
                               </span>
-                              <span className="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200 inline-block">
+                              <span className="font-mono font-bold text-slate-900 bg-white p-[7px] py-0.5 rounded-[7px] border border-slate-200 inline-block">
                                 {clientDetails.gardenNotes.gateCode}
                               </span>
                             </div>
                           </div>
 
                           {clientDetails.gardenNotes.dogPresent && (
-                            <div className="flex items-start gap-1.5 p-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-xs font-semibold">
+                            <div className="flex items-start gap-[7px] p-[7px] bg-amber-50 border border-amber-200 rounded-[7px] text-amber-900 text-xs font-semibold">
                               <ShieldAlert className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                               <span>Attenzione: Cani presenti in proprietà! Accertarsi che siano chiusi prima di accedere con i macchinari.</span>
                             </div>
@@ -255,11 +255,11 @@ export const WorkerView: React.FC = () => {
                   )}
 
                   {/* JOB ACTIONS & TIMESHEET CONTROLS */}
-                  <div className="mt-4 pt-3 border-t border-slate-100">
+                  <div className="pt-2 border-t border-slate-100">
                     {job.status === 'scheduled' && (
                       <button
                         onClick={() => handleStartWork(job.id)}
-                        className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-sm font-bold shadow-md transition-colors"
+                        className="w-full flex items-center justify-center gap-[7px] p-[7px] py-3 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] text-sm font-bold shadow-xs transition-colors"
                       >
                         <Play className="w-4 h-4 fill-white" />
                         <span>Inizia Lavoro (Avvia Timer Cantiere)</span>
@@ -267,10 +267,10 @@ export const WorkerView: React.FC = () => {
                     )}
 
                     {job.status === 'in_progress' && (
-                      <div className="space-y-3">
+                      <div className="space-y-[7px]">
                         {/* Live Timer Display */}
-                        <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
+                        <div className="bg-sky-50 border border-sky-200 rounded-[7px] p-[7px] flex items-center justify-between">
+                          <div className="flex items-center gap-[7px]">
                             <span className="w-2.5 h-2.5 rounded-full bg-sky-500 animate-ping" />
                             <span className="text-xs font-bold text-sky-900 uppercase">
                               Lavoro In Corso
@@ -283,7 +283,7 @@ export const WorkerView: React.FC = () => {
 
                         <button
                           onClick={() => setSelectedJobForReport(job)}
-                          className="w-full flex items-center justify-center gap-2 py-3.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-sm font-bold shadow-md transition-colors"
+                          className="w-full flex items-center justify-center gap-[7px] p-[7px] py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-[7px] text-sm font-bold shadow-xs transition-colors"
                         >
                           <CheckCircle2 className="w-5 h-5" />
                           <span>Termina Lavoro & Compila Rapportino</span>
@@ -292,8 +292,8 @@ export const WorkerView: React.FC = () => {
                     )}
 
                     {job.status === 'completed' && (
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
+                      <div className="flex items-center justify-between gap-[7px]">
+                        <span className="flex items-center gap-[7px] text-xs font-semibold text-emerald-800">
                           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                           Intervento concluso con successo
                         </span>
@@ -301,7 +301,7 @@ export const WorkerView: React.FC = () => {
                         {existingReport && (
                           <button
                             onClick={() => setSelectedReportToView(existingReport)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 rounded-lg border border-emerald-200"
+                            className="flex items-center gap-[7px] p-[7px] text-xs font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 rounded-[7px] border border-emerald-200"
                           >
                             <FileCheck2 className="w-3.5 h-3.5" />
                             <span>Vedi Rapportino</span>
