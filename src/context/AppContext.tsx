@@ -1,12 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
-  INITIAL_CLIENTS,
-  INITIAL_INVENTORY,
-  INITIAL_JOBS,
-  INITIAL_REPORTS,
-  INITIAL_USERS,
-} from '../data/mockData';
-import {
   Client,
   InventoryItem,
   Job,
@@ -15,6 +8,24 @@ import {
   UserRole,
   WorkReport,
 } from '../types';
+import {
+  auth,
+  db,
+  signInWithGoogle,
+  logoutFromFirebase,
+  linkWorkerByCode,
+  handleUserDocOnLogin,
+  generateWorkerCode,
+} from '../services/firebase';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import {
+  collection,
+  doc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+} from 'firebase/firestore';
 
 interface AppContextType {
   currentUser: User | null;
@@ -24,95 +35,99 @@ interface AppContextType {
   inventory: InventoryItem[];
   reports: WorkReport[];
   shoppingList: ShoppingListItem[];
+  loadingAuth: boolean;
+  loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  linkWorker: (code: string) => Promise<{ success: boolean; workerName?: string; error?: string }>;
   switchUser: (uid: string) => void;
-  login: (user: User) => void;
-  logout: () => void;
   loginWithEmail: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   registerAccount: (name: string, email: string, role: UserRole, phone?: string) => Promise<{ success: boolean; user?: User; error?: string }>;
-  addUser: (userData: Omit<User, 'uid'>) => User;
-  updateUserRole: (uid: string, role: UserRole) => void;
-  deleteUser: (uid: string) => void;
+  addUser: (userData: Omit<User, 'uid'>) => Promise<User>;
+  updateUserRole: (uid: string, role: UserRole) => Promise<void>;
+  deleteUser: (uid: string) => Promise<void>;
   // Clients
-  addClient: (clientData: Omit<Client, 'id' | 'createdAt'>) => void;
-  updateClient: (client: Client) => void;
-  deleteClient: (id: string) => void;
+  addClient: (clientData: Omit<Client, 'id' | 'createdAt'>) => Promise<void>;
+  updateClient: (client: Client) => Promise<void>;
+  deleteClient: (id: string) => Promise<void>;
   // Jobs
-  addJob: (jobData: Omit<Job, 'id'>) => void;
-  updateJob: (job: Job) => void;
-  deleteJob: (id: string) => void;
-  startJob: (id: string) => void;
+  addJob: (jobData: Omit<Job, 'id'>) => Promise<void>;
+  updateJob: (job: Job) => Promise<void>;
+  deleteJob: (id: string) => Promise<void>;
+  startJob: (id: string) => Promise<void>;
   // Inventory
-  addInventoryItem: (itemData: Omit<InventoryItem, 'id'>) => void;
-  updateInventoryItem: (item: InventoryItem) => void;
-  deleteInventoryItem: (id: string) => void;
-  recordEquipmentMaintenance: (itemId: string, newUsageHours: number) => void;
+  addInventoryItem: (itemData: Omit<InventoryItem, 'id'>) => Promise<void>;
+  updateInventoryItem: (item: InventoryItem) => Promise<void>;
+  deleteInventoryItem: (id: string) => Promise<void>;
+  recordEquipmentMaintenance: (itemId: string, newUsageHours: number) => Promise<void>;
   // Reports
-  submitWorkReport: (reportData: Omit<WorkReport, 'id' | 'createdAt' | 'status'>) => void;
-  approveWorkReport: (reportId: string, adminNotes?: string) => void;
-  // Clear all data
+  submitWorkReport: (reportData: Omit<WorkReport, 'id' | 'createdAt' | 'status'>) => Promise<void>;
+  approveWorkReport: (reportId: string, adminNotes?: string) => Promise<void>;
   clearAllData: () => void;
 }
 
 const STORAGE_KEYS = {
-  USERS: 'ramovia_users_v2',
-  CURRENT_USER_ID: 'ramovia_current_uid_v2',
-  CLIENTS: 'ramovia_clients_v2',
-  JOBS: 'ramovia_jobs_v2',
-  INVENTORY: 'ramovia_inventory_v2',
-  REPORTS: 'ramovia_reports_v2',
+  USERS: 'ramovia_users_v3',
+  CLIENTS: 'ramovia_clients_v3',
+  JOBS: 'ramovia_jobs_v3',
+  INVENTORY: 'ramovia_inventory_v3',
+  REPORTS: 'ramovia_reports_v3',
 };
-
-// Clear any old v1 mock/demo keys from previous runs
-try {
-  ['ramovia_users_v1', 'ramovia_current_uid_v1', 'ramovia_clients_v1', 'ramovia_jobs_v1', 'ramovia_inventory_v1', 'ramovia_reports_v1'].forEach((k) => {
-    localStorage.removeItem(k);
-  });
-} catch {
-  // ignore
-}
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Initialize state with localStorage fallbacks (defaulting to empty arrays)
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.USERS);
-    return saved ? JSON.parse(saved) : INITIAL_USERS;
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
 
-  const [currentUserId, setCurrentUserId] = useState<string>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-    return saved || INITIAL_USERS[0].uid;
+  const [users, setUsers] = useState<User[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.USERS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
 
   const [clients, setClients] = useState<Client[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CLIENTS);
-    return saved ? JSON.parse(saved) : INITIAL_CLIENTS;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CLIENTS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
 
   const [jobs, setJobs] = useState<Job[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.JOBS);
-    return saved ? JSON.parse(saved) : INITIAL_JOBS;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.JOBS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
 
   const [inventory, setInventory] = useState<InventoryItem[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.INVENTORY);
-    return saved ? JSON.parse(saved) : INITIAL_INVENTORY;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.INVENTORY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
 
   const [reports, setReports] = useState<WorkReport[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.REPORTS);
-    return saved ? JSON.parse(saved) : INITIAL_REPORTS;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.REPORTS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
 
-  // Sync to localStorage
+  // Sync to LocalStorage as offline backup
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
   }, [users]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, currentUserId);
-  }, [currentUserId]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients));
@@ -130,31 +145,124 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
   }, [reports]);
 
-  const currentUser = currentUserId === 'logged_out' ? null : (users.find((u) => u.uid === currentUserId) || users[0] || null);
+  // Real-time Firebase Auth listener & Firestore sync
+  useEffect(() => {
+    if (!auth) {
+      setLoadingAuth(false);
+      return;
+    }
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
+      if (fbUser) {
+        // Sync user doc upon login
+        try {
+          const userDocData = await handleUserDocOnLogin(fbUser);
+          setCurrentUser(userDocData);
+        } catch (err) {
+          console.warn('User doc sync error:', err);
+        }
+
+        // Listen to currentUser doc in Firestore for real-time role / linkedToAdmin updates
+        const userRef = doc(db, 'users', fbUser.uid);
+        const unsubUser = onSnapshot(userRef, (snap) => {
+          if (snap.exists()) {
+            setCurrentUser(snap.data() as User);
+          }
+        });
+
+        // Listen to all collections in Firestore
+        const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
+          const docs = snap.docs.map((d) => d.data() as User);
+          setUsers(docs);
+        });
+
+        const unsubClients = onSnapshot(collection(db, 'clients'), (snap) => {
+          const docs = snap.docs.map((d) => d.data() as Client);
+          setClients(docs);
+        });
+
+        const unsubJobs = onSnapshot(collection(db, 'jobs'), (snap) => {
+          const docs = snap.docs.map((d) => d.data() as Job);
+          setJobs(docs);
+        });
+
+        const unsubInv = onSnapshot(collection(db, 'inventory'), (snap) => {
+          const docs = snap.docs.map((d) => d.data() as InventoryItem);
+          setInventory(docs);
+        });
+
+        const unsubRep = onSnapshot(collection(db, 'timesheets_and_reports'), (snap) => {
+          const docs = snap.docs.map((d) => d.data() as WorkReport);
+          setReports(docs);
+        });
+
+        setLoadingAuth(false);
+
+        return () => {
+          unsubUser();
+          unsubUsers();
+          unsubClients();
+          unsubJobs();
+          unsubInv();
+          unsubRep();
+        };
+      } else {
+        setCurrentUser(null);
+        setLoadingAuth(false);
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, []);
+
+  // AUTH ACTIONS
+  const loginWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      setLoadingAuth(true);
+      const user = await signInWithGoogle();
+      if (user) {
+        setCurrentUser(user);
+        return { success: true };
+      }
+      return { success: false, error: 'Accesso annullato o non riuscito.' };
+    } catch (err: any) {
+      console.error('Google Sign-In Error:', err);
+      return {
+        success: false,
+        error: err.message || 'Si è verificato un errore durante l\'accesso con Google.',
+      };
+    } finally {
+      setLoadingAuth(false);
+    }
+  };
+
+  const logout = async () => {
+    await logoutFromFirebase();
+    setCurrentUser(null);
+  };
+
+  const linkWorker = async (code: string) => {
+    if (!currentUser) return { success: false, error: 'Non sei autenticato' };
+    return await linkWorkerByCode(code, currentUser.uid);
+  };
 
   const switchUser = (uid: string) => {
     const found = users.find((u) => u.uid === uid);
     if (found) {
-      setCurrentUserId(uid);
+      setCurrentUser(found);
     }
   };
 
-  const login = (user: User) => {
-    setCurrentUserId(user.uid);
-  };
-
-  const logout = () => {
-    setCurrentUserId('logged_out');
-  };
-
-  const loginWithEmail = async (email: string, _password?: string): Promise<{ success: boolean; error?: string }> => {
+  const loginWithEmail = async (
+    email: string,
+    _password?: string
+  ): Promise<{ success: boolean; error?: string }> => {
     const cleanEmail = email.trim().toLowerCase();
     const existing = users.find((u) => u.email && u.email.toLowerCase() === cleanEmail);
     if (existing) {
-      setCurrentUserId(existing.uid);
+      setCurrentUser(existing);
       return { success: true };
     }
-    // If not found in local user registry, automatically create the user profile with worker role (or admin if keyword matched)
     const isOwner = cleanEmail.includes('admin') || cleanEmail.includes('titolare') || cleanEmail.includes('andblasi');
     const newUser: User = {
       uid: `usr_${Date.now()}`,
@@ -162,9 +270,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       displayName: cleanEmail.split('@')[0].replace(/[._-]/g, ' '),
       role: isOwner ? 'admin' : 'worker',
       active: true,
+      workerCode: isOwner ? undefined : generateWorkerCode(),
+      linkedToAdmin: isOwner ? true : false,
+      createdAt: new Date().toISOString(),
     };
-    setUsers((prev) => [...prev, newUser]);
-    setCurrentUserId(newUser.uid);
+
+    if (db) {
+      await setDoc(doc(db, 'users', newUser.uid), newUser);
+    } else {
+      setUsers((prev) => [...prev, newUser]);
+    }
+    setCurrentUser(newUser);
     return { success: true };
   };
 
@@ -175,9 +291,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     phone?: string
   ): Promise<{ success: boolean; user?: User; error?: string }> => {
     const cleanEmail = email.trim().toLowerCase();
-    if (users.some((u) => u.email && u.email.toLowerCase() === cleanEmail)) {
-      return { success: false, error: 'Un account con questa email è già registrato.' };
-    }
     const newUser: User = {
       uid: `usr_${Date.now()}`,
       email: cleanEmail,
@@ -185,171 +298,239 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       role,
       phone: phone?.trim(),
       active: true,
+      workerCode: role === 'worker' ? generateWorkerCode() : undefined,
+      linkedToAdmin: role === 'admin' ? true : false,
+      createdAt: new Date().toISOString(),
     };
-    setUsers((prev) => [...prev, newUser]);
-    setCurrentUserId(newUser.uid);
+
+    if (db) {
+      await setDoc(doc(db, 'users', newUser.uid), newUser);
+    } else {
+      setUsers((prev) => [...prev, newUser]);
+    }
+    setCurrentUser(newUser);
     return { success: true, user: newUser };
   };
 
-  const addUser = (userData: Omit<User, 'uid'>): User => {
+  const addUser = async (userData: Omit<User, 'uid'>): Promise<User> => {
+    const uid = `usr_${Date.now()}`;
     const newUser: User = {
       ...userData,
-      uid: `usr_${Date.now()}`,
+      uid,
+      workerCode: userData.role === 'worker' ? (userData.workerCode || generateWorkerCode()) : undefined,
+      linkedToAdmin: userData.role === 'admin' ? true : (userData.linkedToAdmin ?? false),
+      createdAt: new Date().toISOString(),
     };
-    setUsers((prev) => [...prev, newUser]);
+
+    if (db) {
+      await setDoc(doc(db, 'users', uid), newUser);
+    } else {
+      setUsers((prev) => [...prev, newUser]);
+    }
     return newUser;
   };
 
-  const updateUserRole = (uid: string, role: UserRole) => {
-    setUsers((prev) => prev.map((u) => (u.uid === uid ? { ...u, role } : u)));
+  const updateUserRole = async (uid: string, role: UserRole) => {
+    const linkedToAdmin = role === 'admin' ? true : true; // Admin promoted or changed
+    if (db) {
+      await updateDoc(doc(db, 'users', uid), { role, linkedToAdmin });
+    } else {
+      setUsers((prev) => prev.map((u) => (u.uid === uid ? { ...u, role, linkedToAdmin } : u)));
+    }
   };
 
-  const deleteUser = (uid: string) => {
-    setUsers((prev) => prev.filter((u) => u.uid !== uid));
-    if (currentUserId === uid) {
-      const remaining = users.filter((u) => u.uid !== uid);
-      if (remaining.length > 0) {
-        setCurrentUserId(remaining[0].uid);
-      } else {
-        setCurrentUserId('logged_out');
-      }
+  const deleteUser = async (uid: string) => {
+    if (db) {
+      await deleteDoc(doc(db, 'users', uid));
+    } else {
+      setUsers((prev) => prev.filter((u) => u.uid !== uid));
     }
   };
 
   // CLIENT MANAGEMENT
-  const addClient = (clientData: Omit<Client, 'id' | 'createdAt'>) => {
+  const addClient = async (clientData: Omit<Client, 'id' | 'createdAt'>) => {
+    const id = `cli_${Date.now()}`;
     const newClient: Client = {
       ...clientData,
-      id: `cli_${Date.now()}`,
+      id,
       createdAt: new Date().toISOString().split('T')[0],
     };
-    setClients((prev) => [newClient, ...prev]);
+
+    if (db) {
+      await setDoc(doc(db, 'clients', id), newClient);
+    } else {
+      setClients((prev) => [newClient, ...prev]);
+    }
   };
 
-  const updateClient = (updated: Client) => {
-    setClients((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
-    // Also sync client name & address to uncompleted jobs
-    setJobs((prev) =>
-      prev.map((j) =>
-        j.clientId === updated.id
-          ? {
-              ...j,
-              clientName: updated.name,
-              clientAddress: updated.address,
-              clientPhone: updated.phone,
-              lat: updated.lat,
-              lng: updated.lng,
-            }
-          : j
-      )
-    );
+  const updateClient = async (updated: Client) => {
+    if (db) {
+      await setDoc(doc(db, 'clients', updated.id), updated);
+    } else {
+      setClients((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    }
   };
 
-  const deleteClient = (id: string) => {
-    setClients((prev) => prev.filter((c) => c.id !== id));
+  const deleteClient = async (id: string) => {
+    if (db) {
+      await deleteDoc(doc(db, 'clients', id));
+    } else {
+      setClients((prev) => prev.filter((c) => c.id !== id));
+    }
   };
 
   // JOB MANAGEMENT
-  const addJob = (jobData: Omit<Job, 'id'>) => {
+  const addJob = async (jobData: Omit<Job, 'id'>) => {
+    const id = `job_${Date.now()}`;
     const newJob: Job = {
       ...jobData,
-      id: `job_${Date.now()}`,
-    };
-    setJobs((prev) => [newJob, ...prev]);
-  };
-
-  const updateJob = (updated: Job) => {
-    setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
-  };
-
-  const deleteJob = (id: string) => {
-    setJobs((prev) => prev.filter((j) => j.id !== id));
-  };
-
-  const startJob = (id: string) => {
-    setJobs((prev) =>
-      prev.map((j) => (j.id === id ? { ...j, status: 'in_progress' } : j))
-    );
-  };
-
-  // INVENTORY MANAGEMENT
-  const addInventoryItem = (itemData: Omit<InventoryItem, 'id'>) => {
-    const newItem: InventoryItem = {
-      ...itemData,
-      id: `inv_${itemData.category === 'equipment' ? 'eq' : 'mat'}_${Date.now()}`,
-    };
-    setInventory((prev) => [newItem, ...prev]);
-  };
-
-  const updateInventoryItem = (updated: InventoryItem) => {
-    setInventory((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
-  };
-
-  const deleteInventoryItem = (id: string) => {
-    setInventory((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const recordEquipmentMaintenance = (itemId: string, newUsageHours: number) => {
-    setInventory((prev) =>
-      prev.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              currentUsageHours: newUsageHours,
-              status: 'available',
-              lastMaintenanceDate: new Date().toISOString().split('T')[0],
-            }
-          : item
-      )
-    );
-  };
-
-  // REPORT & TIMESHEET SUBMISSION
-  const submitWorkReport = (reportData: Omit<WorkReport, 'id' | 'createdAt' | 'status'>) => {
-    const newReport: WorkReport = {
-      ...reportData,
-      id: `rep_${Date.now()}`,
-      status: 'submitted',
-      createdAt: new Date().toISOString(),
+      id,
     };
 
-    setReports((prev) => [newReport, ...prev]);
+    if (db) {
+      await setDoc(doc(db, 'jobs', id), newJob);
+    } else {
+      setJobs((prev) => [newJob, ...prev]);
+    }
+  };
 
-    // 1. Mark corresponding job as completed
-    setJobs((prev) =>
-      prev.map((j) => (j.id === reportData.jobId ? { ...j, status: 'completed' } : j))
-    );
+  const updateJob = async (updated: Job) => {
+    if (db) {
+      await setDoc(doc(db, 'jobs', updated.id), updated);
+    } else {
+      setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+    }
+  };
 
-    // 2. Automatically deduct materials used from inventory
-    if (reportData.materialsUsed && reportData.materialsUsed.length > 0) {
-      setInventory((prev) =>
-        prev.map((inv) => {
-          const used = reportData.materialsUsed.find((m) => m.itemId === inv.id);
-          if (used) {
-            const newQty = Math.max(0, inv.quantity - used.qty);
-            return { ...inv, quantity: newQty };
-          }
-          return inv;
-        })
+  const deleteJob = async (id: string) => {
+    if (db) {
+      await deleteDoc(doc(db, 'jobs', id));
+    } else {
+      setJobs((prev) => prev.filter((j) => j.id !== id));
+    }
+  };
+
+  const startJob = async (id: string) => {
+    if (db) {
+      await updateDoc(doc(db, 'jobs', id), { status: 'in_progress' });
+    } else {
+      setJobs((prev) =>
+        prev.map((j) => (j.id === id ? { ...j, status: 'in_progress' } : j))
       );
     }
   };
 
-  const approveWorkReport = (reportId: string, adminNotes?: string) => {
-    setReports((prev) =>
-      prev.map((r) =>
-        r.id === reportId
-          ? {
-              ...r,
-              status: 'approved',
-              adminNotes: adminNotes ?? r.adminNotes,
-            }
-          : r
-      )
-    );
+  // INVENTORY MANAGEMENT
+  const addInventoryItem = async (itemData: Omit<InventoryItem, 'id'>) => {
+    const id = `inv_${itemData.category === 'equipment' ? 'eq' : 'mat'}_${Date.now()}`;
+    const newItem: InventoryItem = {
+      ...itemData,
+      id,
+    };
+
+    if (db) {
+      await setDoc(doc(db, 'inventory', id), newItem);
+    } else {
+      setInventory((prev) => [newItem, ...prev]);
+    }
   };
 
-  // CALCULATE SHOPPING LIST
+  const updateInventoryItem = async (updated: InventoryItem) => {
+    if (db) {
+      await setDoc(doc(db, 'inventory', updated.id), updated);
+    } else {
+      setInventory((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    }
+  };
+
+  const deleteInventoryItem = async (id: string) => {
+    if (db) {
+      await deleteDoc(doc(db, 'inventory', id));
+    } else {
+      setInventory((prev) => prev.filter((item) => item.id !== id));
+    }
+  };
+
+  const recordEquipmentMaintenance = async (itemId: string, newUsageHours: number) => {
+    const lastMaintenanceDate = new Date().toISOString().split('T')[0];
+    if (db) {
+      await updateDoc(doc(db, 'inventory', itemId), {
+        currentUsageHours: newUsageHours,
+        status: 'available',
+        lastMaintenanceDate,
+      });
+    } else {
+      setInventory((prev) =>
+        prev.map((item) =>
+          item.id === itemId
+            ? {
+                ...item,
+                currentUsageHours: newUsageHours,
+                status: 'available',
+                lastMaintenanceDate,
+              }
+            : item
+        )
+      );
+    }
+  };
+
+  // REPORT & TIMESHEET SUBMISSION
+  const submitWorkReport = async (reportData: Omit<WorkReport, 'id' | 'createdAt' | 'status'>) => {
+    const id = `rep_${Date.now()}`;
+    const newReport: WorkReport = {
+      ...reportData,
+      id,
+      status: 'submitted',
+      createdAt: new Date().toISOString(),
+    };
+
+    if (db) {
+      await setDoc(doc(db, 'timesheets_and_reports', id), newReport);
+      await updateDoc(doc(db, 'jobs', reportData.jobId), { status: 'completed' });
+    } else {
+      setReports((prev) => [newReport, ...prev]);
+      setJobs((prev) =>
+        prev.map((j) => (j.id === reportData.jobId ? { ...j, status: 'completed' } : j))
+      );
+    }
+
+    // Automatically deduct materials used
+    if (reportData.materialsUsed && reportData.materialsUsed.length > 0) {
+      for (const used of reportData.materialsUsed) {
+        const inv = inventory.find((i) => i.id === used.itemId);
+        if (inv) {
+          const newQty = Math.max(0, inv.quantity - used.qty);
+          if (db) {
+            await updateDoc(doc(db, 'inventory', inv.id), { quantity: newQty });
+          } else {
+            setInventory((prev) =>
+              prev.map((i) => (i.id === inv.id ? { ...i, quantity: newQty } : i))
+            );
+          }
+        }
+      }
+    }
+  };
+
+  const approveWorkReport = async (reportId: string, adminNotes?: string) => {
+    if (db) {
+      await updateDoc(doc(db, 'timesheets_and_reports', reportId), {
+        status: 'approved',
+        adminNotes: adminNotes || '',
+      });
+    } else {
+      setReports((prev) =>
+        prev.map((r) =>
+          r.id === reportId
+            ? { ...r, status: 'approved', adminNotes: adminNotes ?? r.adminNotes }
+            : r
+        )
+      );
+    }
+  };
+
+  // SHOPPING LIST COMPUTATION
   const calculateShoppingList = (): ShoppingListItem[] => {
     const materialsNeededMap = new Map<string, number>();
 
@@ -387,7 +568,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           neededForScheduledJobs: neededForJobs,
           toOrder,
           unit: mat.unit,
-          urgency: neededForJobs > effectiveAvailable || mat.quantity <= mat.minThreshold / 2 ? 'high' : 'medium',
+          urgency:
+            neededForJobs > effectiveAvailable || mat.quantity <= mat.minThreshold / 2
+              ? 'high'
+              : 'medium',
         });
       }
     }
@@ -399,8 +583,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const clearAllData = () => {
     Object.values(STORAGE_KEYS).forEach((k) => localStorage.removeItem(k));
-    setUsers(INITIAL_USERS);
-    setCurrentUserId(INITIAL_USERS[0].uid);
+    setUsers([]);
+    setCurrentUser(null);
     setClients([]);
     setJobs([]);
     setInventory([]);
@@ -417,9 +601,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         inventory,
         reports,
         shoppingList,
-        switchUser,
-        login,
+        loadingAuth,
+        loginWithGoogle,
         logout,
+        linkWorker,
+        switchUser,
         loginWithEmail,
         registerAccount,
         addUser,

@@ -1,0 +1,10 @@
+{
+  "projectId": "ramovia-a2c39",
+  "appId": "1:966584969071:web:b8173302bdf0320880ea9a",
+  "apiKey": "AIzaSyB3RhhBp4DdiHfVlZzqwqNoTa5mVUoXtt8",
+  "authDomain": "ramovia-a2c39.firebaseapp.com",
+  "storageBucket": "ramovia-a2c39.firebasestorage.app",
+  "messagingSenderId": "966584969071",
+  "databaseURL": "https://ramovia-a2c39-default-rtdb.europe-west1.firebasedatabase.app/",
+  "customUploadEndpoint": "https://www.iofall.it/ramovia/Upload"
+}

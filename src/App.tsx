@@ -7,8 +7,10 @@ import { ClientsView } from './components/clients/ClientsView';
 import { InventoryView } from './components/inventory/InventoryView';
 import { ReportsHub } from './components/report/ReportsHub';
 import { WorkerView } from './components/worker/WorkerView';
+import { WorkerPendingScreen } from './components/worker/WorkerPendingScreen';
 import { FirebaseConfigModal } from './components/firebase/FirebaseConfigModal';
 import { useOnlineStatus } from './hooks/usePWA';
+import { LoginScreen } from './components/auth/LoginScreen';
 import {
   LayoutDashboard,
   Calendar,
@@ -19,10 +21,8 @@ import {
   WifiOff,
 } from 'lucide-react';
 
-import { LoginScreen } from './components/auth/LoginScreen';
-
 const MainAppContent: React.FC = () => {
-  const { currentUser } = useApp();
+  const { currentUser, loadingAuth, logout } = useApp();
   const isOnline = useOnlineStatus();
 
   const [activeTab, setActiveTab] = useState<
@@ -31,11 +31,29 @@ const MainAppContent: React.FC = () => {
 
   const [showFirebaseModal, setShowFirebaseModal] = useState(false);
 
-  // If user is logged out, render the login screen
+  // 1. Loading state while checking Firebase Auth session
+  if (loadingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-[7px] text-slate-800">
+        <div className="bg-white p-[7px] px-6 rounded-[7px] shadow-xl border border-slate-200 flex items-center gap-[7px] text-xs font-bold space-x-2">
+          <div className="w-5 h-5 border-2 border-emerald-800 border-t-transparent rounded-full animate-spin" />
+          <span>Sincronizzazione RAMOVIA Cloud in corso...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Unauthenticated state: Login required
   if (!currentUser) {
     return <LoginScreen />;
   }
 
+  // 3. Worker pending linking state: Registered with Google but not yet linked by Admin
+  if (currentUser.role === 'worker' && currentUser.linkedToAdmin === false) {
+    return <WorkerPendingScreen currentUser={currentUser} onLogout={logout} />;
+  }
+
+  // 4. Fully authenticated view
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
       {/* Top Navigation Bar */}
@@ -49,7 +67,7 @@ const MainAppContent: React.FC = () => {
         </div>
       )}
 
-      {/* Main Content Viewport with 7px spacing from screen width */}
+      {/* Main Content Viewport with 7px spacing */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-[7px] pb-24 md:pb-[7px] space-y-[7px]">
         {currentUser.role === 'admin' ? (
           <>
@@ -62,14 +80,14 @@ const MainAppContent: React.FC = () => {
             {activeTab === 'reports' && <ReportsHub />}
           </>
         ) : (
-          /* WORKER (OPERAIO) VIEW - Mobile-First & Isolated from Financial Data */
+          /* WORKER VIEW - Mobile-First & Isolated */
           <>
             {activeTab !== 'reports' ? <WorkerView /> : <ReportsHub />}
           </>
         )}
       </main>
 
-      {/* Mobile Bottom Navigation Bar (Quick Thumb Reachability) with 7px spacing */}
+      {/* Mobile Bottom Navigation Bar with 7px spacing */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 p-[7px] flex items-center justify-around text-[10px] font-semibold text-slate-600 gap-[7px]">
         {currentUser.role === 'admin' ? (
           <>
@@ -150,7 +168,7 @@ const MainAppContent: React.FC = () => {
             <img src="/RAMOVIA_Logo.svg" alt="RAMOVIA" className="w-5 h-5 object-contain" />
             <span className="font-bold text-slate-700">RAMOVIA</span>
             <span>·</span>
-            <span>Gestionale Operativo Manutenzione del Verde</span>
+            <span>Progetto Firebase: ramovia-a2c39</span>
           </div>
 
           <div className="flex items-center gap-[7px]">

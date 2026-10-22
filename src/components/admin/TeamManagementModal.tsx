@@ -3,17 +3,16 @@ import { useApp } from '../../context/AppContext';
 import { User, UserRole } from '../../types';
 import {
   Users,
-  UserCheck,
-  UserPlus,
   Shield,
   HardHat,
   Trash2,
   X,
-  Mail,
-  Phone,
-  HelpCircle,
   CheckCircle,
-  AlertCircle,
+  HelpCircle,
+  KeyRound,
+  UserPlus,
+  UserCheck,
+  Sparkles,
 } from 'lucide-react';
 
 interface TeamManagementModalProps {
@@ -21,28 +20,72 @@ interface TeamManagementModalProps {
 }
 
 export const TeamManagementModal: React.FC<TeamManagementModalProps> = ({ onClose }) => {
-  const { users, currentUser, addUser, updateUserRole, deleteUser } = useApp();
+  const { users, currentUser, addUser, updateUserRole, deleteUser, linkWorker } = useApp();
 
+  const [inputCode, setInputCode] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState<UserRole>('worker');
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [linking, setLinking] = useState(false);
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleLinkByCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputCode.trim()) return;
+
+    setErrorMsg(null);
+    setFeedbackMsg(null);
+    setLinking(true);
+
+    try {
+      const res = await linkWorker(inputCode.trim());
+      if (res.success) {
+        setFeedbackMsg(`Operaio "${res.workerName || inputCode}" collegato con successo alla tua squadra!`);
+        setInputCode('');
+        setTimeout(() => setFeedbackMsg(null), 4000);
+      } else {
+        setErrorMsg(res.error || 'Nessun operaio trovato con questo codice.');
+        setTimeout(() => setErrorMsg(null), 5000);
+      }
+    } finally {
+      setLinking(false);
+    }
+  };
+
+  const handleQuickApprove = async (workerCode?: string) => {
+    if (!workerCode) return;
+    setLinking(true);
+    try {
+      const res = await linkWorker(workerCode);
+      if (res.success) {
+        setFeedbackMsg(`Operaio "${res.workerName}" collegato con successo alla tua squadra!`);
+        setTimeout(() => setFeedbackMsg(null), 4000);
+      } else {
+        setErrorMsg(res.error || 'Errore durante il collegamento');
+        setTimeout(() => setErrorMsg(null), 4000);
+      }
+    } finally {
+      setLinking(false);
+    }
+  };
+
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
-    addUser({
+    await addUser({
       displayName: name.trim(),
       email: email.trim().toLowerCase(),
       phone: phone.trim(),
       role,
       active: true,
+      linkedToAdmin: true,
     });
 
-    setFeedbackMsg(`Account "${name.trim()}" aggiunto con ruolo ${role === 'admin' ? 'Titolare (Admin)' : 'Operaio'}`);
+    setFeedbackMsg(`Account "${name.trim()}" aggiunto ed abilitato con successo.`);
     setTimeout(() => setFeedbackMsg(null), 4000);
 
     setName('');
@@ -52,24 +95,27 @@ export const TeamManagementModal: React.FC<TeamManagementModalProps> = ({ onClos
     setShowAddForm(false);
   };
 
-  const handleRoleToggle = (user: User) => {
+  const handleRoleToggle = async (user: User) => {
     const newRole: UserRole = user.role === 'admin' ? 'worker' : 'admin';
-    updateUserRole(user.uid, newRole);
+    await updateUserRole(user.uid, newRole);
     setFeedbackMsg(`Ruolo di "${user.displayName}" aggiornato a ${newRole === 'admin' ? 'Titolare (Admin)' : 'Operaio'}`);
     setTimeout(() => setFeedbackMsg(null), 3500);
   };
 
-  const handleDelete = (user: User) => {
+  const handleDelete = async (user: User) => {
     if (user.uid === currentUser?.uid) {
       alert('Non puoi eliminare il tuo stesso account attualmente in uso.');
       return;
     }
     if (confirm(`Sei sicuro di voler rimuovere l'utente "${user.displayName}" dalla squadra?`)) {
-      deleteUser(user.uid);
+      await deleteUser(user.uid);
       setFeedbackMsg(`Utente "${user.displayName}" rimosso.`);
       setTimeout(() => setFeedbackMsg(null), 3500);
     }
   };
+
+  const pendingWorkers = users.filter((u) => u.role === 'worker' && u.linkedToAdmin === false);
+  const activeMembers = users.filter((u) => u.role === 'admin' || u.linkedToAdmin !== false);
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-xs p-[7px] overflow-y-auto">
@@ -82,9 +128,9 @@ export const TeamManagementModal: React.FC<TeamManagementModalProps> = ({ onClos
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Gestione Squadra & Assegnazione Operai</h2>
+              <h2 className="text-base font-bold text-white">Gestione Squadra & Collegamento Operai</h2>
               <p className="text-xs text-emerald-200/80">
-                Gestisci gli account del personale, assegna ruoli e abilita gli operai ai cantieri.
+                Collega gli operai tramite il loro codice univoco o aggiungi collaboratori alla tua azienda.
               </p>
             </div>
           </div>
@@ -96,7 +142,7 @@ export const TeamManagementModal: React.FC<TeamManagementModalProps> = ({ onClos
           </button>
         </div>
 
-        {/* Feedback message banner */}
+        {/* Feedback messages */}
         {feedbackMsg && (
           <div className="bg-emerald-50 border-b border-emerald-200 p-[7px] text-xs text-emerald-800 font-medium flex items-center gap-[7px]">
             <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -104,206 +150,258 @@ export const TeamManagementModal: React.FC<TeamManagementModalProps> = ({ onClos
           </div>
         )}
 
-        <div className="p-[7px] space-y-[7px]">
+        {errorMsg && (
+          <div className="bg-rose-50 border-b border-rose-200 p-[7px] text-xs text-rose-800 font-medium flex items-center gap-[7px]">
+            <X className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
 
-          {/* Guide Box: How does worker access work? */}
-          <div className="bg-slate-50 border border-slate-200 rounded-[7px] p-[7px] text-xs space-y-[7px]">
-            <div className="font-bold text-slate-800 flex items-center gap-[7px] text-sm">
-              <HelpCircle className="w-4 h-4 text-emerald-700" />
-              <span>Come funziona l'accesso e l'assegnazione degli operai?</span>
+        <div className="p-[7px] space-y-[7px] max-h-[80vh] overflow-y-auto">
+
+          {/* Form 1: Link Worker by Code */}
+          <div className="bg-emerald-950 text-white border border-emerald-900 rounded-[7px] p-[7px] space-y-[7px] shadow-sm">
+            <div className="flex items-center gap-[7px]">
+              <KeyRound className="w-4 h-4 text-amber-400 shrink-0" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300">
+                Collega Operaio tramite Codice
+              </h3>
             </div>
-            <ol className="list-decimal list-inside space-y-[7px] text-slate-600 pl-1">
-              <li>
-                <strong>Crea o registra l'account:</strong> Aggiungi qui l'operaio specificando il suo nome ed eventuale email o telefono.
-              </li>
-              <li>
-                <strong>Ruolo Operaio:</strong> Un utente con ruolo <em>Operaio</em> ha accesso esclusivo alla schermata <strong>"I Miei Interventi"</strong>, non vede prezzi o dati finanziari aziendali, e può solo compilare orari, materiali, foto e firma.
-              </li>
-              <li>
-                <strong>Assegnazione cantieri:</strong> Quando pianifichi un intervento nel Calendario o nella Dashboard, seleziona il nome dell'operaio nel campo <em>"Operaio Assegnato"</em>. L'intervento apparirà istantaneamente sul suo dispositivo.
-              </li>
-              <li>
-                <strong>Accesso da smartphone/tablet:</strong> L'operaio accede con la sua email oppure selezionando il proprio profilo dalla schermata di login.
-              </li>
-            </ol>
+            <p className="text-[11px] text-emerald-200/80 leading-relaxed">
+              Quando un operaio si registra con Google, riceve un codice (es. <strong>OP-782A9C</strong>). Inserisci qui il suo codice per abilitarlo ed inserirlo nella tua squadra:
+            </p>
+
+            <form onSubmit={handleLinkByCodeSubmit} className="flex gap-[7px]">
+              <input
+                type="text"
+                value={inputCode}
+                onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+                placeholder="Inserisci Codice (es. OP-782A9C)"
+                className="flex-1 p-[7px] bg-emerald-900/90 border border-emerald-700 rounded-[7px] font-mono text-xs text-white placeholder-emerald-400 uppercase outline-none focus:border-amber-400"
+              />
+              <button
+                type="submit"
+                disabled={linking || !inputCode.trim()}
+                className="p-[7px] px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold rounded-[7px] text-xs transition-colors shadow-xs flex items-center gap-[7px] disabled:opacity-50"
+              >
+                <UserCheck className="w-4 h-4" />
+                <span>Collega alla Squadra</span>
+              </button>
+            </form>
           </div>
 
-          {/* Team Members List */}
+          {/* Pending Workers Section (if any registered workers are waiting) */}
+          {pendingWorkers.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-[7px] p-[7px] space-y-[7px]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  Operai in Attesa di Collegamento ({pendingWorkers.length})
+                </span>
+              </div>
+
+              <div className="space-y-[7px]">
+                {pendingWorkers.map((pw) => (
+                  <div
+                    key={pw.uid}
+                    className="flex items-center justify-between p-[7px] bg-white border border-amber-200 rounded-[7px] text-xs gap-[7px]"
+                  >
+                    <div className="flex items-center gap-[7px]">
+                      {pw.photoURL ? (
+                        <img
+                          src={pw.photoURL}
+                          alt={pw.displayName}
+                          className="w-8 h-8 rounded-[7px] object-cover"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-[7px] bg-amber-600 text-white font-bold flex items-center justify-center text-xs">
+                          O
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-bold text-slate-900">{pw.displayName}</div>
+                        <div className="text-[10px] text-slate-500">
+                          {pw.email} • Codice: <strong className="font-mono text-amber-900">{pw.workerCode}</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleQuickApprove(pw.workerCode)}
+                      className="p-[7px] px-3 bg-emerald-800 hover:bg-emerald-700 text-white rounded-[7px] text-xs font-bold transition-colors shadow-xs flex items-center gap-[7px]"
+                    >
+                      <UserCheck className="w-3.5 h-3.5" />
+                      <span>Approvazione Rapida</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Active Team Section */}
           <div className="space-y-[7px]">
             <div className="flex items-center justify-between gap-[7px]">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                Personale Registrato ({users.length})
+                Squadra Attiva ({activeMembers.length})
               </h3>
               {!showAddForm && (
                 <button
                   onClick={() => setShowAddForm(true)}
-                  className="flex items-center gap-[7px] px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] text-xs font-bold transition-colors shadow-xs"
+                  className="flex items-center gap-[7px] p-[7px] px-3 bg-emerald-800 hover:bg-emerald-700 text-white rounded-[7px] text-xs font-bold transition-colors shadow-xs"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
-                  <span>+ Aggiungi Operaio / Collaboratore</span>
+                  <span>Aggiungi Collaboratore Manuale</span>
                 </button>
               )}
             </div>
 
-            {/* Add User Inline Form */}
+            {/* Manual Add Form */}
             {showAddForm && (
               <form
                 onSubmit={handleAddSubmit}
-                className="bg-emerald-50/50 border border-emerald-200 rounded-[7px] p-[7px] space-y-[7px]"
+                className="p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] space-y-[7px] text-xs"
               >
-                <div className="flex items-center justify-between pb-[7px] border-b border-emerald-100">
-                  <span className="text-xs font-bold text-emerald-950 flex items-center gap-[7px]">
-                    <UserPlus className="w-4 h-4 text-emerald-700" />
-                    Nuovo Membro della Squadra
-                  </span>
+                <div className="font-bold text-slate-800 border-b border-slate-200 pb-1 flex justify-between items-center">
+                  <span>Nuovo Collaboratore Manuale</span>
                   <button
                     type="button"
                     onClick={() => setShowAddForm(false)}
-                    className="text-xs text-slate-400 hover:text-slate-600"
+                    className="text-slate-400 hover:text-slate-700"
                   >
-                    Annulla
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-[7px] text-xs">
-                  <div className="space-y-[7px]">
-                    <label className="block text-slate-700 font-medium">Nome e Cognome *</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-[7px]">
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Nome e Cognome *</label>
                     <input
                       type="text"
                       required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="es. Mario Rossi"
-                      className="w-full p-[7px] bg-white border border-slate-200 rounded-[7px] text-xs focus:outline-emerald-600"
+                      placeholder="es. Marco Bianchi"
+                      className="w-full p-[7px] bg-white border border-slate-200 rounded-[7px] text-xs"
                     />
                   </div>
 
-                  <div className="space-y-[7px]">
-                    <label className="block text-slate-700 font-medium">Ruolo Operativo *</label>
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Ruolo Iniziale</label>
                     <select
                       value={role}
                       onChange={(e) => setRole(e.target.value as UserRole)}
-                      className="w-full p-[7px] bg-white border border-slate-200 rounded-[7px] text-xs font-semibold focus:outline-emerald-600"
+                      className="w-full p-[7px] bg-white border border-slate-200 rounded-[7px] text-xs"
                     >
                       <option value="worker">Operaio (Vista Mobile Cantiere)</option>
                       <option value="admin">Titolare / Admin (Accesso Completo)</option>
                     </select>
                   </div>
+                </div>
 
-                  <div className="space-y-[7px]">
-                    <label className="block text-slate-700 font-medium">Email (per login)</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-[7px]">
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Email</label>
                     <input
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="mario@azienda.it"
-                      className="w-full p-[7px] bg-white border border-slate-200 rounded-[7px] text-xs focus:outline-emerald-600"
+                      placeholder="marco@example.com"
+                      className="w-full p-[7px] bg-white border border-slate-200 rounded-[7px] text-xs"
                     />
                   </div>
 
-                  <div className="space-y-[7px]">
-                    <label className="block text-slate-700 font-medium">Telefono</label>
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Telefono</label>
                     <input
-                      type="tel"
+                      type="text"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+39 340 0000000"
-                      className="w-full p-[7px] bg-white border border-slate-200 rounded-[7px] text-xs focus:outline-emerald-600"
+                      placeholder="+39 333 ..."
+                      className="w-full p-[7px] bg-white border border-slate-200 rounded-[7px] text-xs"
                     />
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-[7px] pt-[7px]">
+                <div className="flex justify-end gap-[7px] pt-1">
                   <button
                     type="button"
                     onClick={() => setShowAddForm(false)}
-                    className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-[7px] text-xs font-medium"
+                    className="p-[7px] px-3 rounded-[7px] bg-slate-200 text-slate-700 font-semibold"
                   >
                     Annulla
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] text-xs font-bold transition-colors shadow-xs"
+                    className="p-[7px] px-4 rounded-[7px] bg-emerald-800 text-white font-bold"
                   >
-                    Salva Membro Squadra
+                    Salva ed Abilita
                   </button>
                 </div>
               </form>
             )}
 
-            {/* List */}
-            <div className="divide-y divide-slate-100 border border-slate-200 rounded-[7px] overflow-hidden bg-white">
-              {users.map((user) => {
-                const isCurrent = user.uid === currentUser?.uid;
-                const isAdmin = user.role === 'admin';
+            {/* Active Members List */}
+            <div className="space-y-[7px]">
+              {activeMembers.map((user) => {
+                const isSelf = user.uid === currentUser?.uid;
 
                 return (
                   <div
                     key={user.uid}
-                    className="p-[7px] flex flex-col sm:flex-row sm:items-center justify-between gap-[7px] hover:bg-slate-50 transition-colors"
+                    className="p-[7px] bg-white border border-slate-200 rounded-[7px] flex items-center justify-between gap-[7px] text-xs shadow-2xs"
                   >
                     <div className="flex items-center gap-[7px]">
-                      <div
-                        className={`w-9 h-9 rounded-[7px] flex items-center justify-center font-bold text-xs ${
-                          isAdmin ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-emerald-100 text-emerald-900 border border-emerald-200'
-                        }`}
-                      >
-                        {isAdmin ? <Shield className="w-4 h-4 text-amber-700" /> : <HardHat className="w-4 h-4 text-emerald-700" />}
-                      </div>
+                      {user.photoURL ? (
+                        <img
+                          src={user.photoURL}
+                          alt={user.displayName}
+                          className="w-8 h-8 rounded-[7px] object-cover"
+                        />
+                      ) : (
+                        <div
+                          className={`w-8 h-8 rounded-[7px] flex items-center justify-center font-bold text-white text-xs ${
+                            user.role === 'admin' ? 'bg-amber-600' : 'bg-emerald-700'
+                          }`}
+                        >
+                          {user.role === 'admin' ? <Shield className="w-4 h-4" /> : <HardHat className="w-4 h-4" />}
+                        </div>
+                      )}
 
                       <div>
-                        <div className="flex items-center gap-[7px]">
-                          <span className="font-bold text-slate-900 text-xs sm:text-sm">
-                            {user.displayName}
-                          </span>
-                          {isCurrent && (
-                            <span className="px-2 py-0.5 rounded-[7px] text-[10px] font-bold bg-slate-900 text-white">
+                        <div className="font-bold text-slate-900 flex items-center gap-[7px]">
+                          <span>{user.displayName}</span>
+                          {isSelf && (
+                            <span className="px-1.5 py-0.5 rounded-[7px] bg-emerald-100 text-emerald-800 text-[10px] font-bold">
                               TU (Sessione Attiva)
                             </span>
                           )}
                         </div>
-
-                        <div className="flex items-center gap-[7px] text-[11px] text-slate-500 mt-0.5 font-mono">
-                          {user.email && (
-                            <span className="flex items-center gap-1">
-                              <Mail className="w-3 h-3 text-slate-400" />
-                              {user.email}
-                            </span>
-                          )}
-                          {user.phone && (
-                            <span className="flex items-center gap-1">
-                              <Phone className="w-3 h-3 text-slate-400" />
-                              {user.phone}
-                            </span>
-                          )}
+                        <div className="text-[10px] text-slate-500">
+                          {user.email || 'Nessuna email'} {user.workerCode && `• Codice: ${user.workerCode}`}
                         </div>
                       </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-[7px] shrink-0 self-end sm:self-center">
-                      {/* Toggle Role Button */}
+                    <div className="flex items-center gap-[7px]">
                       <button
-                        type="button"
                         onClick={() => handleRoleToggle(user)}
-                        title="Clicca per cambiare ruolo"
-                        className={`px-2.5 py-1.5 rounded-[7px] text-xs font-bold border transition-colors flex items-center gap-[7px] ${
-                          isAdmin
+                        disabled={isSelf}
+                        className={`p-[7px] px-2.5 rounded-[7px] font-bold text-[11px] transition-colors border ${
+                          user.role === 'admin'
                             ? 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100'
                             : 'bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100'
-                        }`}
+                        } ${isSelf ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        title={isSelf ? 'Non puoi cambiare il tuo stesso ruolo durante la sessione' : 'Clicca per cambiare ruolo'}
                       >
-                        <span>{isAdmin ? 'Ruolo: Titolare (Admin)' : 'Ruolo: Operaio'}</span>
-                        <span className="text-[10px] text-slate-400 font-normal">↺ Cambia</span>
+                        Ruolo: {user.role === 'admin' ? 'Titolare (Admin)' : 'Operaio'}
                       </button>
 
-                      {/* Delete */}
-                      {!isCurrent && (
+                      {!isSelf && (
                         <button
-                          type="button"
                           onClick={() => handleDelete(user)}
-                          title="Rimuovi account"
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded-[7px] hover:bg-rose-50 transition-colors"
+                          className="p-[7px] text-slate-400 hover:text-rose-700 rounded-[7px] hover:bg-rose-50 transition-colors"
+                          title="Rimuovi dalla squadra"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -317,10 +415,10 @@ export const TeamManagementModal: React.FC<TeamManagementModalProps> = ({ onClos
         </div>
 
         {/* Footer */}
-        <div className="bg-slate-50 p-[7px] border-t border-slate-200 flex justify-end">
+        <div className="p-[7px] bg-slate-50 border-t border-slate-200 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-[7px] transition-colors"
+            className="p-[7px] px-4 bg-slate-900 text-white font-bold rounded-[7px] text-xs hover:bg-slate-800 transition-colors"
           >
             Chiudi Gestione Squadra
           </button>

@@ -1,337 +1,86 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { UserRole } from '../../types';
-import { usePWAInstall } from '../../hooks/usePWA';
-import {
-  Shield,
-  HardHat,
-  Lock,
-  Mail,
-  User,
-  ArrowRight,
-  Download,
-  Smartphone,
-  CheckCircle,
-  HelpCircle,
-  Sparkles,
-} from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 export const LoginScreen: React.FC = () => {
-  const { users, login, loginWithEmail, registerAccount } = useApp();
-  const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
-
-  const [activeTab, setActiveTab] = useState<'quick' | 'credentials' | 'register'>('quick');
-
-  // Form states
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [regName, setRegName] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPhone, setRegPhone] = useState('');
-  const [regRole, setRegRole] = useState<UserRole>('worker');
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const { loginWithGoogle } = useApp();
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleCredentialsLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGoogleLogin = async () => {
     setErrorMsg(null);
     setLoading(true);
-
     try {
-      const res = await loginWithEmail(email, password);
+      const res = await loginWithGoogle();
       if (!res.success) {
-        setErrorMsg(res.error || 'Credenziali non valide. Verifica l\'email inserita.');
+        setErrorMsg(res.error || 'Accesso annullato o non riuscito.');
       }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    setLoading(true);
-
-    try {
-      const res = await registerAccount(regName, regEmail, regRole, regPhone);
-      if (!res.success) {
-        setErrorMsg(res.error || 'Errore durante la registrazione.');
-      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Errore durante l\'accesso con Google.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col justify-center py-6 p-[7px]">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md space-y-[7px]">
+    <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center p-[7px] text-slate-900">
+      <div className="max-w-sm w-full space-y-[7px]">
         
-        {/* Brand Logo & Presentation */}
-        <div className="text-center space-y-[7px]">
-          <div className="inline-block p-[7px] bg-white rounded-[7px] shadow-md border border-slate-200">
-            <img
-              src="/RAMOVIA_Logo.svg"
-              alt="RAMOVIA"
-              className="h-20 w-20 mx-auto object-contain"
-            />
-          </div>
+        {/* Brand Logo 30% larger, pure SVG without background, padding or borders */}
+        <div className="text-center space-y-[7px] pb-2">
+          <img
+            src="/RAMOVIA_Logo.svg"
+            alt="RAMOVIA"
+            className="w-28 h-28 mx-auto object-contain"
+          />
           <div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">RAMOVIA</h1>
-            <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wider mt-0.5">
-              Gestionale Operativo Manutenzione del Verde
+            <p className="text-[11px] font-extrabold text-emerald-800 uppercase tracking-wider">
+              Gestionale del Verde
             </p>
           </div>
         </div>
-      </div>
 
-      <div className="mt-3 sm:mx-auto sm:w-full sm:max-w-md space-y-[7px]">
-        <div className="bg-white p-[7px] shadow-xl rounded-[7px] border border-slate-200 space-y-[7px]">
-          
-          {/* Navigation Tabs */}
-          <div className="flex bg-slate-100 p-[7px] rounded-[7px] text-xs font-bold text-slate-600 gap-[7px]">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('quick');
-                setErrorMsg(null);
-              }}
-              className={`flex-1 py-1.5 rounded-[7px] transition-colors text-center ${
-                activeTab === 'quick' ? 'bg-white text-slate-900 shadow-xs' : 'hover:text-slate-900'
-              }`}
-            >
-              Accesso Squadra
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('credentials');
-                setErrorMsg(null);
-              }}
-              className={`flex-1 py-1.5 rounded-[7px] transition-colors text-center ${
-                activeTab === 'credentials' ? 'bg-white text-slate-900 shadow-xs' : 'hover:text-slate-900'
-              }`}
-            >
-              Accedi con Email
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('register');
-                setErrorMsg(null);
-              }}
-              className={`flex-1 py-1.5 rounded-[7px] transition-colors text-center ${
-                activeTab === 'register' ? 'bg-white text-slate-900 shadow-xs' : 'hover:text-slate-900'
-              }`}
-            >
-              Registrati
-            </button>
-          </div>
-
+        {/* Clean Login Card: Only Google Sign-In */}
+        <div className="bg-white border border-slate-200 rounded-[7px] p-[7px] shadow-lg space-y-[7px]">
           {errorMsg && (
-            <div className="p-[7px] bg-rose-50 border border-rose-200 rounded-[7px] text-xs text-rose-800 font-medium">
+            <div className="p-[7px] bg-rose-50 border border-rose-200 rounded-[7px] text-xs text-rose-800 font-medium text-center">
               {errorMsg}
             </div>
           )}
 
-          {/* TAB 1: QUICK ACCESS FOR FIELD WORKERS / MANAGERS */}
-          {activeTab === 'quick' && (
-            <div className="space-y-[7px]">
-              <div className="text-xs text-slate-500">
-                Seleziona il tuo profilo per accedere rapidamente dal tablet o cellulare di cantiere:
-              </div>
-
-              <div className="space-y-[7px]">
-                {users.map((user) => {
-                  const isAdmin = user.role === 'admin';
-                  return (
-                    <button
-                      key={user.uid}
-                      type="button"
-                      onClick={() => login(user)}
-                      className="w-full flex items-center justify-between p-[7px] rounded-[7px] border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/40 transition-all text-left group"
-                    >
-                      <div className="flex items-center gap-[7px]">
-                        <div
-                          className={`w-9 h-9 rounded-[7px] flex items-center justify-center font-bold text-xs ${
-                            isAdmin
-                              ? 'bg-amber-100 text-amber-900 border border-amber-200'
-                              : 'bg-emerald-100 text-emerald-900 border border-emerald-200'
-                          }`}
-                        >
-                          {isAdmin ? <Shield className="w-4 h-4 text-amber-700" /> : <HardHat className="w-4 h-4 text-emerald-700" />}
-                        </div>
-                        <div>
-                          <div className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-emerald-900">
-                            {user.displayName}
-                          </div>
-                          <div className="text-[11px] text-slate-500">
-                            {isAdmin ? 'Titolare (Admin) · Accesso Completo' : 'Operaio · Vista Mobile Cantiere'}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="text-slate-400 group-hover:text-emerald-700 transition-colors">
-                        <ArrowRight className="w-4 h-4" />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: CREDENTIALS (EMAIL / PASSWORD) */}
-          {activeTab === 'credentials' && (
-            <form onSubmit={handleCredentialsLogin} className="space-y-[7px] text-xs">
-              <div className="space-y-[7px]">
-                <label className="block text-slate-700 font-semibold">Indirizzo Email</label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="titolare@azienda.it o operaio@azienda.it"
-                    className="w-full pl-8 pr-3 p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs focus:outline-emerald-600"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-[7px]">
-                <label className="block text-slate-700 font-semibold">Password</label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pl-8 pr-3 p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs focus:outline-emerald-600"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full mt-2 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] font-bold text-xs shadow-md transition-colors flex items-center justify-center gap-[7px]"
-              >
-                <span>Accedi a RAMOVIA</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-          )}
-
-          {/* TAB 3: REGISTER NEW USER / OPERATOR */}
-          {activeTab === 'register' && (
-            <form onSubmit={handleRegister} className="space-y-[7px] text-xs">
-              <div className="space-y-[7px]">
-                <label className="block text-slate-700 font-semibold">Nome e Cognome *</label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    required
-                    value={regName}
-                    onChange={(e) => setRegName(e.target.value)}
-                    placeholder="Mario Rossi"
-                    className="w-full pl-8 pr-3 p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs focus:outline-emerald-600"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-[7px]">
-                <label className="block text-slate-700 font-semibold">Email Aziendale *</label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    required
-                    value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
-                    placeholder="mario@azienda.it"
-                    className="w-full pl-8 pr-3 p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs focus:outline-emerald-600"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-[7px]">
-                <label className="block text-slate-700 font-semibold">Ruolo Operativo *</label>
-                <select
-                  value={regRole}
-                  onChange={(e) => setRegRole(e.target.value as UserRole)}
-                  className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs font-semibold focus:outline-emerald-600"
-                >
-                  <option value="worker">Operaio (Visualizzazione Lavori Assegnati)</option>
-                  <option value="admin">Titolare / Amministratore (Controllo Totale)</option>
-                </select>
-              </div>
-
-              <div className="space-y-[7px]">
-                <label className="block text-slate-700 font-semibold">Telefono (facoltativo)</label>
-                <input
-                  type="tel"
-                  value={regPhone}
-                  onChange={(e) => setRegPhone(e.target.value)}
-                  placeholder="+39 340 0000000"
-                  className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs focus:outline-emerald-600"
+          <button
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-3 p-[7px] px-4 bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-300 hover:border-slate-400 rounded-[7px] text-sm font-bold shadow-xs transition-all duration-150 disabled:opacity-50 group cursor-pointer"
+          >
+            {loading ? (
+              <span className="inline-block w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                 />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full mt-2 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] font-bold text-xs shadow-md transition-colors flex items-center justify-center gap-[7px]"
-              >
-                <span>Registra Account</span>
-                <CheckCircle className="w-4 h-4" />
-              </button>
-            </form>
-          )}
-
-          {/* Quick FAQ note on worker assignments */}
-          <div className="pt-[7px] border-t border-slate-100 text-[11px] text-slate-500 space-y-[7px]">
-            <div className="font-semibold text-slate-700 flex items-center gap-[7px]">
-              <HelpCircle className="w-3.5 h-3.5 text-emerald-700" />
-              <span>Come funziona l'accesso e l'assegnazione?</span>
-            </div>
-            <p className="text-slate-600">
-              Il titolare assegna gli interventi all'operaio dal calendario. L'operaio accede con il suo profilo da cantiere e trova immediatamente il percorso, la scheda del giardino e la firma cliente.
-            </p>
-          </div>
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                />
+              </svg>
+            )}
+            <span>Accedi con Google</span>
+            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform ml-auto" />
+          </button>
         </div>
 
-        {/* PWA Install Promotion Box */}
-        {!isInstalled && (
-          <div className="bg-emerald-950 text-white rounded-[7px] p-[7px] shadow-md flex items-center justify-between gap-[7px] text-xs">
-            <div className="flex items-center gap-[7px]">
-              <img src="/RAMOVIA_Logo.svg" alt="App" className="w-8 h-8 object-contain shrink-0" />
-              <div>
-                <div className="font-bold text-white">Installa l'App RAMOVIA</div>
-                <div className="text-[11px] text-emerald-300">
-                  Funziona su PC, Android e iPhone anche offline.
-                </div>
-              </div>
-            </div>
-
-            {isInstallable && (
-              <button
-                onClick={install}
-                className="flex items-center gap-[7px] px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[7px] font-bold shrink-0 transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Installa</span>
-              </button>
-            )}
-
-            {isIOS && (
-              <span className="text-[10px] text-emerald-300 bg-emerald-900/60 p-[7px] rounded-[7px]">
-                Safari: Condividi &gt; Aggiungi a Home
-              </span>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

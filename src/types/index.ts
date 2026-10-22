@@ -4,9 +4,14 @@ export interface User {
   uid: string;
   email: string;
   displayName: string;
+  photoURL?: string;
   role: UserRole;
   phone?: string;
   active: boolean;
+  workerCode?: string;
+  linkedToAdmin?: boolean;
+  linkedAdminUid?: string;
+  createdAt?: string;
 }
 
 export interface GardenNotes {
