@@ -266,11 +266,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [payouts]);
 
-  // 3. Firestore snapshot listeners: Active always so both mobile and desktop sync seamlessly
+  // 3. Firestore snapshot listeners & real-time cross-device sync (PC <-> Mobile)
   useEffect(() => {
     if (!db) return;
 
-    // CLIENTS LISTENER & SEED SYNC
+    // Immediately push any locally stored records to Firestore so PC data syncs to Mobile
+    try {
+      const savedClients = localStorage.getItem(STORAGE_KEYS.CLIENTS);
+      if (savedClients) {
+        const list: Client[] = JSON.parse(savedClients);
+        list.forEach((c) => {
+          if (c && c.id) {
+            setDoc(doc(db, 'clients', c.id), sanitizeForFirestore(c), { merge: true }).catch((e) => console.warn('Sync client error:', e));
+          }
+        });
+      }
+      const savedJobs = localStorage.getItem(STORAGE_KEYS.JOBS);
+      if (savedJobs) {
+        const list: Job[] = JSON.parse(savedJobs);
+        list.forEach((j) => {
+          if (j && j.id) {
+            setDoc(doc(db, 'jobs', j.id), sanitizeForFirestore(j), { merge: true }).catch((e) => console.warn('Sync job error:', e));
+          }
+        });
+      }
+      const savedInv = localStorage.getItem(STORAGE_KEYS.INVENTORY);
+      if (savedInv) {
+        const list: InventoryItem[] = JSON.parse(savedInv);
+        list.forEach((i) => {
+          if (i && i.id) {
+            setDoc(doc(db, 'inventory', i.id), sanitizeForFirestore(i), { merge: true }).catch((e) => console.warn('Sync inv error:', e));
+          }
+        });
+      }
+      const savedReports = localStorage.getItem(STORAGE_KEYS.REPORTS);
+      if (savedReports) {
+        const list: WorkReport[] = JSON.parse(savedReports);
+        list.forEach((r) => {
+          if (r && r.id) {
+            setDoc(doc(db, 'timesheets_and_reports', r.id), sanitizeForFirestore(r), { merge: true }).catch((e) => console.warn('Sync report error:', e));
+          }
+        });
+      }
+      const savedExpenses = localStorage.getItem(STORAGE_KEYS.EXPENSES);
+      if (savedExpenses) {
+        const list: ExpenseRecord[] = JSON.parse(savedExpenses);
+        list.forEach((ex) => {
+          if (ex && ex.id) {
+            setDoc(doc(db, 'expenses', ex.id), sanitizeForFirestore(ex), { merge: true }).catch((e) => console.warn('Sync expense error:', e));
+          }
+        });
+      }
+      const savedPayouts = localStorage.getItem(STORAGE_KEYS.PAYOUTS);
+      if (savedPayouts) {
+        const list: WorkerPayout[] = JSON.parse(savedPayouts);
+        list.forEach((p) => {
+          if (p && p.id) {
+            setDoc(doc(db, 'worker_payouts', p.id), sanitizeForFirestore(p), { merge: true }).catch((e) => console.warn('Sync payout error:', e));
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Initial seed to Firestore warning:', e);
+    }
+
+    // CLIENTS LISTENER
     const unsubClients = onSnapshot(
       collection(db, 'clients'),
       (snap) => {
@@ -282,26 +342,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           } catch (e) {
             console.warn(e);
           }
-        } else {
-          // Cloud collection is empty: preserve existing local items and upload them to cloud
-          try {
-            const saved = localStorage.getItem(STORAGE_KEYS.CLIENTS);
-            const localList: Client[] = saved ? JSON.parse(saved) : [];
-            if (localList.length > 0) {
-              setClients(localList);
-              localList.forEach((c) => {
-                setDoc(doc(db, 'clients', c.id), sanitizeForFirestore(c)).catch(() => {});
-              });
-            }
-          } catch (e) {
-            console.warn(e);
-          }
         }
       },
       (err) => console.warn('clients snapshot error:', err)
     );
 
-    // JOBS LISTENER & SEED SYNC
+    // JOBS LISTENER
     const unsubJobs = onSnapshot(
       collection(db, 'jobs'),
       (snap) => {
@@ -313,25 +359,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           } catch (e) {
             console.warn(e);
           }
-        } else {
-          try {
-            const saved = localStorage.getItem(STORAGE_KEYS.JOBS);
-            const localList: Job[] = saved ? JSON.parse(saved) : [];
-            if (localList.length > 0) {
-              setJobs(localList);
-              localList.forEach((j) => {
-                setDoc(doc(db, 'jobs', j.id), sanitizeForFirestore(j)).catch(() => {});
-              });
-            }
-          } catch (e) {
-            console.warn(e);
-          }
         }
       },
       (err) => console.warn('jobs snapshot error:', err)
     );
 
-    // INVENTORY LISTENER & SEED SYNC
+    // INVENTORY LISTENER
     const unsubInv = onSnapshot(
       collection(db, 'inventory'),
       (snap) => {
@@ -343,25 +376,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           } catch (e) {
             console.warn(e);
           }
-        } else {
-          try {
-            const saved = localStorage.getItem(STORAGE_KEYS.INVENTORY);
-            const localList: InventoryItem[] = saved ? JSON.parse(saved) : [];
-            if (localList.length > 0) {
-              setInventory(localList);
-              localList.forEach((i) => {
-                setDoc(doc(db, 'inventory', i.id), sanitizeForFirestore(i)).catch(() => {});
-              });
-            }
-          } catch (e) {
-            console.warn(e);
-          }
         }
       },
       (err) => console.warn('inventory snapshot error:', err)
     );
 
-    // REPORTS LISTENER & SEED SYNC
+    // REPORTS LISTENER
     const unsubReports = onSnapshot(
       collection(db, 'timesheets_and_reports'),
       (snap) => {
@@ -373,25 +393,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           } catch (e) {
             console.warn(e);
           }
-        } else {
-          try {
-            const saved = localStorage.getItem(STORAGE_KEYS.REPORTS);
-            const localList: WorkReport[] = saved ? JSON.parse(saved) : [];
-            if (localList.length > 0) {
-              setReports(localList);
-              localList.forEach((r) => {
-                setDoc(doc(db, 'timesheets_and_reports', r.id), sanitizeForFirestore(r)).catch(() => {});
-              });
-            }
-          } catch (e) {
-            console.warn(e);
-          }
         }
       },
       (err) => console.warn('reports snapshot error:', err)
     );
 
-    // EXPENSES LISTENER & SEED SYNC
+    // EXPENSES LISTENER
     const unsubExpenses = onSnapshot(
       collection(db, 'expenses'),
       (snap) => {
@@ -403,25 +410,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           } catch (e) {
             console.warn(e);
           }
-        } else {
-          try {
-            const saved = localStorage.getItem(STORAGE_KEYS.EXPENSES);
-            const localList: ExpenseRecord[] = saved ? JSON.parse(saved) : INITIAL_EXPENSES;
-            if (localList.length > 0) {
-              setExpenses(localList);
-              localList.forEach((ex) => {
-                setDoc(doc(db, 'expenses', ex.id), sanitizeForFirestore(ex)).catch(() => {});
-              });
-            }
-          } catch (e) {
-            console.warn(e);
-          }
         }
       },
       (err) => console.warn('expenses snapshot error:', err)
     );
 
-    // PAYOUTS LISTENER & SEED SYNC
+    // PAYOUTS LISTENER
     const unsubPayouts = onSnapshot(
       collection(db, 'worker_payouts'),
       (snap) => {
@@ -430,19 +424,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setPayouts(docs);
           try {
             localStorage.setItem(STORAGE_KEYS.PAYOUTS, JSON.stringify(docs));
-          } catch (e) {
-            console.warn(e);
-          }
-        } else {
-          try {
-            const saved = localStorage.getItem(STORAGE_KEYS.PAYOUTS);
-            const localList: WorkerPayout[] = saved ? JSON.parse(saved) : [];
-            if (localList.length > 0) {
-              setPayouts(localList);
-              localList.forEach((p) => {
-                setDoc(doc(db, 'worker_payouts', p.id), sanitizeForFirestore(p)).catch(() => {});
-              });
-            }
           } catch (e) {
             console.warn(e);
           }

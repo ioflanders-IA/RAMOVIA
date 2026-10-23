@@ -41,7 +41,8 @@ let storage: FirebaseStorage;
 try {
   app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
   auth = getAuth(app);
-  db = getFirestore(app);
+  const dbId = (firebaseConfig as any).firestoreDatabaseId;
+  db = dbId ? getFirestore(app, dbId) : getFirestore(app);
   storage = getStorage(app);
 } catch (error) {
   console.warn('Firebase init warning:', error);

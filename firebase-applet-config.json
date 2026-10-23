@@ -1,10 +1,12 @@
 {
   "projectId": "ramovia-a2c39",
-  "appId": "1:966584969071:web:b8173302bdf0320880ea9a",
+  "appId": "1:966584969071:web:52e13ea83fd1f00c80ea9a",
   "apiKey": "AIzaSyB3RhhBp4DdiHfVlZzqwqNoTa5mVUoXtt8",
   "authDomain": "ramovia-a2c39.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-ramoviagestional-0de0bc2d-564d-48b4-b7e0-11107dce8152",
   "storageBucket": "ramovia-a2c39.firebasestorage.app",
   "messagingSenderId": "966584969071",
-  "databaseURL": "https://ramovia-a2c39-default-rtdb.europe-west1.firebasedatabase.app/",
-  "customUploadEndpoint": "https://www.iofall.it/ramovia/Upload"
+  "measurementId": "",
+  "oAuthClientId": "966584969071-59jqhdepsgsln9vghvsoidrrdlb1vt1i.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
 }
