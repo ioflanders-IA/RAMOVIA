@@ -4,7 +4,6 @@ import {
   ExpenseRecord,
   InventoryItem,
   Job,
-  PaymentMethod,
   ShoppingListItem,
   User,
   UserRole,
@@ -77,6 +76,7 @@ interface AppContextType {
 }
 
 const STORAGE_KEYS = {
+  CURRENT_USER: 'ramovia_current_user_v3',
   USERS: 'ramovia_users_v3',
   CLIENTS: 'ramovia_clients_v3',
   JOBS: 'ramovia_jobs_v3',
@@ -114,25 +114,41 @@ const INITIAL_EXPENSES: ExpenseRecord[] = [
   },
 ];
 
+/**
+ * Recursively cleans objects to remove any 'undefined' values before sending to Firestore
+ * which prevents FirebaseError: Unsupported field value: undefined
+ */
+function sanitizeForFirestore<T>(data: T): T {
+  if (data === undefined) return null as any;
+  if (data === null || typeof data !== 'object') return data;
+  if (Array.isArray(data)) {
+    return data.map(sanitizeForFirestore) as any;
+  }
+  const clean: any = {};
+  for (const [key, val] of Object.entries(data)) {
+    if (val !== undefined) {
+      clean[key] = sanitizeForFirestore(val);
+    }
+  }
+  return clean;
+}
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-
-  useEffect(() => {
+  // 1. Current user initialized from localStorage so refresh keeps the user logged in
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
-      if (currentUser) {
-        localStorage.setItem('ramovia_current_user_v3', JSON.stringify(currentUser));
-      } else {
-        localStorage.removeItem('ramovia_current_user_v3');
-      }
+      const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+      return saved ? JSON.parse(saved) : null;
     } catch {
-      // ignore
+      return null;
     }
-  }, [currentUser]);
+  });
 
   const [loadingAuth, setLoadingAuth] = useState(true);
 
+  // 2. State initialized from LocalStorage immediately
   const [users, setUsers] = useState<User[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.USERS);
@@ -196,36 +212,274 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  // Sync to LocalStorage as offline backup
+  // Save current user whenever changed
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    try {
+      if (currentUser) {
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUser));
+      }
+    } catch {
+      // ignore
+    }
+  }, [currentUser]);
+
+  // Sync state changes to LocalStorage (only write non-empty or when intended)
+  useEffect(() => {
+    if (users.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    }
   }, [users]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients));
+    if (clients.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients));
+    }
   }, [clients]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(jobs));
+    if (jobs.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(jobs));
+    }
   }, [jobs]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(inventory));
+    if (inventory.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(inventory));
+    }
   }, [inventory]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+    if (reports.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+    }
   }, [reports]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses));
+    if (expenses.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses));
+    }
   }, [expenses]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.PAYOUTS, JSON.stringify(payouts));
+    if (payouts.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.PAYOUTS, JSON.stringify(payouts));
+    }
   }, [payouts]);
 
-  // Real-time Firebase Auth listener & Firestore sync
+  // 3. Firestore snapshot listeners: Active always so both mobile and desktop sync seamlessly
+  useEffect(() => {
+    if (!db) return;
+
+    // CLIENTS LISTENER & SEED SYNC
+    const unsubClients = onSnapshot(
+      collection(db, 'clients'),
+      (snap) => {
+        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Client));
+        if (docs.length > 0) {
+          setClients(docs);
+          try {
+            localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(docs));
+          } catch (e) {
+            console.warn(e);
+          }
+        } else {
+          // Cloud collection is empty: preserve existing local items and upload them to cloud
+          try {
+            const saved = localStorage.getItem(STORAGE_KEYS.CLIENTS);
+            const localList: Client[] = saved ? JSON.parse(saved) : [];
+            if (localList.length > 0) {
+              setClients(localList);
+              localList.forEach((c) => {
+                setDoc(doc(db, 'clients', c.id), sanitizeForFirestore(c)).catch(() => {});
+              });
+            }
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+      },
+      (err) => console.warn('clients snapshot error:', err)
+    );
+
+    // JOBS LISTENER & SEED SYNC
+    const unsubJobs = onSnapshot(
+      collection(db, 'jobs'),
+      (snap) => {
+        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Job));
+        if (docs.length > 0) {
+          setJobs(docs);
+          try {
+            localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(docs));
+          } catch (e) {
+            console.warn(e);
+          }
+        } else {
+          try {
+            const saved = localStorage.getItem(STORAGE_KEYS.JOBS);
+            const localList: Job[] = saved ? JSON.parse(saved) : [];
+            if (localList.length > 0) {
+              setJobs(localList);
+              localList.forEach((j) => {
+                setDoc(doc(db, 'jobs', j.id), sanitizeForFirestore(j)).catch(() => {});
+              });
+            }
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+      },
+      (err) => console.warn('jobs snapshot error:', err)
+    );
+
+    // INVENTORY LISTENER & SEED SYNC
+    const unsubInv = onSnapshot(
+      collection(db, 'inventory'),
+      (snap) => {
+        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as InventoryItem));
+        if (docs.length > 0) {
+          setInventory(docs);
+          try {
+            localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(docs));
+          } catch (e) {
+            console.warn(e);
+          }
+        } else {
+          try {
+            const saved = localStorage.getItem(STORAGE_KEYS.INVENTORY);
+            const localList: InventoryItem[] = saved ? JSON.parse(saved) : [];
+            if (localList.length > 0) {
+              setInventory(localList);
+              localList.forEach((i) => {
+                setDoc(doc(db, 'inventory', i.id), sanitizeForFirestore(i)).catch(() => {});
+              });
+            }
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+      },
+      (err) => console.warn('inventory snapshot error:', err)
+    );
+
+    // REPORTS LISTENER & SEED SYNC
+    const unsubReports = onSnapshot(
+      collection(db, 'timesheets_and_reports'),
+      (snap) => {
+        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as WorkReport));
+        if (docs.length > 0) {
+          setReports(docs);
+          try {
+            localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(docs));
+          } catch (e) {
+            console.warn(e);
+          }
+        } else {
+          try {
+            const saved = localStorage.getItem(STORAGE_KEYS.REPORTS);
+            const localList: WorkReport[] = saved ? JSON.parse(saved) : [];
+            if (localList.length > 0) {
+              setReports(localList);
+              localList.forEach((r) => {
+                setDoc(doc(db, 'timesheets_and_reports', r.id), sanitizeForFirestore(r)).catch(() => {});
+              });
+            }
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+      },
+      (err) => console.warn('reports snapshot error:', err)
+    );
+
+    // EXPENSES LISTENER & SEED SYNC
+    const unsubExpenses = onSnapshot(
+      collection(db, 'expenses'),
+      (snap) => {
+        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as ExpenseRecord));
+        if (docs.length > 0) {
+          setExpenses(docs);
+          try {
+            localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(docs));
+          } catch (e) {
+            console.warn(e);
+          }
+        } else {
+          try {
+            const saved = localStorage.getItem(STORAGE_KEYS.EXPENSES);
+            const localList: ExpenseRecord[] = saved ? JSON.parse(saved) : INITIAL_EXPENSES;
+            if (localList.length > 0) {
+              setExpenses(localList);
+              localList.forEach((ex) => {
+                setDoc(doc(db, 'expenses', ex.id), sanitizeForFirestore(ex)).catch(() => {});
+              });
+            }
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+      },
+      (err) => console.warn('expenses snapshot error:', err)
+    );
+
+    // PAYOUTS LISTENER & SEED SYNC
+    const unsubPayouts = onSnapshot(
+      collection(db, 'worker_payouts'),
+      (snap) => {
+        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as WorkerPayout));
+        if (docs.length > 0) {
+          setPayouts(docs);
+          try {
+            localStorage.setItem(STORAGE_KEYS.PAYOUTS, JSON.stringify(docs));
+          } catch (e) {
+            console.warn(e);
+          }
+        } else {
+          try {
+            const saved = localStorage.getItem(STORAGE_KEYS.PAYOUTS);
+            const localList: WorkerPayout[] = saved ? JSON.parse(saved) : [];
+            if (localList.length > 0) {
+              setPayouts(localList);
+              localList.forEach((p) => {
+                setDoc(doc(db, 'worker_payouts', p.id), sanitizeForFirestore(p)).catch(() => {});
+              });
+            }
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+      },
+      (err) => console.warn('payouts snapshot error:', err)
+    );
+
+    // USERS LISTENER
+    const unsubUsers = onSnapshot(
+      collection(db, 'users'),
+      (snap) => {
+        const docs = snap.docs.map((d) => ({ uid: d.id, ...d.data() } as User));
+        if (docs.length > 0) {
+          setUsers(docs);
+          try {
+            localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(docs));
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+      },
+      (err) => console.warn('users snapshot error:', err)
+    );
+
+    return () => {
+      unsubClients();
+      unsubJobs();
+      unsubInv();
+      unsubReports();
+      unsubExpenses();
+      unsubPayouts();
+      unsubUsers();
+    };
+  }, []);
+
+  // 4. Firebase Auth session listener
   useEffect(() => {
     if (!auth) {
       setLoadingAuth(false);
@@ -233,7 +487,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
-      // ONLY authenticate if user has a verified non-anonymous Google account with an email!
       if (fbUser && !fbUser.isAnonymous && fbUser.email) {
         const emailLower = fbUser.email.toLowerCase();
         const isAdmin =
@@ -255,75 +508,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
 
         setCurrentUser(fallbackUser);
+        try {
+          localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(fallbackUser));
+        } catch {
+          // ignore
+        }
         setLoadingAuth(false);
 
-        // Background sync user document
+        // Background sync user document in Firestore
         try {
           const userDocData = await handleUserDocOnLogin(fbUser, isAdmin ? 'admin' : 'worker');
           if (userDocData) {
             setCurrentUser(userDocData);
+            localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(userDocData));
           }
         } catch (err) {
           console.warn('User doc sync error:', err);
         }
 
-        // Attach Firestore snapshots
+        // Also listen to current user doc updates
         if (db) {
-          try {
-            onSnapshot(doc(db, 'users', fbUser.uid), (snap) => {
+          onSnapshot(
+            doc(db, 'users', fbUser.uid),
+            (snap) => {
               if (snap.exists()) {
-                setCurrentUser(snap.data() as User);
+                const updated = snap.data() as User;
+                setCurrentUser(updated);
+                try {
+                  localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updated));
+                } catch {
+                  // ignore
+                }
               }
-            }, (err) => console.warn('user doc snapshot error:', err));
-
-            onSnapshot(collection(db, 'users'), (snap) => {
-              const docs = snap.docs.map((d) => ({ uid: d.id, ...d.data() } as User));
-              if (docs.length > 0) setUsers(docs);
-            }, (err) => console.warn('users coll snapshot error:', err));
-
-            onSnapshot(collection(db, 'clients'), (snap) => {
-              const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Client));
-              setClients(docs);
-            }, (err) => console.warn('clients coll snapshot error:', err));
-
-            onSnapshot(collection(db, 'jobs'), (snap) => {
-              const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Job));
-              setJobs(docs);
-            }, (err) => console.warn('jobs coll snapshot error:', err));
-
-            onSnapshot(collection(db, 'inventory'), (snap) => {
-              const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as InventoryItem));
-              setInventory(docs);
-            }, (err) => console.warn('inventory coll snapshot error:', err));
-
-            onSnapshot(collection(db, 'timesheets_and_reports'), (snap) => {
-              const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as WorkReport));
-              setReports(docs);
-            }, (err) => console.warn('reports coll snapshot error:', err));
-
-            onSnapshot(collection(db, 'expenses'), (snap) => {
-              const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as ExpenseRecord));
-              setExpenses(docs);
-            }, (err) => console.warn('expenses coll snapshot error:', err));
-
-            onSnapshot(collection(db, 'worker_payouts'), (snap) => {
-              const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as WorkerPayout));
-              setPayouts(docs);
-            }, (err) => console.warn('payouts coll snapshot error:', err));
-          } catch (e) {
-            console.warn('Snapshot listeners setup warning:', e);
-          }
+            },
+            (err) => console.warn('user doc snapshot error:', err)
+          );
         }
       } else {
         // If there was any anonymous leftover session, sign out of it immediately
         if (fbUser && fbUser.isAnonymous) {
           logoutFromFirebase().catch(() => {});
         }
-        setCurrentUser(null);
-        try {
-          localStorage.removeItem('ramovia_current_user_v3');
-        } catch {
-          // ignore
+        // Check if there is an active user session in localStorage (direct preview access)
+        const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (parsed && parsed.email) {
+              setCurrentUser(parsed);
+            }
+          } catch {
+            // ignore
+          }
         }
         setLoadingAuth(false);
       }
@@ -339,6 +575,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const res = await signInWithGoogle(preferredRole);
       if (res.user) {
         setCurrentUser(res.user);
+        try {
+          localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(res.user));
+        } catch {
+          // ignore
+        }
         return { success: true };
       }
       return {
@@ -358,7 +599,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const logout = async () => {
     try {
-      localStorage.removeItem('ramovia_current_user_v3');
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     } catch {
       // ignore
     }
@@ -375,6 +616,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const found = users.find((u) => u.uid === uid);
     if (found) {
       setCurrentUser(found);
+      try {
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(found));
+      } catch {
+        // ignore
+      }
     }
   };
 
@@ -394,6 +640,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         linkedToAdmin: true,
       };
       setCurrentUser(updatedUser);
+      try {
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedUser));
+      } catch {
+        // ignore
+      }
       return { success: true };
     }
 
@@ -410,13 +661,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (db) {
       try {
-        await setDoc(doc(db, 'users', newUser.uid), newUser);
+        await setDoc(doc(db, 'users', newUser.uid), sanitizeForFirestore(newUser));
       } catch (err) {
         console.warn('setDoc in loginWithEmail:', err);
       }
     }
     try {
-      localStorage.setItem('ramovia_current_user_v3', JSON.stringify(newUser));
+      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(newUser));
     } catch {
       // ignore
     }
@@ -445,10 +696,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     if (db) {
-      await setDoc(doc(db, 'users', newUser.uid), newUser);
-    } else {
-      setUsers((prev) => [...prev, newUser]);
+      try {
+        await setDoc(doc(db, 'users', newUser.uid), sanitizeForFirestore(newUser));
+      } catch (err) {
+        console.warn(err);
+      }
     }
+    try {
+      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(newUser));
+    } catch {
+      // ignore
+    }
+    setUsers((prev) => [...prev, newUser]);
     setCurrentUser(newUser);
     return { success: true, user: newUser };
   };
@@ -464,10 +723,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     if (db) {
-      await setDoc(doc(db, 'users', uid), newUser);
-    } else {
-      setUsers((prev) => [...prev, newUser]);
+      try {
+        await setDoc(doc(db, 'users', uid), sanitizeForFirestore(newUser));
+      } catch (err) {
+        console.warn(err);
+      }
     }
+    setUsers((prev) => [...prev, newUser]);
     return newUser;
   };
 
@@ -480,7 +742,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
       setCurrentUser(updatedUser);
       try {
-        localStorage.setItem('ramovia_current_user_v3', JSON.stringify(updatedUser));
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedUser));
       } catch {
         // ignore
       }
@@ -499,10 +761,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteUser = async (uid: string) => {
     if (db) {
-      await deleteDoc(doc(db, 'users', uid));
-    } else {
-      setUsers((prev) => prev.filter((u) => u.uid !== uid));
+      try {
+        await deleteDoc(doc(db, 'users', uid));
+      } catch (err) {
+        console.warn(err);
+      }
     }
+    setUsers((prev) => prev.filter((u) => u.uid !== uid));
   };
 
   // CLIENT MANAGEMENT
@@ -514,12 +779,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString().split('T')[0],
     };
 
-    // Immediate optimistic update
-    setClients((prev) => [newClient, ...prev.filter((c) => c.id !== id)]);
+    // Immediate optimistic update and local persistence
+    setClients((prev) => {
+      const next = [newClient, ...prev.filter((c) => c.id !== id)];
+      try {
+        localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
-        await setDoc(doc(db, 'clients', id), newClient);
+        await setDoc(doc(db, 'clients', id), sanitizeForFirestore(newClient));
       } catch (err) {
         console.warn('Firestore setDoc client error:', err);
       }
@@ -527,11 +800,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateClient = async (updated: Client) => {
-    setClients((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    setClients((prev) => {
+      const next = prev.map((c) => (c.id === updated.id ? updated : c));
+      try {
+        localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
-        await setDoc(doc(db, 'clients', updated.id), updated);
+        await setDoc(doc(db, 'clients', updated.id), sanitizeForFirestore(updated), { merge: true });
       } catch (err) {
         console.warn('Firestore updateDoc client error:', err);
       }
@@ -539,7 +820,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteClient = async (id: string) => {
-    setClients((prev) => prev.filter((c) => c.id !== id));
+    setClients((prev) => {
+      const next = prev.filter((c) => c.id !== id);
+      try {
+        localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
@@ -558,11 +847,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id,
     };
 
-    setJobs((prev) => [newJob, ...prev.filter((j) => j.id !== id)]);
+    setJobs((prev) => {
+      const next = [newJob, ...prev.filter((j) => j.id !== id)];
+      try {
+        localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
-        await setDoc(doc(db, 'jobs', id), newJob);
+        await setDoc(doc(db, 'jobs', id), sanitizeForFirestore(newJob));
       } catch (err) {
         console.warn('Firestore setDoc job error:', err);
       }
@@ -570,11 +867,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateJob = async (updated: Job) => {
-    setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+    setJobs((prev) => {
+      const next = prev.map((j) => (j.id === updated.id ? updated : j));
+      try {
+        localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
-        await setDoc(doc(db, 'jobs', updated.id), updated);
+        await setDoc(doc(db, 'jobs', updated.id), sanitizeForFirestore(updated), { merge: true });
       } catch (err) {
         console.warn('Firestore update job error:', err);
       }
@@ -582,7 +887,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteJob = async (id: string) => {
-    setJobs((prev) => prev.filter((j) => j.id !== id));
+    setJobs((prev) => {
+      const next = prev.filter((j) => j.id !== id);
+      try {
+        localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
@@ -594,12 +907,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const startJob = async (id: string) => {
+    setJobs((prev) => {
+      const next = prev.map((j) => (j.id === id ? { ...j, status: 'in_progress' as const } : j));
+      try {
+        localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
+
     if (db) {
-      await updateDoc(doc(db, 'jobs', id), { status: 'in_progress' });
-    } else {
-      setJobs((prev) =>
-        prev.map((j) => (j.id === id ? { ...j, status: 'in_progress' } : j))
-      );
+      try {
+        await updateDoc(doc(db, 'jobs', id), { status: 'in_progress' });
+      } catch (err) {
+        console.warn(err);
+      }
     }
   };
 
@@ -611,11 +934,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id,
     };
 
-    setInventory((prev) => [newItem, ...prev.filter((i) => i.id !== id)]);
+    setInventory((prev) => {
+      const next = [newItem, ...prev.filter((i) => i.id !== id)];
+      try {
+        localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
-        await setDoc(doc(db, 'inventory', id), newItem);
+        await setDoc(doc(db, 'inventory', id), sanitizeForFirestore(newItem));
       } catch (err) {
         console.warn('Firestore setDoc inventory error:', err);
       }
@@ -623,11 +954,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateInventoryItem = async (updated: InventoryItem) => {
-    setInventory((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    setInventory((prev) => {
+      const next = prev.map((item) => (item.id === updated.id ? updated : item));
+      try {
+        localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
-        await setDoc(doc(db, 'inventory', updated.id), updated);
+        await setDoc(doc(db, 'inventory', updated.id), sanitizeForFirestore(updated), { merge: true });
       } catch (err) {
         console.warn('Firestore update inventory error:', err);
       }
@@ -635,7 +974,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteInventoryItem = async (id: string) => {
-    setInventory((prev) => prev.filter((item) => item.id !== id));
+    setInventory((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      try {
+        localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
@@ -648,18 +995,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const recordEquipmentMaintenance = async (itemId: string, newUsageHours: number) => {
     const lastMaintenanceDate = new Date().toISOString().split('T')[0];
-    setInventory((prev) =>
-      prev.map((item) =>
+    setInventory((prev) => {
+      const next = prev.map((item) =>
         item.id === itemId
           ? {
               ...item,
               currentUsageHours: newUsageHours,
-              status: 'available',
+              status: 'available' as const,
               lastMaintenanceDate,
             }
           : item
-      )
-    );
+      );
+      try {
+        localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
@@ -684,14 +1037,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
 
-    setReports((prev) => [newReport, ...prev.filter((r) => r.id !== id)]);
-    setJobs((prev) =>
-      prev.map((j) => (j.id === reportData.jobId ? { ...j, status: 'completed' } : j))
-    );
+    setReports((prev) => {
+      const next = [newReport, ...prev.filter((r) => r.id !== id)];
+      try {
+        localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
+
+    setJobs((prev) => {
+      const next = prev.map((j) => (j.id === reportData.jobId ? { ...j, status: 'completed' as const } : j));
+      try {
+        localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
-        await setDoc(doc(db, 'timesheets_and_reports', id), newReport);
+        await setDoc(doc(db, 'timesheets_and_reports', id), sanitizeForFirestore(newReport));
         await updateDoc(doc(db, 'jobs', reportData.jobId), { status: 'completed' });
       } catch (err) {
         console.warn('Firestore submit report error:', err);
@@ -704,9 +1072,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const inv = inventory.find((i) => i.id === used.itemId);
         if (inv) {
           const newQty = Math.max(0, inv.quantity - used.qty);
-          setInventory((prev) =>
-            prev.map((i) => (i.id === inv.id ? { ...i, quantity: newQty } : i))
-          );
+          setInventory((prev) => {
+            const next = prev.map((i) => (i.id === inv.id ? { ...i, quantity: newQty } : i));
+            try {
+              localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(next));
+            } catch (e) {
+              console.warn(e);
+            }
+            return next;
+          });
           if (db) {
             try {
               await updateDoc(doc(db, 'inventory', inv.id), { quantity: newQty });
@@ -720,13 +1094,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const approveWorkReport = async (reportId: string, adminNotes?: string) => {
-    setReports((prev) =>
-      prev.map((r) =>
+    setReports((prev) => {
+      const next = prev.map((r) =>
         r.id === reportId
-          ? { ...r, status: 'approved', adminNotes: adminNotes ?? r.adminNotes }
+          ? { ...r, status: 'approved' as const, adminNotes: adminNotes ?? r.adminNotes }
           : r
-      )
-    );
+      );
+      try {
+        localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
@@ -749,11 +1129,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
 
-    setExpenses((prev) => [newExpense, ...prev.filter((e) => e.id !== id)]);
+    setExpenses((prev) => {
+      const next = [newExpense, ...prev.filter((e) => e.id !== id)];
+      try {
+        localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
-        await setDoc(doc(db, 'expenses', id), newExpense);
+        await setDoc(doc(db, 'expenses', id), sanitizeForFirestore(newExpense));
       } catch (err) {
         console.warn('Firestore add expense error:', err);
       }
@@ -761,11 +1149,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateExpense = async (updated: ExpenseRecord) => {
-    setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    setExpenses((prev) => {
+      const next = prev.map((e) => (e.id === updated.id ? updated : e));
+      try {
+        localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
-        await setDoc(doc(db, 'expenses', updated.id), updated);
+        await setDoc(doc(db, 'expenses', updated.id), sanitizeForFirestore(updated), { merge: true });
       } catch (err) {
         console.warn('Firestore update expense error:', err);
       }
@@ -773,7 +1169,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteExpense = async (id: string) => {
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
+    setExpenses((prev) => {
+      const next = prev.filter((e) => e.id !== id);
+      try {
+        localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
@@ -792,11 +1196,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
 
-    setPayouts((prev) => [newPayout, ...prev.filter((p) => p.id !== id)]);
+    setPayouts((prev) => {
+      const next = [newPayout, ...prev.filter((p) => p.id !== id)];
+      try {
+        localStorage.setItem(STORAGE_KEYS.PAYOUTS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
-        await setDoc(doc(db, 'worker_payouts', id), newPayout);
+        await setDoc(doc(db, 'worker_payouts', id), sanitizeForFirestore(newPayout));
       } catch (err) {
         console.warn('Firestore add payout error:', err);
       }
@@ -804,11 +1216,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateWorkerPayout = async (updated: WorkerPayout) => {
-    setPayouts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    setPayouts((prev) => {
+      const next = prev.map((p) => (p.id === updated.id ? updated : p));
+      try {
+        localStorage.setItem(STORAGE_KEYS.PAYOUTS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
-        await setDoc(doc(db, 'worker_payouts', updated.id), updated);
+        await setDoc(doc(db, 'worker_payouts', updated.id), sanitizeForFirestore(updated), { merge: true });
       } catch (err) {
         console.warn('Firestore update payout error:', err);
       }
@@ -867,7 +1287,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const shoppingList = calculateShoppingList();
 
   const clearAllData = () => {
-    Object.values(STORAGE_KEYS).forEach((k) => localStorage.removeItem(k));
+    Object.values(STORAGE_KEYS).forEach((k) => {
+      try {
+        localStorage.removeItem(k);
+      } catch {
+        // ignore
+      }
+    });
     setUsers([]);
     setCurrentUser(null);
     setClients([]);

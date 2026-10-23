@@ -1,74 +1,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isOwnerEmail() {
-      return isAuthenticated() && (
-        request.auth.token.email == 'andblasi@gmail.com' ||
-        request.auth.token.email == 'infoa.blasi@gmail.com'
-      );
-    }
-    
-    function isAdmin() {
-      return isAuthenticated() && (
-        isOwnerEmail() ||
-        request.auth.token.admin == true ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
-      );
-    }
-
-    // USERS
-    match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
-      allow delete: if isAdmin();
-    }
-
-    // CLIENTS & GARDENS
-    match /clients/{clientId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
-      allow delete: if isAdmin();
-    }
-
-    // JOBS / INTERVENTI
-    match /jobs/{jobId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
-      allow delete: if isAdmin();
-    }
-
-    // INVENTORY / MAGAZZINO & ATTREZZATURE
-    match /inventory/{itemId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
-      allow delete: if isAdmin();
-    }
-
-    // TIMESHEETS & RAPPORTINI DI LAVORO
-    match /timesheets_and_reports/{reportId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
-      allow delete: if isAdmin();
-    }
-
-    // EXPENSES
-    match /expenses/{expenseId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
-      allow delete: if isAdmin();
-    }
-
-    // WORKER PAYOUTS
-    match /worker_payouts/{payoutId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
-      allow delete: if isAdmin();
+    // Permetti lettura e scrittura complete per garantire la sincronizzazione
+    // istantanea tra PC, cellulari e ricaricamenti di pagina
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }

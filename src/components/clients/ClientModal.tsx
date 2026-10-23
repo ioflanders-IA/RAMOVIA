@@ -21,14 +21,14 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
   const [lng, setLng] = useState<number>(client?.lng || 9.32);
 
   // Garden Notes
-  const [squareMeters, setSquareMeters] = useState<number>(client?.gardenNotes.squareMeters || 500);
-  const [irrigationDetails, setIrrigationDetails] = useState(client?.gardenNotes.irrigationDetails || '');
-  const [delicatePlants, setDelicatePlants] = useState(client?.gardenNotes.delicatePlants || '');
-  const [gateCode, setGateCode] = useState(client?.gardenNotes.gateCode || '');
-  const [dogPresent, setDogPresent] = useState<boolean>(client?.gardenNotes.dogPresent || false);
-  const [notes, setNotes] = useState(client?.gardenNotes.notes || '');
+  const [squareMeters, setSquareMeters] = useState<number>(client?.gardenNotes?.squareMeters ?? 500);
+  const [irrigationDetails, setIrrigationDetails] = useState(client?.gardenNotes?.irrigationDetails || '');
+  const [delicatePlants, setDelicatePlants] = useState(client?.gardenNotes?.delicatePlants || '');
+  const [gateCode, setGateCode] = useState(client?.gardenNotes?.gateCode || '');
+  const [dogPresent, setDogPresent] = useState<boolean>(client?.gardenNotes?.dogPresent || false);
+  const [notes, setNotes] = useState(client?.gardenNotes?.notes || '');
   const [polygonPoints, setPolygonPoints] = useState<PolygonPoint[]>(
-    client?.gardenNotes.polygonPoints || []
+    client?.gardenNotes?.polygonPoints || []
   );
 
   const handleLocationChange = (newLat: number, newLng: number, newAddress?: string) => {
@@ -49,22 +49,22 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
-      name,
-      phone,
-      email,
-      address,
-      preferredPaymentMethod,
-      vatOrTaxCode,
-      lat: Number(lat),
-      lng: Number(lng),
+      name: name.trim(),
+      phone: phone.trim(),
+      email: email.trim(),
+      address: address.trim(),
+      preferredPaymentMethod: preferredPaymentMethod || 'bonifico',
+      vatOrTaxCode: vatOrTaxCode.trim(),
+      lat: Number(lat) || 45.65,
+      lng: Number(lng) || 9.32,
       gardenNotes: {
-        squareMeters: Number(squareMeters),
-        irrigationDetails,
-        delicatePlants,
-        gateCode,
-        dogPresent,
-        notes,
-        polygonPoints,
+        squareMeters: Number(squareMeters) || 0,
+        irrigationDetails: irrigationDetails || '',
+        delicatePlants: delicatePlants || '',
+        gateCode: gateCode || '',
+        dogPresent: Boolean(dogPresent),
+        notes: notes || '',
+        polygonPoints: polygonPoints || [],
       },
     });
   };
