@@ -1,11 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   Client,
+  ExpenseRecord,
   InventoryItem,
   Job,
+  PaymentMethod,
   ShoppingListItem,
   User,
   UserRole,
+  WorkerPayout,
   WorkReport,
 } from '../types';
 import {
@@ -34,13 +37,15 @@ interface AppContextType {
   jobs: Job[];
   inventory: InventoryItem[];
   reports: WorkReport[];
+  expenses: ExpenseRecord[];
+  payouts: WorkerPayout[];
   shoppingList: ShoppingListItem[];
   loadingAuth: boolean;
-  loginWithGoogle: () => Promise<{ success: boolean; error?: string; unauthorizedDomain?: string }>;
+  loginWithGoogle: (preferredRole?: UserRole) => Promise<{ success: boolean; error?: string; unauthorizedDomain?: string }>;
   logout: () => Promise<void>;
   linkWorker: (code: string) => Promise<{ success: boolean; workerName?: string; error?: string }>;
   switchUser: (uid: string) => void;
-  loginWithEmail: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithEmail: (email: string, role?: UserRole) => Promise<{ success: boolean; error?: string }>;
   registerAccount: (name: string, email: string, role: UserRole, phone?: string) => Promise<{ success: boolean; user?: User; error?: string }>;
   addUser: (userData: Omit<User, 'uid'>) => Promise<User>;
   updateUserRole: (uid: string, role: UserRole) => Promise<void>;
@@ -62,6 +67,12 @@ interface AppContextType {
   // Reports
   submitWorkReport: (reportData: Omit<WorkReport, 'id' | 'createdAt' | 'status'>) => Promise<void>;
   approveWorkReport: (reportId: string, adminNotes?: string) => Promise<void>;
+  // Expenses & Financials
+  addExpense: (expenseData: Omit<ExpenseRecord, 'id' | 'createdAt'>) => Promise<void>;
+  updateExpense: (expense: ExpenseRecord) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
+  recordWorkerPayout: (payoutData: Omit<WorkerPayout, 'id' | 'createdAt'>) => Promise<void>;
+  updateWorkerPayout: (payout: WorkerPayout) => Promise<void>;
   clearAllData: () => void;
 }
 
@@ -71,7 +82,37 @@ const STORAGE_KEYS = {
   JOBS: 'ramovia_jobs_v3',
   INVENTORY: 'ramovia_inventory_v3',
   REPORTS: 'ramovia_reports_v3',
+  EXPENSES: 'ramovia_expenses_v3',
+  PAYOUTS: 'ramovia_payouts_v3',
 };
+
+// Initial Sample Data for Expenses if empty
+const INITIAL_EXPENSES: ExpenseRecord[] = [
+  {
+    id: 'exp_101',
+    title: 'Acquisto Carburante Decespugliatori & Rasaerba',
+    category: 'carburante',
+    amount: 145.5,
+    date: new Date().toISOString().split('T')[0],
+    paymentMethod: 'pos_carta',
+    recipientOrVendor: 'Eni Station Monza',
+    notes: '25L Miscela 2T + Benzina',
+    status: 'paid',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'exp_102',
+    title: 'Manutenzione Trattorino e Affilatura Lame',
+    category: 'manutenzione',
+    amount: 280.0,
+    date: new Date(Date.now() - 86400000 * 3).toISOString().split('T')[0],
+    paymentMethod: 'bonifico',
+    recipientOrVendor: 'Officina Agraria Brianza',
+    notes: 'Tagliando e sostituzione filtri',
+    status: 'paid',
+    createdAt: new Date().toISOString(),
+  },
+];
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -96,6 +137,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // ignore
     }
   }, [currentUser]);
+
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   const [users, setUsers] = useState<User[]>(() => {
@@ -143,6 +185,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.EXPENSES);
+      return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
+    } catch {
+      return INITIAL_EXPENSES;
+    }
+  });
+
+  const [payouts, setPayouts] = useState<WorkerPayout[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.PAYOUTS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   // Sync to LocalStorage as offline backup
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
@@ -164,6 +224,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
   }, [reports]);
 
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses));
+  }, [expenses]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.PAYOUTS, JSON.stringify(payouts));
+  }, [payouts]);
+
   // Real-time Firebase Auth listener & Firestore sync
   useEffect(() => {
     if (!auth) {
@@ -173,9 +241,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
       if (fbUser) {
-        // Build immediate user object so UI unlocks instantly
         const emailLower = (fbUser.email || '').toLowerCase();
-        const isAdmin = emailLower === 'andblasi@gmail.com' || emailLower.includes('admin');
+        const isAdmin =
+          emailLower === 'andblasi@gmail.com' ||
+          emailLower === 'infoa.blasi@gmail.com' ||
+          emailLower.includes('admin') ||
+          emailLower.includes('titolare');
+
         const fallbackUser: User = {
           uid: fbUser.uid,
           email: emailLower,
@@ -193,7 +265,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         // Background sync user document
         try {
-          const userDocData = await handleUserDocOnLogin(fbUser);
+          const userDocData = await handleUserDocOnLogin(fbUser, isAdmin ? 'admin' : 'worker');
           if (userDocData) {
             setCurrentUser(userDocData);
           }
@@ -201,7 +273,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           console.warn('User doc sync error:', err);
         }
 
-        // Attach snapshots safely
+        // Attach Firestore snapshots
         if (db) {
           try {
             onSnapshot(doc(db, 'users', fbUser.uid), (snap) => {
@@ -234,6 +306,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               const docs = snap.docs.map((d) => d.data() as WorkReport);
               if (docs.length > 0) setReports(docs);
             }, (err) => console.warn('reports coll snapshot error:', err));
+
+            onSnapshot(collection(db, 'expenses'), (snap) => {
+              const docs = snap.docs.map((d) => d.data() as ExpenseRecord);
+              if (docs.length > 0) setExpenses(docs);
+            }, (err) => console.warn('expenses coll snapshot error:', err));
+
+            onSnapshot(collection(db, 'worker_payouts'), (snap) => {
+              const docs = snap.docs.map((d) => d.data() as WorkerPayout);
+              if (docs.length > 0) setPayouts(docs);
+            }, (err) => console.warn('payouts coll snapshot error:', err));
           } catch (e) {
             console.warn('Snapshot listeners setup warning:', e);
           }
@@ -247,10 +329,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   // AUTH ACTIONS
-  const loginWithGoogle = async (): Promise<{ success: boolean; error?: string; unauthorizedDomain?: string }> => {
+  const loginWithGoogle = async (preferredRole: UserRole = 'admin'): Promise<{ success: boolean; error?: string; unauthorizedDomain?: string }> => {
     try {
       setLoadingAuth(true);
-      const res = await signInWithGoogle();
+      const res = await signInWithGoogle(preferredRole);
       if (res.user) {
         setCurrentUser(res.user);
         return { success: true };
@@ -289,23 +371,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const loginWithEmail = async (
     email: string,
-    _password?: string
+    role: UserRole = 'admin'
   ): Promise<{ success: boolean; error?: string }> => {
     const cleanEmail = email.trim().toLowerCase();
     const existing = users.find((u) => u.email && u.email.toLowerCase() === cleanEmail);
     if (existing) {
-      setCurrentUser(existing);
+      const updatedUser: User = {
+        ...existing,
+        role,
+        linkedToAdmin: true,
+      };
+      setCurrentUser(updatedUser);
       return { success: true };
     }
-    const isOwner = cleanEmail.includes('admin') || cleanEmail.includes('titolare') || cleanEmail.includes('andblasi');
+    const isOwner = role === 'admin' || cleanEmail.includes('admin') || cleanEmail.includes('titolare') || cleanEmail.includes('andblasi') || cleanEmail.includes('infoa.blasi');
     const newUser: User = {
       uid: `usr_${Date.now()}`,
       email: cleanEmail,
       displayName: cleanEmail.split('@')[0].replace(/[._-]/g, ' '),
-      role: isOwner ? 'admin' : 'worker',
+      role: isOwner ? 'admin' : role,
       active: true,
       workerCode: isOwner ? undefined : generateWorkerCode(),
-      linkedToAdmin: isOwner ? true : false,
+      linkedToAdmin: true,
       createdAt: new Date().toISOString(),
     };
 
@@ -341,7 +428,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       phone: phone?.trim(),
       active: true,
       workerCode: role === 'worker' ? generateWorkerCode() : undefined,
-      linkedToAdmin: role === 'admin' ? true : false,
+      linkedToAdmin: true,
       createdAt: new Date().toISOString(),
     };
 
@@ -373,12 +460,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateUserRole = async (uid: string, role: UserRole) => {
-    const linkedToAdmin = role === 'admin' ? true : true; // Admin promoted or changed
-    if (db) {
-      await updateDoc(doc(db, 'users', uid), { role, linkedToAdmin });
-    } else {
-      setUsers((prev) => prev.map((u) => (u.uid === uid ? { ...u, role, linkedToAdmin } : u)));
+    if (currentUser && currentUser.uid === uid) {
+      const updatedUser: User = {
+        ...currentUser,
+        role,
+        linkedToAdmin: true,
+      };
+      setCurrentUser(updatedUser);
+      try {
+        localStorage.setItem('ramovia_current_user_v3', JSON.stringify(updatedUser));
+      } catch {
+        // ignore
+      }
     }
+
+    if (db) {
+      try {
+        await updateDoc(doc(db, 'users', uid), { role, linkedToAdmin: true });
+      } catch (err) {
+        console.warn('updateDoc user role error:', err);
+      }
+    }
+
+    setUsers((prev) => prev.map((u) => (u.uid === uid ? { ...u, role, linkedToAdmin: true } : u)));
   };
 
   const deleteUser = async (uid: string) => {
@@ -572,6 +676,61 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // EXPENSES & PAYOUTS MANAGEMENT
+  const addExpense = async (expenseData: Omit<ExpenseRecord, 'id' | 'createdAt'>) => {
+    const id = `exp_${Date.now()}`;
+    const newExpense: ExpenseRecord = {
+      ...expenseData,
+      id,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (db) {
+      await setDoc(doc(db, 'expenses', id), newExpense);
+    } else {
+      setExpenses((prev) => [newExpense, ...prev]);
+    }
+  };
+
+  const updateExpense = async (updated: ExpenseRecord) => {
+    if (db) {
+      await setDoc(doc(db, 'expenses', updated.id), updated);
+    } else {
+      setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    }
+  };
+
+  const deleteExpense = async (id: string) => {
+    if (db) {
+      await deleteDoc(doc(db, 'expenses', id));
+    } else {
+      setExpenses((prev) => prev.filter((e) => e.id !== id));
+    }
+  };
+
+  const recordWorkerPayout = async (payoutData: Omit<WorkerPayout, 'id' | 'createdAt'>) => {
+    const id = `pay_${Date.now()}`;
+    const newPayout: WorkerPayout = {
+      ...payoutData,
+      id,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (db) {
+      await setDoc(doc(db, 'worker_payouts', id), newPayout);
+    } else {
+      setPayouts((prev) => [newPayout, ...prev]);
+    }
+  };
+
+  const updateWorkerPayout = async (updated: WorkerPayout) => {
+    if (db) {
+      await setDoc(doc(db, 'worker_payouts', updated.id), updated);
+    } else {
+      setPayouts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    }
+  };
+
   // SHOPPING LIST COMPUTATION
   const calculateShoppingList = (): ShoppingListItem[] => {
     const materialsNeededMap = new Map<string, number>();
@@ -631,6 +790,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setJobs([]);
     setInventory([]);
     setReports([]);
+    setExpenses([]);
+    setPayouts([]);
   };
 
   return (
@@ -642,6 +803,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         jobs,
         inventory,
         reports,
+        expenses,
+        payouts,
         shoppingList,
         loadingAuth,
         loginWithGoogle,
@@ -666,6 +829,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         recordEquipmentMaintenance,
         submitWorkReport,
         approveWorkReport,
+        addExpense,
+        updateExpense,
+        deleteExpense,
+        recordWorkerPayout,
+        updateWorkerPayout,
         clearAllData,
       }}
     >

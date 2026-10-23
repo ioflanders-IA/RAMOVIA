@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Client, PolygonPoint } from '../../types';
+import { Client, PolygonPoint, PaymentMethod } from '../../types';
 import { X, Check, MapPin } from 'lucide-react';
 import { ClientMapPicker } from './ClientMapPicker';
 import { RichNoteBox } from '../common/RichNoteBox';
@@ -15,6 +15,8 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
   const [phone, setPhone] = useState(client?.phone || '');
   const [email, setEmail] = useState(client?.email || '');
   const [address, setAddress] = useState(client?.address || '');
+  const [preferredPaymentMethod, setPreferredPaymentMethod] = useState<PaymentMethod>(client?.preferredPaymentMethod || 'bonifico');
+  const [vatOrTaxCode, setVatOrTaxCode] = useState(client?.vatOrTaxCode || '');
   const [lat, setLat] = useState<number>(client?.lat || 45.65);
   const [lng, setLng] = useState<number>(client?.lng || 9.32);
 
@@ -51,6 +53,8 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
       phone,
       email,
       address,
+      preferredPaymentMethod,
+      vatOrTaxCode,
       lat: Number(lat),
       lng: Number(lng),
       gardenNotes: {
@@ -127,6 +131,34 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="info@..."
+                  className="w-full p-[7px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-[7px] focus:outline-emerald-600 text-xs text-slate-900 dark:text-slate-100"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-[7px]">
+              <div className="space-y-[7px]">
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block">Modalità di Pagamento Preferita</label>
+                <select
+                  value={preferredPaymentMethod}
+                  onChange={(e) => setPreferredPaymentMethod(e.target.value as PaymentMethod)}
+                  className="w-full p-[7px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-[7px] focus:outline-emerald-600 text-xs font-semibold text-slate-900 dark:text-slate-100"
+                >
+                  <option value="bonifico">Bonifico Bancario</option>
+                  <option value="contanti">Contanti</option>
+                  <option value="pos">POS / Carta di Credito</option>
+                  <option value="assegno">Assegno</option>
+                  <option value="riba">RiBa (Ricevuta Bancaria)</option>
+                </select>
+              </div>
+
+              <div className="space-y-[7px]">
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block">Codice Fiscale / P.IVA</label>
+                <input
+                  type="text"
+                  value={vatOrTaxCode}
+                  onChange={(e) => setVatOrTaxCode(e.target.value)}
+                  placeholder="es. IT01234567890"
                   className="w-full p-[7px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-[7px] focus:outline-emerald-600 text-xs text-slate-900 dark:text-slate-100"
                 />
               </div>

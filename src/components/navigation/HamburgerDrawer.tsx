@@ -23,8 +23,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface HamburgerDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  activeTab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports';
-  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports') => void;
+  activeTab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments';
+  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments') => void;
   onOpenAccount: () => void;
   onOpenSettings: () => void;
   onOpenTeamModal: () => void;
@@ -44,7 +44,7 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
 
   if (!currentUser) return null;
 
-  const handleNavClick = (tab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports') => {
+  const handleNavClick = (tab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments') => {
     onSelectTab(tab);
     onClose();
   };
@@ -178,6 +178,22 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
                   <Users className="w-4 h-4 text-indigo-500" />
                   <span>Giardini & Schede Clienti</span>
                 </button>
+
+                {currentUser.role === 'admin' && (
+                  <button
+                    onClick={() => handleNavClick('payments')}
+                    className={`w-full p-[7px] px-3 rounded-[7px] flex items-center gap-[7px] transition-colors ${
+                      activeTab === 'payments'
+                        ? 'bg-emerald-950 text-white dark:bg-emerald-800'
+                        : 'bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'
+                    }`}
+                  >
+                    <div className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0">
+                      €
+                    </div>
+                    <span>Pagamenti & Finanze</span>
+                  </button>
+                )}
 
                 <button
                   onClick={() => handleNavClick('inventory')}

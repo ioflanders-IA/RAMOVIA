@@ -23,8 +23,8 @@ import {
 } from 'lucide-react';
 
 interface HeaderProps {
-  activeTab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports';
-  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports') => void;
+  activeTab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments';
+  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments') => void;
   onOpenFirebaseModal?: () => void;
 }
 
@@ -119,6 +119,20 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenFi
                 >
                   <Users className="w-3.5 h-3.5 text-indigo-500" />
                   <span>Giardini</span>
+                </button>
+
+                <button
+                  onClick={() => onSelectTab('payments')}
+                  className={`p-[7px] px-3 rounded-[7px] transition-colors whitespace-nowrap flex items-center gap-[7px] cursor-pointer ${
+                    activeTab === 'payments'
+                      ? 'bg-emerald-950 text-white font-bold dark:bg-emerald-800'
+                      : 'hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white'
+                  }`}
+                >
+                  <div className="w-3.5 h-3.5 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-[9px] shrink-0">
+                    €
+                  </div>
+                  <span>Pagamenti</span>
                 </button>
               </>
             ) : (

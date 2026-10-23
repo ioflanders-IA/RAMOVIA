@@ -11,6 +11,8 @@ export interface User {
   workerCode?: string;
   linkedToAdmin?: boolean;
   linkedAdminUid?: string;
+  hourlyRate?: number; // e.g. €15.00/h
+  dailyRate?: number;  // e.g. €120.00/day
   createdAt?: string;
 }
 
@@ -29,6 +31,8 @@ export interface GardenNotes {
   polygonPoints?: PolygonPoint[];
 }
 
+export type PaymentMethod = 'bonifico' | 'contanti' | 'pos_carta' | 'assegno' | 'riba_30_60' | 'altro';
+
 export interface Client {
   id: string;
   name: string;
@@ -38,6 +42,8 @@ export interface Client {
   lat: number;
   lng: number;
   gardenNotes: GardenNotes;
+  preferredPaymentMethod?: PaymentMethod;
+  vatOrTaxCode?: string;
   createdAt: string;
 }
 
@@ -49,6 +55,7 @@ export interface MaterialRequirement {
 }
 
 export type JobStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+export type JobPaymentStatus = 'pending' | 'partial' | 'paid' | 'unpaid';
 
 export interface Job {
   id: string;
@@ -67,6 +74,11 @@ export interface Job {
   materialsRequired: MaterialRequirement[];
   lat: number;
   lng: number;
+  // Financial fields
+  price?: number;
+  paymentStatus?: JobPaymentStatus;
+  paymentMethod?: PaymentMethod;
+  paidAmount?: number;
 }
 
 export type InventoryCategory = 'equipment' | 'material';
@@ -141,4 +153,36 @@ export interface WeatherData {
   isRaining: boolean;
   rainAlert: boolean;
   summary: string;
+}
+
+// EXPENSE & FINANCIAL RECORDS
+export type ExpenseCategory = 'attrezzatura' | 'carburante' | 'materiale' | 'manutenzione' | 'stipendio' | 'generale';
+
+export interface ExpenseRecord {
+  id: string;
+  title: string;
+  category: ExpenseCategory;
+  amount: number;
+  date: string;
+  paymentMethod: PaymentMethod;
+  recipientOrVendor?: string;
+  notes?: string;
+  status: 'pending' | 'paid';
+  createdAt: string;
+}
+
+export interface WorkerPayout {
+  id: string;
+  workerId: string;
+  workerName: string;
+  period: string; // e.g. "2026-10"
+  totalHours: number;
+  daysWorked: number;
+  hourlyRate: number;
+  totalAmount: number;
+  paymentMethod: PaymentMethod;
+  paymentDate?: string;
+  status: 'pending' | 'paid';
+  notes?: string;
+  createdAt: string;
 }

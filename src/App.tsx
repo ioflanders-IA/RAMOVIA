@@ -7,6 +7,7 @@ import { CalendarView } from './components/calendar/CalendarView';
 import { ClientsView } from './components/clients/ClientsView';
 import { InventoryView } from './components/inventory/InventoryView';
 import { ReportsHub } from './components/report/ReportsHub';
+import { PaymentsView } from './components/payments/PaymentsView';
 import { WorkerView } from './components/worker/WorkerView';
 import { WorkerPendingScreen } from './components/worker/WorkerPendingScreen';
 import { FirebaseConfigModal } from './components/firebase/FirebaseConfigModal';
@@ -33,7 +34,7 @@ const MainAppContent: React.FC = () => {
   const isOnline = useOnlineStatus();
 
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports'
+    'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments'
   >('dashboard');
 
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
@@ -87,13 +88,14 @@ const MainAppContent: React.FC = () => {
         {currentUser.role === 'admin' ? (
           <>
             {activeTab === 'dashboard' && (
-              <AdminDashboard onNavigateTab={(tab) => setActiveTab(tab)} />
+              <AdminDashboard onNavigateTab={(tab) => setActiveTab(tab as any)} />
             )}
             {activeTab === 'map' && <MapTabScreen />}
             {activeTab === 'calendar' && <CalendarView />}
             {activeTab === 'clients' && <ClientsView />}
             {activeTab === 'inventory' && <InventoryView />}
             {activeTab === 'reports' && <ReportsHub />}
+            {activeTab === 'payments' && <PaymentsView />}
           </>
         ) : (
           /* WORKER VIEW - Mobile-First & Isolated */
