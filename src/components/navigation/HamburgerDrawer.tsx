@@ -23,8 +23,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface HamburgerDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  activeTab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments';
-  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments') => void;
+  activeTab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather';
+  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather') => void;
   onOpenAccount: () => void;
   onOpenSettings: () => void;
   onOpenTeamModal: () => void;

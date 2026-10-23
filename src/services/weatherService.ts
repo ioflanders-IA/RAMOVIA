@@ -38,11 +38,13 @@ export function getWeatherConditionText(code: number): { condition: string; isRa
 const weatherCache = new Map<string, { data: WeatherData; timestamp: number }>();
 const CACHE_TTL_MS = 1000 * 60 * 15; // 15 minutes
 
-export async function fetchWeatherForLocation(lat: number, lng: number): Promise<WeatherData> {
+export async function fetchWeatherForLocation(lat: number, lng: number, forceRefresh = false): Promise<WeatherData> {
   const cacheKey = `${lat.toFixed(2)}_${lng.toFixed(2)}`;
-  const cached = weatherCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return cached.data;
+  if (!forceRefresh) {
+    const cached = weatherCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return cached.data;
+    }
   }
 
   try {
@@ -97,4 +99,22 @@ export async function fetchWeatherForLocation(lat: number, lng: number): Promise
     };
     return fallback;
   }
+}
+
+export async function fetchWeatherForClients(
+  clients: { id: string; lat: number; lng: number }[],
+  forceRefresh = false
+): Promise<Record<string, WeatherData>> {
+  const map: Record<string, WeatherData> = {};
+  await Promise.all(
+    clients.map(async (client) => {
+      try {
+        const data = await fetchWeatherForLocation(client.lat, client.lng, forceRefresh);
+        map[client.id] = data;
+      } catch (e) {
+        console.error('Failed to fetch weather for client', client.id, e);
+      }
+    })
+  );
+  return map;
 }

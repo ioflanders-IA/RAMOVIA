@@ -5,7 +5,6 @@ import { TeamManagementModal } from '../admin/TeamManagementModal';
 import { AccountModal } from '../account/AccountModal';
 import { SettingsModal } from '../settings/SettingsModal';
 import { NotificationCenter } from '../common/NotificationCenter';
-import { HamburgerDrawer } from '../navigation/HamburgerDrawer';
 import {
   Users,
   Calendar,
@@ -13,18 +12,18 @@ import {
   FileCheck2,
   LayoutDashboard,
   MapPin,
-  Menu,
   Download,
   Plus,
   Shield,
   HardHat,
   X,
   Smartphone,
+  Settings,
 } from 'lucide-react';
 
 interface HeaderProps {
-  activeTab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments';
-  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments') => void;
+  activeTab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather';
+  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather') => void;
   onOpenFirebaseModal?: () => void;
 }
 
@@ -32,7 +31,6 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenFi
   const { currentUser } = useApp();
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
 
-  const [hamburgerOpen, setHamburgerOpen] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -43,29 +41,27 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenFi
   return (
     <>
       <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100">
-        <div className="max-w-7xl mx-auto p-[7px] px-3 h-14 flex items-center justify-between gap-[7px]">
+        <div className="max-w-7xl mx-auto px-3 pt-[25px] pb-[5px] flex items-center justify-between gap-[7px]">
           
-          {/* Brand Logo & Title */}
-          <div className="flex items-center gap-[7px] shrink-0">
+          {/* Brand Logo - Ingrandito del 30% (da 32px a 42px su mobile, da 36px a 47px su desktop) */}
+          <div className="flex items-center shrink-0">
             <button
               onClick={() => onSelectTab('dashboard')}
-              className="flex items-center gap-[7px] text-left focus:outline-none group cursor-pointer"
+              className="flex items-center text-left focus:outline-none cursor-pointer hover:opacity-90 transition-opacity"
+              title="RAMOVIA Dashboard"
             >
-              <div className="h-8 w-8 shrink-0 flex items-center justify-center p-0.5 bg-white dark:bg-slate-800 rounded-[7px] border border-slate-200 dark:border-slate-700 shadow-2xs group-hover:border-emerald-600 transition-colors">
-                <img
-                  src="/RAMOVIA_Logo.svg"
-                  alt="RAMOVIA"
-                  className="h-full w-full object-contain"
-                />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-black tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap leading-tight">
-                  RAMOVIA
-                </span>
-                <span className="text-[9px] font-bold text-emerald-800 dark:text-emerald-400 tracking-wider hidden sm:block">
-                  GESTIONALE DEL VERDE
-                </span>
-              </div>
+              {/* Logo per tema chiaro (gruppo black scuro) */}
+              <img
+                src="/RAMOVIA_Logo_long.svg"
+                alt="RAMOVIA"
+                className="h-[42px] sm:h-[47px] w-auto object-contain block dark:hidden"
+              />
+              {/* Logo per tema scuro (gruppo black bianco) */}
+              <img
+                src="/RAMOVIA_Logo_long_white.svg"
+                alt="RAMOVIA"
+                className="h-[42px] sm:h-[47px] w-auto object-contain hidden dark:block"
+              />
             </button>
           </div>
 
@@ -152,7 +148,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenFi
             )}
           </nav>
 
-          {/* Top Right Tools: Notifications Bell & Hamburger Menu Trigger */}
+          {/* Top Right Tools: Notifications Bell & Desktop Profile/Settings (Hamburger removed) */}
           <div className="flex items-center gap-[7px]">
             
             {/* PWA Install Button (if applicable) */}
@@ -169,28 +165,28 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenFi
             {/* Notification Center Dropdown */}
             <NotificationCenter onNavigateTab={onSelectTab} />
 
-            {/* Hamburger Drawer Trigger Button */}
+            {/* Desktop Settings & Profile (visibili solo su desktop, nessun hamburger su mobile) */}
             <button
-              onClick={() => setHamburgerOpen(true)}
-              className="p-[7px] text-slate-800 dark:text-slate-200 hover:text-emerald-800 dark:hover:text-emerald-400 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-[7px] transition-colors cursor-pointer flex items-center gap-[7px]"
-              title="Apri Menu Navigazione"
+              onClick={() => setShowSettingsModal(true)}
+              className="hidden md:flex p-[7px] text-slate-700 dark:text-slate-300 hover:text-emerald-800 dark:hover:text-emerald-400 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-[7px] transition-colors cursor-pointer"
+              title="Impostazioni"
             >
-              <Menu className="w-5 h-5" />
+              <Settings className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => setShowAccountModal(true)}
+              className="hidden md:flex items-center gap-[7px] p-[7px] px-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-[7px] text-xs font-semibold transition-colors cursor-pointer"
+              title="Profilo Utente"
+            >
+              <div className="w-5 h-5 rounded-full bg-emerald-800 text-white flex items-center justify-center font-bold text-[10px]">
+                {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <span className="max-w-[100px] truncate">{currentUser.displayName || 'Utente'}</span>
             </button>
           </div>
         </div>
       </header>
-
-      {/* Hamburger Animated Drawer */}
-      <HamburgerDrawer
-        isOpen={hamburgerOpen}
-        onClose={() => setHamburgerOpen(false)}
-        activeTab={activeTab}
-        onSelectTab={onSelectTab}
-        onOpenAccount={() => setShowAccountModal(true)}
-        onOpenSettings={() => setShowSettingsModal(true)}
-        onOpenTeamModal={() => setShowTeamModal(true)}
-      />
 
       {/* Account Profile Modal */}
       {showAccountModal && (

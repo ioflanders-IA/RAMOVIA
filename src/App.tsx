@@ -17,6 +17,7 @@ import { SettingsModal } from './components/settings/SettingsModal';
 import { TeamManagementModal } from './components/admin/TeamManagementModal';
 import { useOnlineStatus } from './hooks/usePWA';
 import { LoginScreen } from './components/auth/LoginScreen';
+import { WeatherView } from './components/weather/WeatherView';
 import {
   LayoutDashboard,
   MapPin,
@@ -34,7 +35,7 @@ const MainAppContent: React.FC = () => {
   const isOnline = useOnlineStatus();
 
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments'
+    'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather'
   >('dashboard');
 
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
@@ -89,6 +90,9 @@ const MainAppContent: React.FC = () => {
           <>
             {activeTab === 'dashboard' && (
               <AdminDashboard onNavigateTab={(tab) => setActiveTab(tab as any)} />
+            )}
+            {activeTab === 'weather' && (
+              <WeatherView onBack={() => setActiveTab('dashboard')} />
             )}
             {activeTab === 'map' && <MapTabScreen />}
             {activeTab === 'calendar' && <CalendarView />}

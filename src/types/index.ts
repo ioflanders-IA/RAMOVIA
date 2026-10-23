@@ -57,6 +57,15 @@ export interface MaterialRequirement {
 export type JobStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 export type JobPaymentStatus = 'pending' | 'partial' | 'paid' | 'unpaid';
 
+export interface PaymentInstallment {
+  id: string;
+  amount: number;
+  date: string; // YYYY-MM-DD
+  paymentMethod: PaymentMethod;
+  notes?: string;
+  createdAt?: string;
+}
+
 export interface Job {
   id: string;
   clientId: string;
@@ -79,6 +88,7 @@ export interface Job {
   paymentStatus?: JobPaymentStatus;
   paymentMethod?: PaymentMethod;
   paidAmount?: number;
+  installments?: PaymentInstallment[];
 }
 
 export type InventoryCategory = 'equipment' | 'material';

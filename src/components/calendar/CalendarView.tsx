@@ -83,12 +83,17 @@ export const CalendarView: React.FC = () => {
             onChange={(e) => setWorkerFilter(e.target.value)}
             className="bg-white border border-slate-200 rounded-[7px] px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs focus:outline-emerald-600"
           >
-            <option value="all">Tutti gli Operai</option>
+            <option value="all">Tutti gli Operai & Titolare</option>
+            {currentUser && (
+              <option value={currentUser.uid}>
+                Io ({currentUser.displayName || 'Titolare'})
+              </option>
+            )}
             {users
-              .filter((u) => u.role === 'worker')
+              .filter((u) => u.uid !== currentUser?.uid && u.active !== false)
               .map((w) => (
                 <option key={w.uid} value={w.uid}>
-                  {w.displayName}
+                  {w.displayName} {w.role === 'admin' ? '(Admin)' : '(Operaio)'}
                 </option>
               ))}
           </select>

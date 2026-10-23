@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { PaymentMethod, ExpenseCategory, ExpenseRecord, WorkerPayout } from '../../types';
+import { PaymentMethod, ExpenseCategory, ExpenseRecord, WorkerPayout, PaymentInstallment, Job } from '../../types';
 import {
   Wallet,
   TrendingUp,
@@ -24,6 +24,7 @@ import {
   AlertCircle,
   ArrowUpRight,
   ArrowDownRight,
+  Trash2,
 } from 'lucide-react';
 
 export const PaymentsView: React.FC = () => {
@@ -58,11 +59,22 @@ export const PaymentsView: React.FC = () => {
   const [payoutMethod, setPayoutMethod] = useState<PaymentMethod>('bonifico');
   const [payoutNotes, setPayoutNotes] = useState('');
 
+  // Acconto modal state for ongoing jobs
+  const [selectedJobForAcconto, setSelectedJobForAcconto] = useState<Job | null>(null);
+  const [accontoAmount, setAccontoAmount] = useState<number>(0);
+  const [accontoDate, setAccontoDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [accontoMethod, setAccontoMethod] = useState<PaymentMethod>('bonifico');
+  const [accontoNotes, setAccontoNotes] = useState('');
+
   // 1. Calculate Revenue from Jobs
   const totalJobRevenue = jobs.reduce((sum, j) => sum + (j.price || 0), 0);
   const totalJobCollected = jobs.reduce((sum, j) => {
     if (j.paymentStatus === 'paid') return sum + (j.price || 0);
-    if (j.paymentStatus === 'partial') return sum + (j.paidAmount || (j.price || 0) / 2);
+    if (j.installments && j.installments.length > 0) {
+      return sum + j.installments.reduce((s, it) => s + it.amount, 0);
+    }
+    if (j.paidAmount) return sum + j.paidAmount;
+    if (j.paymentStatus === 'partial') return sum + ((j.price || 0) / 2);
     return sum;
   }, 0);
   const totalJobPending = Math.max(0, totalJobRevenue - totalJobCollected);
@@ -438,29 +450,52 @@ export const PaymentsView: React.FC = () => {
             ) : (
               jobs.map((job) => {
                 const price = job.price || 0;
-                const status = job.paymentStatus || 'pending';
+                const paid = job.installments && job.installments.length > 0
+                  ? job.installments.reduce((sum, it) => sum + it.amount, 0)
+                  : job.paidAmount || (job.paymentStatus === 'paid' ? price : 0);
+                const remaining = Math.max(0, price - paid);
+                const status = job.paymentStatus || (paid >= price && price > 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid');
                 const method = job.paymentMethod || 'bonifico';
 
                 return (
                   <div
                     key={job.id}
-                    className="p-[7px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-[7px] flex flex-col sm:flex-row sm:items-center justify-between gap-[7px] text-xs"
+                    className="p-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-[7px] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs"
                   >
-                    <div className="space-y-0.5 flex-1 min-w-0">
+                    <div className="space-y-1 flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 dark:text-slate-100 truncate">
+                        <span className="font-bold text-slate-900 dark:text-slate-100 truncate text-sm">
                           {job.clientName}
                         </span>
                         <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
                           {job.date}
                         </span>
                       </div>
-                      <div className="text-[11px] text-slate-600 dark:text-slate-300 truncate">
+                      <div className="text-xs text-slate-600 dark:text-slate-300">
                         {job.title}
                       </div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400">
-                        Modalità: <strong>{getMethodLabel(method)}</strong>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span>Modalità: <strong>{getMethodLabel(method)}</strong></span>
+                        {job.installments && job.installments.length > 0 && (
+                          <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+                            {job.installments.length} acconti registrati
+                          </span>
+                        )}
                       </div>
+
+                      {/* Mini elenco acconti se presenti */}
+                      {job.installments && job.installments.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {job.installments.map((inst, idx) => (
+                            <span
+                              key={inst.id}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[10px] text-slate-700 dark:text-slate-300 font-mono"
+                            >
+                              <span>Acconto #{idx + 1}: € {inst.amount.toFixed(2)} ({inst.date})</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-3 shrink-0">
@@ -468,8 +503,13 @@ export const PaymentsView: React.FC = () => {
                         <div className="font-mono font-bold text-sm text-slate-900 dark:text-slate-100">
                           € {price.toFixed(2)}
                         </div>
+                        {remaining > 0 && paid > 0 && (
+                          <div className="text-[10px] font-mono text-amber-700 dark:text-amber-400 font-semibold">
+                            Rimanente: € {remaining.toFixed(2)}
+                          </div>
+                        )}
                         <span
-                          className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                          className={`inline-block text-[9px] font-bold uppercase px-2 py-0.5 rounded mt-0.5 ${
                             status === 'paid'
                               ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300'
                               : status === 'partial'
@@ -481,20 +521,36 @@ export const PaymentsView: React.FC = () => {
                         </span>
                       </div>
 
-                      {status !== 'paid' && (
+                      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5">
                         <button
                           onClick={() => {
-                            updateJob({
-                              ...job,
-                              paymentStatus: 'paid',
-                              paidAmount: price,
-                            });
+                            setSelectedJobForAcconto(job);
+                            setAccontoAmount(remaining > 0 ? remaining : 50);
+                            setAccontoDate(new Date().toISOString().split('T')[0]);
+                            setAccontoMethod(job.paymentMethod || 'bonifico');
+                            setAccontoNotes('');
                           }}
-                          className="p-[7px] px-2.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] font-bold text-[11px] shadow-xs cursor-pointer"
+                          className="p-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-[7px] font-bold text-[11px] shadow-xs cursor-pointer flex items-center gap-1"
                         >
-                          Segna Saldato
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Acconto</span>
                         </button>
-                      )}
+
+                        {status !== 'paid' && (
+                          <button
+                            onClick={() => {
+                              updateJob({
+                                ...job,
+                                paymentStatus: 'paid',
+                                paidAmount: price,
+                              });
+                            }}
+                            className="p-1.5 px-2.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] font-bold text-[11px] shadow-xs cursor-pointer whitespace-nowrap"
+                          >
+                            Segna Saldato
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -830,6 +886,228 @@ export const PaymentsView: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Aggiungi Acconto per Lavoro in Essere */}
+      {selectedJobForAcconto && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-[7px] overflow-y-auto backdrop-blur-xs">
+          <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-[7px] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden my-2">
+            <div className="bg-slate-900 text-white p-3 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold">Registra Acconto per Cantiere</h3>
+                <p className="text-[11px] text-slate-300">{selectedJobForAcconto.clientName} · {selectedJobForAcconto.title}</p>
+              </div>
+              <button
+                onClick={() => setSelectedJobForAcconto(null)}
+                className="p-1 rounded-[7px] text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3 space-y-3 text-xs">
+              {/* Situazione Economica Cantiere */}
+              <div className="grid grid-cols-3 gap-2 p-2.5 bg-slate-50 dark:bg-slate-800/80 rounded-[7px] border border-slate-200 dark:border-slate-700 text-center">
+                <div>
+                  <span className="block text-[10px] text-slate-500 uppercase font-bold">Prezzo Totale</span>
+                  <span className="font-mono font-bold text-sm">€ {(selectedJobForAcconto.price || 0).toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] text-slate-500 uppercase font-bold">Già Incassato</span>
+                  <span className="font-mono font-bold text-sm text-emerald-700 dark:text-emerald-400">
+                    € {(selectedJobForAcconto.paidAmount || (selectedJobForAcconto.paymentStatus === 'paid' ? selectedJobForAcconto.price || 0 : 0)).toFixed(2)}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-[10px] text-slate-500 uppercase font-bold">Rimanente</span>
+                  <span className="font-mono font-bold text-sm text-amber-700 dark:text-amber-400">
+                    € {Math.max(0, (selectedJobForAcconto.price || 0) - (selectedJobForAcconto.paidAmount || 0)).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Elenco Acconti Precedenti */}
+              {selectedJobForAcconto.installments && selectedJobForAcconto.installments.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="font-bold text-[11px] text-slate-700 dark:text-slate-300 block">
+                    Acconti precedentemente registrati:
+                  </span>
+                  <div className="space-y-1 max-h-36 overflow-y-auto">
+                    {selectedJobForAcconto.installments.map((inst, idx) => (
+                      <div
+                        key={inst.id}
+                        className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-xs"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="font-bold flex items-center gap-2">
+                            <span>Acconto #{idx + 1}: € {inst.amount.toFixed(2)}</span>
+                            <span className="font-mono text-[10px] text-slate-500">{inst.date}</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            {getMethodLabel(inst.paymentMethod)} {inst.notes && `· "${inst.notes}"`}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const updatedInst = (selectedJobForAcconto.installments || []).filter((it) => it.id !== inst.id);
+                            const newPaid = updatedInst.reduce((s, it) => s + it.amount, 0);
+                            const price = selectedJobForAcconto.price || 0;
+                            const newStatus: any = newPaid >= price && price > 0 ? 'paid' : newPaid > 0 ? 'partial' : 'unpaid';
+
+                            const updatedJob = {
+                              ...selectedJobForAcconto,
+                              installments: updatedInst,
+                              paidAmount: newPaid,
+                              paymentStatus: newStatus,
+                            };
+                            await updateJob(updatedJob);
+                            setSelectedJobForAcconto(updatedJob);
+                          }}
+                          className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                          title="Elimina questo acconto"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Form Nuovo Acconto */}
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (accontoAmount <= 0) return;
+
+                  const currentInst = selectedJobForAcconto.installments || [];
+                  const newInst: PaymentInstallment = {
+                    id: `inst_${Date.now()}`,
+                    amount: Number(accontoAmount),
+                    date: accontoDate,
+                    paymentMethod: accontoMethod,
+                    notes: accontoNotes.trim() || undefined,
+                    createdAt: new Date().toISOString(),
+                  };
+
+                  const updatedInst = [...currentInst, newInst];
+                  const newPaid = updatedInst.reduce((s, it) => s + it.amount, 0);
+                  const price = selectedJobForAcconto.price || 0;
+                  const newStatus: any = newPaid >= price && price > 0 ? 'paid' : newPaid > 0 ? 'partial' : 'unpaid';
+
+                  await updateJob({
+                    ...selectedJobForAcconto,
+                    installments: updatedInst,
+                    paidAmount: newPaid,
+                    paymentStatus: newStatus,
+                  });
+
+                  setSelectedJobForAcconto(null);
+                  setAccontoAmount(0);
+                  setAccontoNotes('');
+                }}
+                className="space-y-2.5 pt-2 border-t border-slate-200 dark:border-slate-700"
+              >
+                <div className="font-bold text-slate-800 dark:text-slate-200">
+                  Aggiungi Nuovo Versamento / Acconto
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                      Importo Acconto (€) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="0.01"
+                      step="0.01"
+                      value={accontoAmount}
+                      onChange={(e) => setAccontoAmount(parseFloat(e.target.value) || 0)}
+                      className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px] font-mono font-bold text-emerald-700 dark:text-emerald-400"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                      Data Incasso *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={accontoDate}
+                      onChange={(e) => setAccontoDate(e.target.value)}
+                      className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px] font-mono text-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+                </div>
+
+                {/* Modalità Pagamento a tastini senza emoticon e senza spunta */}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                    Modalità Pagamento Acconto
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                    {[
+                      { id: 'bonifico', label: 'Bonifico Bancario' },
+                      { id: 'contanti', label: 'Contanti' },
+                      { id: 'pos_carta', label: 'POS / Carta' },
+                      { id: 'assegno', label: 'Assegno' },
+                      { id: 'riba_30_60', label: 'RiBa' },
+                    ].map((m) => {
+                      const isSel = accontoMethod === m.id;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => setAccontoMethod(m.id as PaymentMethod)}
+                          className={`py-1.5 px-2 rounded-[7px] text-[11px] font-bold border transition-colors cursor-pointer text-center ${
+                            isSel
+                              ? 'bg-emerald-800 text-white border-emerald-900 shadow-xs ring-1 ring-emerald-400'
+                              : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-emerald-600'
+                          }`}
+                        >
+                          <span className="whitespace-normal leading-tight">{m.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                    Note Versamento (facoltative)
+                  </label>
+                  <input
+                    type="text"
+                    value={accontoNotes}
+                    onChange={(e) => setAccontoNotes(e.target.value)}
+                    placeholder="es. Acconto ricevuto con bonifico..."
+                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px] text-xs text-slate-900 dark:text-slate-100"
+                  />
+                </div>
+
+                <div className="pt-2 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedJobForAcconto(null)}
+                    className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-[7px] text-slate-700 dark:text-slate-300 font-medium"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-[7px] shadow-xs"
+                  >
+                    Salva Acconto
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
