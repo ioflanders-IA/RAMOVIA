@@ -15,6 +15,7 @@ import {
   auth,
   db,
   signInWithGoogle,
+  signInDirectlyToFirebase,
   logoutFromFirebase,
   linkWorkerByCode,
   handleUserDocOnLogin,
@@ -283,38 +284,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }, (err) => console.warn('user doc snapshot error:', err));
 
             onSnapshot(collection(db, 'users'), (snap) => {
-              const docs = snap.docs.map((d) => d.data() as User);
+              const docs = snap.docs.map((d) => ({ uid: d.id, ...d.data() } as User));
               if (docs.length > 0) setUsers(docs);
             }, (err) => console.warn('users coll snapshot error:', err));
 
             onSnapshot(collection(db, 'clients'), (snap) => {
-              const docs = snap.docs.map((d) => d.data() as Client);
-              if (docs.length > 0) setClients(docs);
+              const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Client));
+              setClients(docs);
             }, (err) => console.warn('clients coll snapshot error:', err));
 
             onSnapshot(collection(db, 'jobs'), (snap) => {
-              const docs = snap.docs.map((d) => d.data() as Job);
-              if (docs.length > 0) setJobs(docs);
+              const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Job));
+              setJobs(docs);
             }, (err) => console.warn('jobs coll snapshot error:', err));
 
             onSnapshot(collection(db, 'inventory'), (snap) => {
-              const docs = snap.docs.map((d) => d.data() as InventoryItem);
-              if (docs.length > 0) setInventory(docs);
+              const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as InventoryItem));
+              setInventory(docs);
             }, (err) => console.warn('inventory coll snapshot error:', err));
 
             onSnapshot(collection(db, 'timesheets_and_reports'), (snap) => {
-              const docs = snap.docs.map((d) => d.data() as WorkReport);
-              if (docs.length > 0) setReports(docs);
+              const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as WorkReport));
+              setReports(docs);
             }, (err) => console.warn('reports coll snapshot error:', err));
 
             onSnapshot(collection(db, 'expenses'), (snap) => {
-              const docs = snap.docs.map((d) => d.data() as ExpenseRecord);
-              if (docs.length > 0) setExpenses(docs);
+              const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as ExpenseRecord));
+              setExpenses(docs);
             }, (err) => console.warn('expenses coll snapshot error:', err));
 
             onSnapshot(collection(db, 'worker_payouts'), (snap) => {
-              const docs = snap.docs.map((d) => d.data() as WorkerPayout);
-              if (docs.length > 0) setPayouts(docs);
+              const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as WorkerPayout));
+              setPayouts(docs);
             }, (err) => console.warn('payouts coll snapshot error:', err));
           } catch (e) {
             console.warn('Snapshot listeners setup warning:', e);
@@ -374,22 +375,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     role: UserRole = 'admin'
   ): Promise<{ success: boolean; error?: string }> => {
     const cleanEmail = email.trim().toLowerCase();
+    const isOwner = role === 'admin' || cleanEmail.includes('admin') || cleanEmail.includes('titolare') || cleanEmail.includes('andblasi') || cleanEmail.includes('infoa.blasi');
+    const effectiveRole: UserRole = isOwner ? 'admin' : role;
+
+    // Connect to Firebase Auth so Firestore rules allow real-time sync across devices
+    if (auth && !auth.currentUser) {
+      try {
+        await signInDirectlyToFirebase(effectiveRole, cleanEmail);
+      } catch (err) {
+        console.warn('Direct Firebase Auth signin warning:', err);
+      }
+    }
+
     const existing = users.find((u) => u.email && u.email.toLowerCase() === cleanEmail);
     if (existing) {
       const updatedUser: User = {
         ...existing,
-        role,
+        role: effectiveRole,
         linkedToAdmin: true,
       };
       setCurrentUser(updatedUser);
       return { success: true };
     }
-    const isOwner = role === 'admin' || cleanEmail.includes('admin') || cleanEmail.includes('titolare') || cleanEmail.includes('andblasi') || cleanEmail.includes('infoa.blasi');
+
     const newUser: User = {
-      uid: `usr_${Date.now()}`,
+      uid: auth?.currentUser?.uid || `usr_${Date.now()}`,
       email: cleanEmail,
       displayName: cleanEmail.split('@')[0].replace(/[._-]/g, ' '),
-      role: isOwner ? 'admin' : role,
+      role: effectiveRole,
       active: true,
       workerCode: isOwner ? undefined : generateWorkerCode(),
       linkedToAdmin: true,
@@ -502,26 +515,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString().split('T')[0],
     };
 
+    // Immediate optimistic update
+    setClients((prev) => [newClient, ...prev.filter((c) => c.id !== id)]);
+
     if (db) {
-      await setDoc(doc(db, 'clients', id), newClient);
-    } else {
-      setClients((prev) => [newClient, ...prev]);
+      try {
+        await setDoc(doc(db, 'clients', id), newClient);
+      } catch (err) {
+        console.warn('Firestore setDoc client error:', err);
+      }
     }
   };
 
   const updateClient = async (updated: Client) => {
+    setClients((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+
     if (db) {
-      await setDoc(doc(db, 'clients', updated.id), updated);
-    } else {
-      setClients((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      try {
+        await setDoc(doc(db, 'clients', updated.id), updated);
+      } catch (err) {
+        console.warn('Firestore updateDoc client error:', err);
+      }
     }
   };
 
   const deleteClient = async (id: string) => {
+    setClients((prev) => prev.filter((c) => c.id !== id));
+
     if (db) {
-      await deleteDoc(doc(db, 'clients', id));
-    } else {
-      setClients((prev) => prev.filter((c) => c.id !== id));
+      try {
+        await deleteDoc(doc(db, 'clients', id));
+      } catch (err) {
+        console.warn('Firestore deleteDoc client error:', err);
+      }
     }
   };
 
@@ -533,26 +559,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id,
     };
 
+    setJobs((prev) => [newJob, ...prev.filter((j) => j.id !== id)]);
+
     if (db) {
-      await setDoc(doc(db, 'jobs', id), newJob);
-    } else {
-      setJobs((prev) => [newJob, ...prev]);
+      try {
+        await setDoc(doc(db, 'jobs', id), newJob);
+      } catch (err) {
+        console.warn('Firestore setDoc job error:', err);
+      }
     }
   };
 
   const updateJob = async (updated: Job) => {
+    setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+
     if (db) {
-      await setDoc(doc(db, 'jobs', updated.id), updated);
-    } else {
-      setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+      try {
+        await setDoc(doc(db, 'jobs', updated.id), updated);
+      } catch (err) {
+        console.warn('Firestore update job error:', err);
+      }
     }
   };
 
   const deleteJob = async (id: string) => {
+    setJobs((prev) => prev.filter((j) => j.id !== id));
+
     if (db) {
-      await deleteDoc(doc(db, 'jobs', id));
-    } else {
-      setJobs((prev) => prev.filter((j) => j.id !== id));
+      try {
+        await deleteDoc(doc(db, 'jobs', id));
+      } catch (err) {
+        console.warn('Firestore delete job error:', err);
+      }
     }
   };
 
@@ -574,50 +612,66 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id,
     };
 
+    setInventory((prev) => [newItem, ...prev.filter((i) => i.id !== id)]);
+
     if (db) {
-      await setDoc(doc(db, 'inventory', id), newItem);
-    } else {
-      setInventory((prev) => [newItem, ...prev]);
+      try {
+        await setDoc(doc(db, 'inventory', id), newItem);
+      } catch (err) {
+        console.warn('Firestore setDoc inventory error:', err);
+      }
     }
   };
 
   const updateInventoryItem = async (updated: InventoryItem) => {
+    setInventory((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+
     if (db) {
-      await setDoc(doc(db, 'inventory', updated.id), updated);
-    } else {
-      setInventory((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      try {
+        await setDoc(doc(db, 'inventory', updated.id), updated);
+      } catch (err) {
+        console.warn('Firestore update inventory error:', err);
+      }
     }
   };
 
   const deleteInventoryItem = async (id: string) => {
+    setInventory((prev) => prev.filter((item) => item.id !== id));
+
     if (db) {
-      await deleteDoc(doc(db, 'inventory', id));
-    } else {
-      setInventory((prev) => prev.filter((item) => item.id !== id));
+      try {
+        await deleteDoc(doc(db, 'inventory', id));
+      } catch (err) {
+        console.warn('Firestore delete inventory error:', err);
+      }
     }
   };
 
   const recordEquipmentMaintenance = async (itemId: string, newUsageHours: number) => {
     const lastMaintenanceDate = new Date().toISOString().split('T')[0];
+    setInventory((prev) =>
+      prev.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              currentUsageHours: newUsageHours,
+              status: 'available',
+              lastMaintenanceDate,
+            }
+          : item
+      )
+    );
+
     if (db) {
-      await updateDoc(doc(db, 'inventory', itemId), {
-        currentUsageHours: newUsageHours,
-        status: 'available',
-        lastMaintenanceDate,
-      });
-    } else {
-      setInventory((prev) =>
-        prev.map((item) =>
-          item.id === itemId
-            ? {
-                ...item,
-                currentUsageHours: newUsageHours,
-                status: 'available',
-                lastMaintenanceDate,
-              }
-            : item
-        )
-      );
+      try {
+        await updateDoc(doc(db, 'inventory', itemId), {
+          currentUsageHours: newUsageHours,
+          status: 'available',
+          lastMaintenanceDate,
+        });
+      } catch (err) {
+        console.warn('Firestore maintenance update error:', err);
+      }
     }
   };
 
@@ -631,14 +685,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
 
+    setReports((prev) => [newReport, ...prev.filter((r) => r.id !== id)]);
+    setJobs((prev) =>
+      prev.map((j) => (j.id === reportData.jobId ? { ...j, status: 'completed' } : j))
+    );
+
     if (db) {
-      await setDoc(doc(db, 'timesheets_and_reports', id), newReport);
-      await updateDoc(doc(db, 'jobs', reportData.jobId), { status: 'completed' });
-    } else {
-      setReports((prev) => [newReport, ...prev]);
-      setJobs((prev) =>
-        prev.map((j) => (j.id === reportData.jobId ? { ...j, status: 'completed' } : j))
-      );
+      try {
+        await setDoc(doc(db, 'timesheets_and_reports', id), newReport);
+        await updateDoc(doc(db, 'jobs', reportData.jobId), { status: 'completed' });
+      } catch (err) {
+        console.warn('Firestore submit report error:', err);
+      }
     }
 
     // Automatically deduct materials used
@@ -647,12 +705,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const inv = inventory.find((i) => i.id === used.itemId);
         if (inv) {
           const newQty = Math.max(0, inv.quantity - used.qty);
+          setInventory((prev) =>
+            prev.map((i) => (i.id === inv.id ? { ...i, quantity: newQty } : i))
+          );
           if (db) {
-            await updateDoc(doc(db, 'inventory', inv.id), { quantity: newQty });
-          } else {
-            setInventory((prev) =>
-              prev.map((i) => (i.id === inv.id ? { ...i, quantity: newQty } : i))
-            );
+            try {
+              await updateDoc(doc(db, 'inventory', inv.id), { quantity: newQty });
+            } catch (err) {
+              console.warn('Firestore material deduct error:', err);
+            }
           }
         }
       }
@@ -660,19 +721,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const approveWorkReport = async (reportId: string, adminNotes?: string) => {
+    setReports((prev) =>
+      prev.map((r) =>
+        r.id === reportId
+          ? { ...r, status: 'approved', adminNotes: adminNotes ?? r.adminNotes }
+          : r
+      )
+    );
+
     if (db) {
-      await updateDoc(doc(db, 'timesheets_and_reports', reportId), {
-        status: 'approved',
-        adminNotes: adminNotes || '',
-      });
-    } else {
-      setReports((prev) =>
-        prev.map((r) =>
-          r.id === reportId
-            ? { ...r, status: 'approved', adminNotes: adminNotes ?? r.adminNotes }
-            : r
-        )
-      );
+      try {
+        await updateDoc(doc(db, 'timesheets_and_reports', reportId), {
+          status: 'approved',
+          adminNotes: adminNotes || '',
+        });
+      } catch (err) {
+        console.warn('Firestore approve report error:', err);
+      }
     }
   };
 
@@ -685,26 +750,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
 
+    setExpenses((prev) => [newExpense, ...prev.filter((e) => e.id !== id)]);
+
     if (db) {
-      await setDoc(doc(db, 'expenses', id), newExpense);
-    } else {
-      setExpenses((prev) => [newExpense, ...prev]);
+      try {
+        await setDoc(doc(db, 'expenses', id), newExpense);
+      } catch (err) {
+        console.warn('Firestore add expense error:', err);
+      }
     }
   };
 
   const updateExpense = async (updated: ExpenseRecord) => {
+    setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+
     if (db) {
-      await setDoc(doc(db, 'expenses', updated.id), updated);
-    } else {
-      setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+      try {
+        await setDoc(doc(db, 'expenses', updated.id), updated);
+      } catch (err) {
+        console.warn('Firestore update expense error:', err);
+      }
     }
   };
 
   const deleteExpense = async (id: string) => {
+    setExpenses((prev) => prev.filter((e) => e.id !== id));
+
     if (db) {
-      await deleteDoc(doc(db, 'expenses', id));
-    } else {
-      setExpenses((prev) => prev.filter((e) => e.id !== id));
+      try {
+        await deleteDoc(doc(db, 'expenses', id));
+      } catch (err) {
+        console.warn('Firestore delete expense error:', err);
+      }
     }
   };
 
@@ -716,18 +793,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
 
+    setPayouts((prev) => [newPayout, ...prev.filter((p) => p.id !== id)]);
+
     if (db) {
-      await setDoc(doc(db, 'worker_payouts', id), newPayout);
-    } else {
-      setPayouts((prev) => [newPayout, ...prev]);
+      try {
+        await setDoc(doc(db, 'worker_payouts', id), newPayout);
+      } catch (err) {
+        console.warn('Firestore add payout error:', err);
+      }
     }
   };
 
   const updateWorkerPayout = async (updated: WorkerPayout) => {
+    setPayouts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+
     if (db) {
-      await setDoc(doc(db, 'worker_payouts', updated.id), updated);
-    } else {
-      setPayouts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      try {
+        await setDoc(doc(db, 'worker_payouts', updated.id), updated);
+      } catch (err) {
+        console.warn('Firestore update payout error:', err);
+      }
     }
   };
 

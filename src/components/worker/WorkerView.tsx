@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { Job, WorkReport } from '../../types';
 import { ReportSubmissionModal } from './ReportSubmissionModal';
 import { WorkReportModal } from '../report/WorkReportModal';
+import { FormattedNote } from '../common/FormattedNote';
 import {
   Calendar,
   Clock,
@@ -232,23 +233,38 @@ export const WorkerView: React.FC = () => {
                             </div>
                           )}
 
-                          <div>
-                            <span className="text-slate-500 block text-[10px] uppercase font-bold">
-                              Impianto Irrigazione
-                            </span>
-                            <span className="text-slate-700">
-                              {clientDetails.gardenNotes.irrigationDetails}
-                            </span>
-                          </div>
+                          {clientDetails.gardenNotes.irrigationDetails && (
+                            <div>
+                              <span className="text-slate-500 block text-[10px] uppercase font-bold">
+                                Impianto Irrigazione
+                              </span>
+                              <div className="text-slate-700">
+                                <FormattedNote content={clientDetails.gardenNotes.irrigationDetails} />
+                              </div>
+                            </div>
+                          )}
 
-                          <div>
-                            <span className="text-slate-500 block text-[10px] uppercase font-bold">
-                              Essenze Delicate / Prescrizioni
-                            </span>
-                            <span className="text-slate-700">
-                              {clientDetails.gardenNotes.delicatePlants}
-                            </span>
-                          </div>
+                          {clientDetails.gardenNotes.delicatePlants && (
+                            <div>
+                              <span className="text-slate-500 block text-[10px] uppercase font-bold">
+                                Essenze Delicate / Prescrizioni
+                              </span>
+                              <div className="text-slate-700">
+                                <FormattedNote content={clientDetails.gardenNotes.delicatePlants} />
+                              </div>
+                            </div>
+                          )}
+
+                          {clientDetails.gardenNotes.notes && (
+                            <div>
+                              <span className="text-slate-500 block text-[10px] uppercase font-bold">
+                                Istruzioni Cantiere
+                              </span>
+                              <div className="text-slate-700">
+                                <FormattedNote content={clientDetails.gardenNotes.notes} />
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

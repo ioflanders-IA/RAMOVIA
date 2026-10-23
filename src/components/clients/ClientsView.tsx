@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Client } from '../../types';
 import { ClientModal } from './ClientModal';
+import { FormattedNote } from '../common/FormattedNote';
 import {
   Users,
   Plus,
@@ -172,21 +173,30 @@ export const ClientsView: React.FC = () => {
                       </span>
                     </div>
 
-                    <div className="text-slate-700 flex items-start gap-1.5">
-                      <Droplets className="w-3.5 h-3.5 text-sky-600 shrink-0 mt-0.5" />
-                      <span>{client.gardenNotes.irrigationDetails}</span>
-                    </div>
+                    {client.gardenNotes.irrigationDetails && (
+                      <div className="text-slate-700 flex items-start gap-1.5">
+                        <Droplets className="w-3.5 h-3.5 text-sky-600 shrink-0 mt-0.5" />
+                        <FormattedNote content={client.gardenNotes.irrigationDetails} className="flex-1" />
+                      </div>
+                    )}
 
                     {client.gardenNotes.delicatePlants && (
-                      <div className="text-slate-600">
-                        <strong className="text-slate-800">Essenze delicate: </strong>
-                        {client.gardenNotes.delicatePlants}
+                      <div className="text-slate-600 flex items-start gap-1.5">
+                        <strong className="text-slate-800 shrink-0">Essenze delicate: </strong>
+                        <FormattedNote content={client.gardenNotes.delicatePlants} className="flex-1" />
+                      </div>
+                    )}
+
+                    {client.gardenNotes.notes && (
+                      <div className="text-slate-600 flex items-start gap-1.5">
+                        <strong className="text-slate-800 shrink-0">Note cantiere: </strong>
+                        <FormattedNote content={client.gardenNotes.notes} className="flex-1" />
                       </div>
                     )}
 
                     <div className="flex items-center justify-between pt-1">
                       <div className="text-slate-600">
-                        Codice cancello: <strong className="font-mono text-slate-900">{client.gardenNotes.gateCode}</strong>
+                        Codice cancello: <strong className="font-mono text-slate-900">{client.gardenNotes.gateCode || 'N/D'}</strong>
                       </div>
 
                       {client.gardenNotes.dogPresent && (

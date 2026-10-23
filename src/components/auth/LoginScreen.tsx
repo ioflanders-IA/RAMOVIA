@@ -16,7 +16,7 @@ export const LoginScreen: React.FC = () => {
     setUnauthorizedDomain(null);
     setLoading(true);
     try {
-      const res = await loginWithGoogle();
+      const res = await loginWithGoogle(selectedRole);
       if (!res.success) {
         if (res.unauthorizedDomain || res.error === 'unauthorized_domain') {
           setUnauthorizedDomain(res.unauthorizedDomain || window.location.hostname);

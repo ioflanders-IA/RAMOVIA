@@ -4,6 +4,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInAnonymously,
   signOut,
   onAuthStateChanged,
   User as FirebaseUser,
@@ -105,19 +106,34 @@ export const logoutFromFirebase = async (): Promise<void> => {
   }
 };
 
+// Anonymous sign in helper for seamless cloud sync during preview
+export const signInDirectlyToFirebase = async (preferredRole: UserRole = 'admin', email: string = 'andblasi@gmail.com'): Promise<User | null> => {
+  if (!auth) return null;
+  try {
+    const cred = await signInAnonymously(auth);
+    if (!cred.user) return null;
+    const userDoc = await handleUserDocOnLogin(cred.user, preferredRole, email);
+    return userDoc;
+  } catch (err) {
+    console.warn('signInDirectlyToFirebase warning:', err);
+    return null;
+  }
+};
+
 // Handle creation or retrieval of user doc in Firestore upon login
 export const handleUserDocOnLogin = async (
   fbUser: FirebaseUser,
-  preferredRole: UserRole = 'admin'
+  preferredRole: UserRole = 'admin',
+  overrideEmail?: string
 ): Promise<User> => {
-  const emailLower = (fbUser.email || '').toLowerCase();
-  const isAdminEmail = emailLower === 'andblasi@gmail.com' || emailLower.includes('admin') || preferredRole === 'admin';
+  const emailLower = (overrideEmail || fbUser.email || '').toLowerCase();
+  const isOwner = emailLower === 'andblasi@gmail.com' || emailLower === 'infoa.blasi@gmail.com' || emailLower.includes('admin') || emailLower.includes('titolare') || preferredRole === 'admin';
 
-  const role: UserRole = preferredRole;
+  const role: UserRole = isOwner ? 'admin' : preferredRole;
   const fallbackUser: User = {
     uid: fbUser.uid,
-    email: emailLower,
-    displayName: fbUser.displayName || emailLower.split('@')[0] || 'Utente RAMOVIA',
+    email: emailLower || 'utente@ramovia.it',
+    displayName: fbUser.displayName || (emailLower ? emailLower.split('@')[0] : 'Titolare RAMOVIA'),
     photoURL: fbUser.photoURL || undefined,
     role,
     active: true,
@@ -140,22 +156,30 @@ export const handleUserDocOnLogin = async (
         linkedToAdmin: role === 'admin' ? true : false,
       };
 
-      setDoc(userRef, newUser).catch((e) => console.warn('setDoc user error:', e));
+      try {
+        await setDoc(userRef, newUser);
+      } catch (e) {
+        console.warn('setDoc user error:', e);
+      }
       return newUser;
     } else {
       const existingData = userSnap.data() as User;
       const updatedData: Partial<User> = {
-        displayName: fbUser.displayName || existingData.displayName,
+        displayName: fbUser.displayName || existingData.displayName || fallbackUser.displayName,
         photoURL: fbUser.photoURL || existingData.photoURL,
-        email: emailLower || existingData.email,
-        role: preferredRole || existingData.role,
+        email: emailLower || existingData.email || fallbackUser.email,
+        role: isOwner ? 'admin' : (preferredRole || existingData.role),
       };
 
-      if (preferredRole === 'admin') {
+      if (role === 'admin') {
         updatedData.linkedToAdmin = true;
       }
 
-      updateDoc(userRef, updatedData).catch((e) => console.warn('updateDoc user error:', e));
+      try {
+        await updateDoc(userRef, updatedData);
+      } catch (e) {
+        console.warn('updateDoc user error:', e);
+      }
       return { ...existingData, ...updatedData };
     }
   } catch (error) {
