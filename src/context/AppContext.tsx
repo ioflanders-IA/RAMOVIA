@@ -15,7 +15,6 @@ import {
   auth,
   db,
   signInWithGoogle,
-  signInDirectlyToFirebase,
   logoutFromFirebase,
   linkWorkerByCode,
   handleUserDocOnLogin,
@@ -118,14 +117,7 @@ const INITIAL_EXPENSES: ExpenseRecord[] = [
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    try {
-      const saved = localStorage.getItem('ramovia_current_user_v3');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   useEffect(() => {
     try {
@@ -241,8 +233,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
-      if (fbUser) {
-        const emailLower = (fbUser.email || '').toLowerCase();
+      // ONLY authenticate if user has a verified non-anonymous Google account with an email!
+      if (fbUser && !fbUser.isAnonymous && fbUser.email) {
+        const emailLower = fbUser.email.toLowerCase();
         const isAdmin =
           emailLower === 'andblasi@gmail.com' ||
           emailLower === 'infoa.blasi@gmail.com' ||
@@ -322,6 +315,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
       } else {
+        // If there was any anonymous leftover session, sign out of it immediately
+        if (fbUser && fbUser.isAnonymous) {
+          logoutFromFirebase().catch(() => {});
+        }
+        setCurrentUser(null);
+        try {
+          localStorage.removeItem('ramovia_current_user_v3');
+        } catch {
+          // ignore
+        }
         setLoadingAuth(false);
       }
     });
@@ -354,6 +357,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const logout = async () => {
+    try {
+      localStorage.removeItem('ramovia_current_user_v3');
+    } catch {
+      // ignore
+    }
     await logoutFromFirebase();
     setCurrentUser(null);
   };
@@ -377,15 +385,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const cleanEmail = email.trim().toLowerCase();
     const isOwner = role === 'admin' || cleanEmail.includes('admin') || cleanEmail.includes('titolare') || cleanEmail.includes('andblasi') || cleanEmail.includes('infoa.blasi');
     const effectiveRole: UserRole = isOwner ? 'admin' : role;
-
-    // Connect to Firebase Auth so Firestore rules allow real-time sync across devices
-    if (auth && !auth.currentUser) {
-      try {
-        await signInDirectlyToFirebase(effectiveRole, cleanEmail);
-      } catch (err) {
-        console.warn('Direct Firebase Auth signin warning:', err);
-      }
-    }
 
     const existing = users.find((u) => u.email && u.email.toLowerCase() === cleanEmail);
     if (existing) {

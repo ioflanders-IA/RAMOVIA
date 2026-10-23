@@ -4,7 +4,6 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
-  signInAnonymously,
   signOut,
   onAuthStateChanged,
   User as FirebaseUser,
@@ -103,20 +102,6 @@ export const signInWithGoogle = async (preferredRole: UserRole = 'admin'): Promi
 export const logoutFromFirebase = async (): Promise<void> => {
   if (auth) {
     await signOut(auth);
-  }
-};
-
-// Anonymous sign in helper for seamless cloud sync during preview
-export const signInDirectlyToFirebase = async (preferredRole: UserRole = 'admin', email: string = 'andblasi@gmail.com'): Promise<User | null> => {
-  if (!auth) return null;
-  try {
-    const cred = await signInAnonymously(auth);
-    if (!cred.user) return null;
-    const userDoc = await handleUserDocOnLogin(cred.user, preferredRole, email);
-    return userDoc;
-  } catch (err) {
-    console.warn('signInDirectlyToFirebase warning:', err);
-    return null;
   }
 };
 
