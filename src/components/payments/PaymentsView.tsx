@@ -27,6 +27,8 @@ import {
   Trash2,
 } from 'lucide-react';
 
+import { ClientDirectoryView } from './ClientDirectoryView';
+
 export const PaymentsView: React.FC = () => {
   const {
     jobs,
@@ -34,15 +36,18 @@ export const PaymentsView: React.FC = () => {
     reports,
     expenses,
     payouts,
+    clients,
     addExpense,
     deleteExpense,
     recordWorkerPayout,
     updateWorkerPayout,
     updateJob,
     updateUserRole,
+    addClient,
+    updateClient,
   } = useApp();
 
-  const [activeSubTab, setActiveSubTab] = useState<'stipendi' | 'incassi' | 'spese' | 'grafici'>('stipendi');
+  const [activeSubTab, setActiveSubTab] = useState<'stipendi' | 'incassi' | 'clienti' | 'spese' | 'grafici'>('incassi');
 
   // Expense modal state
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -282,6 +287,18 @@ export const PaymentsView: React.FC = () => {
         >
           <Receipt className="w-4 h-4" />
           <span>Incassi Lavori Cantieri</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('clienti')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] transition-colors cursor-pointer shrink-0 ${
+            activeSubTab === 'clienti'
+              ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-400 font-bold shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+          }`}
+        >
+          <Users className="w-4 h-4 text-indigo-600" />
+          <span>Clienti & Rubrica</span>
         </button>
 
         <button
@@ -558,6 +575,33 @@ export const PaymentsView: React.FC = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* TAB: RUBRICA CLIENTI & STORICO CANTIERI MULTIPLI */}
+      {activeSubTab === 'clienti' && (
+        <ClientDirectoryView
+          clients={clients}
+          jobs={jobs}
+          onUpdateClient={updateClient}
+          onAddClient={addClient}
+          onOpenAccontoModal={(job) => {
+            setSelectedJobForAcconto(job);
+            const price = job.price || 0;
+            const installmentsSum = job.installments
+              ? job.installments.reduce((s, it) => s + it.amount, 0)
+              : 0;
+            const effectivePaid =
+              job.paymentStatus === 'paid'
+                ? price
+                : installmentsSum > 0
+                ? installmentsSum
+                : job.paidAmount || 0;
+            setAccontoAmount(Math.max(0, price - effectivePaid));
+            setAccontoDate(new Date().toISOString().split('T')[0]);
+            setAccontoMethod(job.paymentMethod || 'bonifico');
+            setAccontoNotes('');
+          }}
+        />
       )}
 
       {/* TAB 3: OPERATIONAL EXPENSES */}

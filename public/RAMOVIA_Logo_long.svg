@@ -10,11 +10,6 @@
       .st1 {
         fill: #060a0f;
       }
-      @media (prefers-color-scheme: dark) {
-        .st1, #Black, #Black path, #Black circle {
-          fill: #ffffff !important;
-        }
-      }
     </style>
   </defs>
   <g id="Black">

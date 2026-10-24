@@ -25,9 +25,10 @@ export interface AppNotification {
 
 interface NotificationCenterProps {
   onNavigateTab?: (tab: 'dashboard' | 'calendar' | 'clients' | 'inventory' | 'reports') => void;
+  placement?: 'bottom-right' | 'sidebar-up';
 }
 
-export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigateTab }) => {
+export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigateTab, placement = 'bottom-right' }) => {
   const { jobs, inventory, reports, users, currentUser } = useApp();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -148,7 +149,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.18, ease: 'easeOut' }}
-              className="absolute right-0 mt-2 w-80 sm:w-96 z-[900] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] shadow-2xl overflow-hidden text-slate-900 dark:text-slate-100 p-[7px] space-y-[7px]"
+              className={`${
+                placement === 'sidebar-up'
+                  ? 'absolute left-0 bottom-full mb-2 w-80 sm:w-88'
+                  : 'absolute right-0 mt-2 w-80 sm:w-96'
+              } z-[900] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] shadow-2xl overflow-hidden text-slate-900 dark:text-slate-100 p-[7px] space-y-[7px]`}
             >
               {/* Dropdown Header */}
               <div className="bg-slate-900 text-white dark:bg-slate-950 p-[7px] px-3 rounded-[7px] flex items-center justify-between">

@@ -33,6 +33,16 @@ export interface GardenNotes {
 
 export type PaymentMethod = 'bonifico' | 'contanti' | 'pos_carta' | 'assegno' | 'riba_30_60' | 'altro';
 
+export interface CantiereSite {
+  id: string;
+  name: string; // e.g. "Sede Viale Parioli", "Villa Monza"
+  address: string;
+  lat: number;
+  lng: number;
+  gardenNotes?: GardenNotes;
+  createdAt?: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -45,6 +55,7 @@ export interface Client {
   preferredPaymentMethod?: PaymentMethod;
   vatOrTaxCode?: string;
   createdAt: string;
+  cantieri?: CantiereSite[];
 }
 
 export interface MaterialRequirement {
@@ -71,6 +82,8 @@ export interface Job {
   clientId: string;
   clientName: string;
   clientAddress: string;
+  cantiereId?: string;
+  cantiereName?: string;
   clientPhone?: string;
   assignedWorkerId: string;
   assignedWorkerName: string;

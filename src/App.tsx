@@ -18,6 +18,7 @@ import { TeamManagementModal } from './components/admin/TeamManagementModal';
 import { useOnlineStatus } from './hooks/usePWA';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { WeatherView } from './components/weather/WeatherView';
+import { DesktopSidebar } from './components/navigation/DesktopSidebar';
 import {
   LayoutDashboard,
   MapPin,
@@ -44,6 +45,18 @@ const MainAppContent: React.FC = () => {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
 
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem('ramovia_sidebar_collapsed') === 'true';
+  });
+
+  const handleToggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('ramovia_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
+
   // 1. Loading state while checking Firebase Auth session
   if (loadingAuth) {
     return (
@@ -69,23 +82,40 @@ const MainAppContent: React.FC = () => {
   // 4. Fully authenticated view
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-150">
+      
+      {/* Desktop Left Vertical Sidebar */}
+      <DesktopSidebar
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        onOpenAccount={() => setShowAccountModal(true)}
+        onOpenSettings={() => setShowSettingsModal(true)}
+        onOpenTeamModal={() => setShowTeamModal(true)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={handleToggleSidebar}
+      />
+
       {/* Top Navigation Bar */}
       <Header
         activeTab={activeTab}
         onSelectTab={setActiveTab}
         onOpenFirebaseModal={() => setShowFirebaseModal(true)}
+        isSidebarCollapsed={isSidebarCollapsed}
       />
 
       {/* Offline Status Warning Bar */}
       {!isOnline && (
-        <div className="bg-amber-600 text-white text-xs px-[7px] py-[7px] flex items-center justify-center gap-[7px] font-medium m-[7px] rounded-[7px] shrink-0">
+        <div className={`bg-amber-600 text-white text-xs px-[7px] py-[7px] flex items-center justify-center gap-[7px] font-medium m-[7px] rounded-[7px] shrink-0 transition-all duration-200 ${
+          isSidebarCollapsed ? 'md:ml-[60px]' : 'md:ml-[210px]'
+        }`}>
           <WifiOff className="w-3.5 h-3.5" />
           <span>Modalità Offline attiva · I dati inseriti sono salvati in cache locale.</span>
         </div>
       )}
 
-      {/* Main Content Viewport with strict 7px spacing */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-[7px] pb-24 md:pb-[7px] space-y-[7px]">
+      {/* Main Content Viewport with strict 7px spacing and desktop sidebar offset */}
+      <main className={`flex-1 max-w-7xl w-full mx-auto p-[7px] pb-24 md:pb-[7px] space-y-[7px] transition-all duration-200 ${
+        isSidebarCollapsed ? 'md:pl-[60px]' : 'md:pl-[210px]'
+      }`}>
         {currentUser.role === 'admin' ? (
           <>
             {activeTab === 'dashboard' && (
@@ -213,25 +243,14 @@ const MainAppContent: React.FC = () => {
         )}
       </nav>
 
-      {/* Footer */}
-      <footer className="no-print hidden md:block border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-[7px] text-xs text-slate-500 dark:text-slate-400">
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-[7px] gap-[7px]">
-          <div className="flex items-center gap-[7px]">
-            <img src="/RAMOVIA_Logo.svg" alt="RAMOVIA" className="w-5 h-5 object-contain" />
-            <span className="font-bold text-slate-700 dark:text-slate-200">RAMOVIA</span>
-            <span>·</span>
-            <span>Progetto Firebase: ramovia-a2c39</span>
-          </div>
-
-          <div className="flex items-center gap-[7px]">
-            <button
-              onClick={() => setShowFirebaseModal(true)}
-              className="flex items-center gap-[7px] p-[7px] text-slate-600 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors rounded-[7px]"
-            >
-              <Flame className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
-              <span>Configurazione Firebase</span>
-            </button>
-          </div>
+      {/* Footer strictly stating 'powered by IOFALL' */}
+      <footer className={`no-print border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-[7px] text-xs text-slate-500 dark:text-slate-400 text-center transition-all duration-200 ${
+        isSidebarCollapsed ? 'md:pl-[60px]' : 'md:pl-[210px]'
+      }`}>
+        <div className="max-w-7xl mx-auto flex items-center justify-center p-[7px]">
+          <span className="font-medium text-slate-500 dark:text-slate-400">
+            powered by IOFALL
+          </span>
         </div>
       </footer>
 

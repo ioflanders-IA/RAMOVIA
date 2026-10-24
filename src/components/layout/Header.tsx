@@ -25,9 +25,10 @@ interface HeaderProps {
   activeTab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather';
   onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather') => void;
   onOpenFirebaseModal?: () => void;
+  isSidebarCollapsed?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenFirebaseModal }) => {
+export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenFirebaseModal, isSidebarCollapsed }) => {
   const { currentUser } = useApp();
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
 
@@ -40,122 +41,32 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenFi
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100">
-        <div className="max-w-7xl mx-auto px-3 pt-[25px] pb-[5px] flex items-center justify-between gap-[7px]">
+      <header className="md:hidden sticky top-0 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100">
+        <div className="max-w-7xl mx-auto px-3 py-2 flex items-center justify-between gap-[7px]">
           
-          {/* Brand Logo - Ingrandito del 30% (da 32px a 42px su mobile, da 36px a 47px su desktop) */}
+          {/* Mobile Brand Logo */}
           <div className="flex items-center shrink-0">
             <button
               onClick={() => onSelectTab('dashboard')}
               className="flex items-center text-left focus:outline-none cursor-pointer hover:opacity-90 transition-opacity"
               title="RAMOVIA Dashboard"
             >
-              {/* Logo per tema chiaro (gruppo black scuro) */}
               <img
                 src="/RAMOVIA_Logo_long.svg"
                 alt="RAMOVIA"
-                className="h-[42px] sm:h-[47px] w-auto object-contain block dark:hidden"
-              />
-              {/* Logo per tema scuro (gruppo black bianco) */}
-              <img
-                src="/RAMOVIA_Logo_long_white.svg"
-                alt="RAMOVIA"
-                className="h-[42px] sm:h-[47px] w-auto object-contain hidden dark:block"
+                className="h-[42px] w-auto object-contain block"
               />
             </button>
           </div>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-[7px] text-xs font-bold text-slate-600 dark:text-slate-300">
-            {currentUser.role === 'admin' ? (
-              <>
-                <button
-                  onClick={() => onSelectTab('dashboard')}
-                  className={`p-[7px] px-3 rounded-[7px] transition-colors whitespace-nowrap flex items-center gap-[7px] cursor-pointer ${
-                    activeTab === 'dashboard'
-                      ? 'bg-emerald-950 text-white font-bold dark:bg-emerald-800'
-                      : 'hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white'
-                  }`}
-                >
-                  <LayoutDashboard className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Dashboard</span>
-                </button>
-
-                <button
-                  onClick={() => onSelectTab('map')}
-                  className={`p-[7px] px-3 rounded-[7px] transition-colors whitespace-nowrap flex items-center gap-[7px] cursor-pointer ${
-                    activeTab === 'map'
-                      ? 'bg-emerald-950 text-white font-bold dark:bg-emerald-800'
-                      : 'hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white'
-                  }`}
-                >
-                  <MapPin className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Mappa</span>
-                </button>
-
-                <button
-                  onClick={() => onSelectTab('calendar')}
-                  className={`p-[7px] px-3 rounded-[7px] transition-colors whitespace-nowrap flex items-center gap-[7px] cursor-pointer ${
-                    activeTab === 'calendar'
-                      ? 'bg-emerald-950 text-white font-bold dark:bg-emerald-800'
-                      : 'hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white'
-                  }`}
-                >
-                  <Calendar className="w-3.5 h-3.5 text-sky-500" />
-                  <span>Squadre</span>
-                </button>
-
-                <button
-                  onClick={() => onSelectTab('clients')}
-                  className={`p-[7px] px-3 rounded-[7px] transition-colors whitespace-nowrap flex items-center gap-[7px] cursor-pointer ${
-                    activeTab === 'clients'
-                      ? 'bg-emerald-950 text-white font-bold dark:bg-emerald-800'
-                      : 'hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white'
-                  }`}
-                >
-                  <Users className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>Giardini</span>
-                </button>
-
-                <button
-                  onClick={() => onSelectTab('payments')}
-                  className={`p-[7px] px-3 rounded-[7px] transition-colors whitespace-nowrap flex items-center gap-[7px] cursor-pointer ${
-                    activeTab === 'payments'
-                      ? 'bg-emerald-950 text-white font-bold dark:bg-emerald-800'
-                      : 'hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white'
-                  }`}
-                >
-                  <div className="w-3.5 h-3.5 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-[9px] shrink-0">
-                    €
-                  </div>
-                  <span>Pagamenti</span>
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => onSelectTab('dashboard')}
-                  className={`p-[7px] px-3 rounded-[7px] transition-colors whitespace-nowrap flex items-center gap-[7px] cursor-pointer ${
-                    activeTab === 'dashboard'
-                      ? 'bg-emerald-950 text-white font-bold dark:bg-emerald-800'
-                      : 'hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white'
-                  }`}
-                >
-                  <Calendar className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>I Miei Interventi</span>
-                </button>
-              </>
-            )}
-          </nav>
-
-          {/* Top Right Tools: Notifications Bell & Desktop Profile/Settings (Hamburger removed) */}
+          {/* Top Right Tools: Notifications Bell & Mobile App Install */}
           <div className="flex items-center gap-[7px]">
             
             {/* PWA Install Button (if applicable) */}
             {(!isInstalled && (isInstallable || isIOS)) && (
               <button
                 onClick={() => (isIOS ? setShowIOSGuide(true) : install())}
-                className="hidden sm:flex items-center gap-[7px] p-[7px] px-2.5 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold rounded-[7px] shadow-2xs transition-colors shrink-0"
+                className="flex items-center gap-[7px] p-[7px] px-2.5 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold rounded-[7px] shadow-2xs transition-colors shrink-0"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Installa App</span>
@@ -164,26 +75,6 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenFi
 
             {/* Notification Center Dropdown */}
             <NotificationCenter onNavigateTab={onSelectTab} />
-
-            {/* Desktop Settings & Profile (visibili solo su desktop, nessun hamburger su mobile) */}
-            <button
-              onClick={() => setShowSettingsModal(true)}
-              className="hidden md:flex p-[7px] text-slate-700 dark:text-slate-300 hover:text-emerald-800 dark:hover:text-emerald-400 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-[7px] transition-colors cursor-pointer"
-              title="Impostazioni"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={() => setShowAccountModal(true)}
-              className="hidden md:flex items-center gap-[7px] p-[7px] px-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-[7px] text-xs font-semibold transition-colors cursor-pointer"
-              title="Profilo Utente"
-            >
-              <div className="w-5 h-5 rounded-full bg-emerald-800 text-white flex items-center justify-center font-bold text-[10px]">
-                {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'U'}
-              </div>
-              <span className="max-w-[100px] truncate">{currentUser.displayName || 'Utente'}</span>
-            </button>
           </div>
         </div>
       </header>

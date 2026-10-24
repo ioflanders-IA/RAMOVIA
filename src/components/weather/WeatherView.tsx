@@ -3,7 +3,6 @@ import { useApp } from '../../context/AppContext';
 import { fetchWeatherForClients } from '../../services/weatherService';
 import { WeatherData } from '../../types';
 import {
-  CloudSun,
   ArrowLeft,
   RefreshCw,
   Search,
@@ -75,38 +74,30 @@ export const WeatherView: React.FC<WeatherViewProps> = ({ onBack }) => {
     <div className="space-y-[7px]">
       
       {/* Top Header - Strict 7px Spacing & Border */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs">
+      <div className="flex items-center justify-between gap-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs">
+        {/* Left: Back button to Dashboard */}
+        <button
+          onClick={onBack}
+          className="flex items-center gap-[7px] p-[7px] px-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-[7px] border border-slate-200 dark:border-slate-700 transition-colors shrink-0"
+          title="Torna alla Dashboard"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Dashboard</span>
+        </button>
+
+        {/* Right: Only 'Meteo' title and borderless/backgroundless refresh icon */}
         <div className="flex items-center gap-[7px]">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-[7px] p-[7px] px-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-[7px] border border-slate-200 dark:border-slate-700 transition-colors shrink-0"
-            title="Torna alla Dashboard"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Dashboard</span>
-          </button>
-
-          <div className="flex items-center gap-[7px]">
-            <CloudSun className="w-5 h-5 text-emerald-700 dark:text-emerald-400 shrink-0" />
-            <div>
-              <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                Meteo Cantieri & Previsioni
-              </h1>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Condizioni atmosferiche live per sfalci, potature e trattamenti.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-[7px] shrink-0">
+          <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 leading-tight">
+            Meteo
+          </h1>
           <button
             onClick={() => loadWeatherData(true)}
             disabled={loading}
-            className="flex items-center gap-[7px] p-[7px] px-3 text-xs font-bold bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] shadow-xs transition-colors disabled:opacity-50"
+            className="p-1 text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 bg-transparent border-0 cursor-pointer disabled:opacity-50 transition-colors"
+            title="Ricarica Meteo"
+            aria-label="Ricarica Meteo"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>{loading ? 'Aggiornamento...' : 'Ricarica Meteo'}</span>
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
           </button>
         </div>
       </div>
