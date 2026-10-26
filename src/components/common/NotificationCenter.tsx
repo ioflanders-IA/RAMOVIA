@@ -10,17 +10,21 @@ import {
   UserPlus,
   CloudRain,
   X,
+  Clock,
+  CheckCircle2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { isJobTimeExpired } from '../../utils/jobTimeUtils';
 
 export interface AppNotification {
   id: string;
   title: string;
   message: string;
   timestamp: string;
-  type: 'report' | 'maintenance' | 'weather' | 'worker';
+  type: 'report' | 'maintenance' | 'weather' | 'worker' | 'job_expired';
   read: boolean;
   targetTab?: 'dashboard' | 'calendar' | 'clients' | 'inventory' | 'reports';
+  jobId?: string;
 }
 
 interface NotificationCenterProps {
@@ -29,7 +33,7 @@ interface NotificationCenterProps {
 }
 
 export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigateTab, placement = 'bottom-right' }) => {
-  const { jobs, inventory, reports, users, currentUser } = useApp();
+  const { jobs, inventory, reports, users, currentUser, updateJob } = useApp();
 
   const [isOpen, setIsOpen] = useState(false);
   const [readIds, setReadIds] = useState<string[]>([]);
@@ -38,7 +42,23 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
   // Dynamically generate operational notifications from real app state
   const generatedNotifications: AppNotification[] = [];
 
-  // 1. Pending workers needing approval
+  // 1. Expired scheduled jobs requiring completion confirmation
+  const expiredJobs = jobs.filter((j) => isJobTimeExpired(j));
+  expiredJobs.forEach((job) => {
+    const notifId = `notif_expired_job_${job.id}`;
+    generatedNotifications.push({
+      id: notifId,
+      title: 'Segna lavoro completato',
+      message: `L'orario per "${job.title}" (${job.clientName}) è terminato (${job.timeSlot}).`,
+      timestamp: 'Orario terminato',
+      type: 'job_expired',
+      read: readIds.includes(notifId),
+      targetTab: 'dashboard',
+      jobId: job.id,
+    });
+  });
+
+  // 2. Pending workers needing approval
   const pendingWorkers = users.filter((u) => u.role === 'worker' && u.linkedToAdmin === false);
   if (currentUser?.role === 'admin' && pendingWorkers.length > 0) {
     generatedNotifications.push({
@@ -52,7 +72,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
     });
   }
 
-  // 2. Unapproved submitted reports
+  // 3. Unapproved submitted reports
   const pendingReports = reports.filter((r) => r.status === 'submitted');
   if (pendingReports.length > 0) {
     generatedNotifications.push({
@@ -66,7 +86,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
     });
   }
 
-  // 3. Equipment maintenance alerts
+  // 4. Equipment maintenance alerts
   const maintenanceNeeded = inventory.filter(
     (i) => i.category === 'equipment' && i.currentUsageHours >= i.maintenanceIntervalHours - 5 && i.maintenanceIntervalHours > 0
   );
@@ -105,6 +125,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
 
   const getIcon = (type: AppNotification['type']) => {
     switch (type) {
+      case 'job_expired':
+        return <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />;
       case 'report':
         return <FileCheck2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />;
       case 'maintenance':
@@ -220,6 +242,27 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
                         <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug line-clamp-2">
                           {notif.message}
                         </p>
+
+                        {/* Quick action button for expired job */}
+                        {notif.type === 'job_expired' && notif.jobId && (
+                          <div className="pt-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const target = jobs.find((j) => j.id === notif.jobId);
+                                if (target) {
+                                  updateJob({ ...target, status: 'completed' });
+                                }
+                                setDismissedIds((prev) => [...prev, notif.id]);
+                              }}
+                              className="inline-flex items-center gap-1 p-[7px] py-1 bg-transparent hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-600 dark:border-emerald-500 rounded-[7px] font-bold text-[10px] transition-colors cursor-pointer"
+                              title="Segna subito questo lavoro come ultimato"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                              <span>Segna lavoro completato</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       <button

@@ -370,14 +370,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubClients = onSnapshot(
       collection(db, 'clients'),
       (snap) => {
-        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Client));
-        if (docs.length > 0) {
-          setClients(docs);
-          try {
-            localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(docs));
-          } catch (e) {
-            console.warn(e);
-          }
+        const docs = snap.docs.map((d) => ({ ...d.data(), id: d.id } as Client));
+        setClients(docs);
+        try {
+          localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(docs));
+        } catch (e) {
+          console.warn(e);
         }
       },
       (err) => console.warn('clients snapshot error:', err)

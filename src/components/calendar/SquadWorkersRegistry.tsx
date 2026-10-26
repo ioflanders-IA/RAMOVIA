@@ -50,6 +50,7 @@ export const SquadWorkersRegistry: React.FC = () => {
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [editingWorker, setEditingWorker] = useState<User | null>(null);
   const [expandedWorkerId, setExpandedWorkerId] = useState<string | null>(null);
+  const [confirmDeleteWorkerId, setConfirmDeleteWorkerId] = useState<string | null>(null);
 
   // New Worker Form
   const [newWorkerName, setNewWorkerName] = useState('');
@@ -1059,19 +1060,38 @@ export const SquadWorkersRegistry: React.FC = () => {
               </div>
 
               <div className="pt-2 flex justify-between gap-[7px]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (confirm(`Sei sicuro di voler rimuovere l'operaio ${editingWorker.displayName}?`)) {
-                      deleteUser(editingWorker.uid);
-                      setEditingWorker(null);
-                    }
-                  }}
-                  className="p-[7px] px-3 bg-rose-50 text-rose-700 border border-rose-200 rounded-[7px] hover:bg-rose-100 flex items-center gap-1 font-semibold"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Rimuovi</span>
-                </button>
+                {confirmDeleteWorkerId === editingWorker.uid ? (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        deleteUser(editingWorker.uid);
+                        setEditingWorker(null);
+                        setConfirmDeleteWorkerId(null);
+                      }}
+                      className="p-[7px] px-3 bg-rose-600 text-white rounded-[7px] hover:bg-rose-700 flex items-center gap-1 font-bold text-xs cursor-pointer shadow-xs"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Conferma Eliminazione</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteWorkerId(null)}
+                      className="p-[7px] px-2 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                    >
+                      Annulla
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteWorkerId(editingWorker.uid)}
+                    className="p-[7px] px-3 bg-rose-50 text-rose-700 border border-rose-200 rounded-[7px] hover:bg-rose-100 flex items-center gap-1 font-semibold text-xs cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Rimuovi Operaio</span>
+                  </button>
+                )}
 
                 <div className="flex gap-[7px]">
                   <button

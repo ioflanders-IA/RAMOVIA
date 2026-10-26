@@ -55,6 +55,8 @@ export const ClientsView: React.FC = () => {
   // Modals state
   const [isCreatingClient, setIsCreatingClient] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const [gardenToDelete, setGardenToDelete] = useState<{ id: string; name: string } | null>(null);
 
   // Modal State: Add Cantiere/Giardino to selected client
   const [isAddingGarden, setIsAddingGarden] = useState(false);
@@ -169,12 +171,8 @@ export const ClientsView: React.FC = () => {
   };
 
   // Handler: Remove additional garden
-  const handleDeleteAdditionalGarden = async (siteId: string) => {
-    if (!activeClient) return;
-    if (confirm('Sei sicuro di voler eliminare questo giardino?')) {
-      const updatedCantieri = (activeClient.cantieri || []).filter((s) => s.id !== siteId);
-      await updateClient({ ...activeClient, cantieri: updatedCantieri });
-    }
+  const handleDeleteAdditionalGarden = (site: { id: string; name: string }) => {
+    setGardenToDelete(site);
   };
 
   // Handler: Add cost to Job
@@ -325,12 +323,10 @@ export const ClientsView: React.FC = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (confirm(`Confermi di eliminare il cliente "${client.name}"?`)) {
-                                deleteClient(client.id);
-                              }
+                              setClientToDelete(client);
                             }}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded transition-colors"
-                            title="Elimina"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded transition-colors cursor-pointer"
+                            title="Elimina Cliente"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -381,6 +377,45 @@ export const ClientsView: React.FC = () => {
             }}
             onSave={handleSaveClientModal}
           />
+        )}
+
+        {/* Modal: Conferma Eliminazione Cliente */}
+        {clientToDelete && (
+          <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/70 p-[7px] backdrop-blur-xs">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] max-w-sm w-full p-4 shadow-2xl space-y-3">
+              <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-bold text-sm">
+                <Trash2 className="w-5 h-5 shrink-0" />
+                <span>Conferma Eliminazione</span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                Sei sicuro di voler eliminare definitivamente il cliente <strong className="text-slate-900 dark:text-slate-100">{clientToDelete.name}</strong>?
+              </p>
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setClientToDelete(null)}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-[7px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 cursor-pointer"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const targetId = clientToDelete.id;
+                    setClientToDelete(null);
+                    if (selectedClientId === targetId) {
+                      setSelectedClientId(null);
+                    }
+                    await deleteClient(targetId);
+                  }}
+                  className="px-3 py-1.5 text-xs font-bold rounded-[7px] bg-rose-600 hover:bg-rose-700 text-white cursor-pointer shadow-xs flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Elimina Definitivamente</span>
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     );
@@ -443,13 +478,23 @@ export const ClientsView: React.FC = () => {
             </button>
 
             {currentUser?.role === 'admin' && (
-              <button
-                onClick={() => setEditingClient(activeClient)}
-                className="p-[7px] px-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-[7px] font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer shrink-0"
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-                <span>Modifica</span>
-              </button>
+              <>
+                <button
+                  onClick={() => setEditingClient(activeClient)}
+                  className="p-[7px] px-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-[7px] font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Modifica</span>
+                </button>
+                <button
+                  onClick={() => setClientToDelete(activeClient)}
+                  className="p-[7px] px-2.5 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900 rounded-[7px] font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                  title="Elimina questo cliente"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Elimina</span>
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -561,8 +606,8 @@ export const ClientsView: React.FC = () => {
 
                 {!garden.isPrimary && (
                   <button
-                    onClick={() => handleDeleteAdditionalGarden(garden.id)}
-                    className="p-1 text-slate-400 hover:text-rose-600 rounded"
+                    onClick={() => handleDeleteAdditionalGarden({ id: garden.id, name: garden.name })}
+                    className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
                     title="Elimina questo giardino"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -1038,6 +1083,79 @@ export const ClientsView: React.FC = () => {
           onClose={() => setEditingClient(null)}
           onSave={handleSaveClientModal}
         />
+      )}
+
+      {/* Modal: Conferma Eliminazione Cliente (in View 2) */}
+      {clientToDelete && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/70 p-[7px] backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] max-w-sm w-full p-4 shadow-2xl space-y-3">
+            <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-bold text-sm">
+              <Trash2 className="w-5 h-5 shrink-0" />
+              <span>Conferma Eliminazione</span>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              Sei sicuro di voler eliminare definitivamente il cliente <strong className="text-slate-900 dark:text-slate-100">{clientToDelete.name}</strong>?
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setClientToDelete(null)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-[7px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 cursor-pointer"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const targetId = clientToDelete.id;
+                  setClientToDelete(null);
+                  setSelectedClientId(null);
+                  await deleteClient(targetId);
+                }}
+                className="px-3 py-1.5 text-xs font-bold rounded-[7px] bg-rose-600 hover:bg-rose-700 text-white cursor-pointer shadow-xs flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Elimina Definitivamente</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Conferma Eliminazione Giardino (in View 2) */}
+      {gardenToDelete && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/70 p-[7px] backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] max-w-sm w-full p-4 shadow-2xl space-y-3">
+            <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-bold text-sm">
+              <Trash2 className="w-5 h-5 shrink-0" />
+              <span>Elimina Giardino</span>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              Sei sicuro di voler eliminare il giardino secondario <strong className="text-slate-900 dark:text-slate-100">{gardenToDelete.name}</strong>?
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setGardenToDelete(null)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-[7px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 cursor-pointer"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!activeClient) return;
+                  const updatedCantieri = (activeClient.cantieri || []).filter((s) => s.id !== gardenToDelete.id);
+                  await updateClient({ ...activeClient, cantieri: updatedCantieri });
+                  setGardenToDelete(null);
+                }}
+                className="px-3 py-1.5 text-xs font-bold rounded-[7px] bg-rose-600 hover:bg-rose-700 text-white cursor-pointer shadow-xs"
+              >
+                Elimina Giardino
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

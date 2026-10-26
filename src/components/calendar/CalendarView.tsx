@@ -79,7 +79,7 @@ export const CalendarView: React.FC = () => {
           }`}
         >
           <CalendarIcon className="w-4 h-4" />
-          <span>Pianificazione Calendario</span>
+          <span>Calendario</span>
         </button>
 
         <button
@@ -91,7 +91,7 @@ export const CalendarView: React.FC = () => {
           }`}
         >
           <Users className="w-4 h-4 text-emerald-600" />
-          <span>Operai & Giornate Lavoro</span>
+          <span>Operai</span>
           {workedDays.length > 0 && (
             <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
               {workedDays.length}
