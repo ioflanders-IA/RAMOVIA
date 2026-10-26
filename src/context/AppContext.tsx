@@ -9,6 +9,8 @@ import {
   UserRole,
   WorkerPayout,
   WorkReport,
+  WorkedDay,
+  JobCostItem,
 } from '../types';
 import {
   auth,
@@ -38,6 +40,7 @@ interface AppContextType {
   reports: WorkReport[];
   expenses: ExpenseRecord[];
   payouts: WorkerPayout[];
+  workedDays: WorkedDay[];
   shoppingList: ShoppingListItem[];
   loadingAuth: boolean;
   loginWithGoogle: (preferredRole?: UserRole) => Promise<{ success: boolean; error?: string; unauthorizedDomain?: string }>;
@@ -48,7 +51,9 @@ interface AppContextType {
   registerAccount: (name: string, email: string, role: UserRole, phone?: string) => Promise<{ success: boolean; user?: User; error?: string }>;
   addUser: (userData: Omit<User, 'uid'>) => Promise<User>;
   updateUserRole: (uid: string, role: UserRole) => Promise<void>;
+  updateUser: (user: User) => Promise<void>;
   deleteUser: (uid: string) => Promise<void>;
+  addOfflineWorker: (data: { displayName: string; phone?: string; dailyRate: number; hourlyRate?: number; notes?: string }) => Promise<User>;
   // Clients
   addClient: (clientData: Omit<Client, 'id' | 'createdAt'>) => Promise<void>;
   updateClient: (client: Client) => Promise<void>;
@@ -58,6 +63,12 @@ interface AppContextType {
   updateJob: (job: Job) => Promise<void>;
   deleteJob: (id: string) => Promise<void>;
   startJob: (id: string) => Promise<void>;
+  addJobCost: (jobId: string, cost: Omit<JobCostItem, 'id'>) => Promise<void>;
+  deleteJobCost: (jobId: string, costId: string) => Promise<void>;
+  // Worked Days (Presenze & Compensi Operai)
+  addWorkedDay: (data: Omit<WorkedDay, 'id' | 'createdAt'>) => Promise<void>;
+  updateWorkedDay: (data: WorkedDay) => Promise<void>;
+  deleteWorkedDay: (id: string) => Promise<void>;
   // Inventory
   addInventoryItem: (itemData: Omit<InventoryItem, 'id'>) => Promise<void>;
   updateInventoryItem: (item: InventoryItem) => Promise<void>;
@@ -84,6 +95,7 @@ const STORAGE_KEYS = {
   REPORTS: 'ramovia_reports_v3',
   EXPENSES: 'ramovia_expenses_v3',
   PAYOUTS: 'ramovia_payouts_v3',
+  WORKED_DAYS: 'ramovia_worked_days_v3',
 };
 
 // Initial Sample Data for Expenses if empty
@@ -212,6 +224,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [workedDays, setWorkedDays] = useState<WorkedDay[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.WORKED_DAYS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   // Save current user whenever changed
   useEffect(() => {
     try {
@@ -265,6 +286,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem(STORAGE_KEYS.PAYOUTS, JSON.stringify(payouts));
     }
   }, [payouts]);
+
+  useEffect(() => {
+    if (workedDays.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.WORKED_DAYS, JSON.stringify(workedDays));
+    }
+  }, [workedDays]);
 
   // 3. Firestore snapshot listeners & real-time cross-device sync (PC <-> Mobile)
   useEffect(() => {
@@ -323,6 +350,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         list.forEach((p) => {
           if (p && p.id) {
             setDoc(doc(db, 'worker_payouts', p.id), sanitizeForFirestore(p), { merge: true }).catch((e) => console.warn('Sync payout error:', e));
+          }
+        });
+      }
+      const savedWorkedDays = localStorage.getItem(STORAGE_KEYS.WORKED_DAYS);
+      if (savedWorkedDays) {
+        const list: WorkedDay[] = JSON.parse(savedWorkedDays);
+        list.forEach((wd) => {
+          if (wd && wd.id) {
+            setDoc(doc(db, 'worked_days', wd.id), sanitizeForFirestore(wd), { merge: true }).catch((e) => console.warn('Sync workedDay error:', e));
           }
         });
       }
@@ -432,6 +468,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       (err) => console.warn('payouts snapshot error:', err)
     );
 
+    // WORKED DAYS LISTENER
+    const unsubWorkedDays = onSnapshot(
+      collection(db, 'worked_days'),
+      (snap) => {
+        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as WorkedDay));
+        if (docs.length > 0) {
+          setWorkedDays(docs);
+          try {
+            localStorage.setItem(STORAGE_KEYS.WORKED_DAYS, JSON.stringify(docs));
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+      },
+      (err) => console.warn('worked_days snapshot error:', err)
+    );
+
     // USERS LISTENER
     const unsubUsers = onSnapshot(
       collection(db, 'users'),
@@ -456,6 +509,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubReports();
       unsubExpenses();
       unsubPayouts();
+      unsubWorkedDays();
       unsubUsers();
     };
   }, []);
@@ -751,6 +805,148 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUsers((prev) => prev.filter((u) => u.uid !== uid));
   };
 
+  const updateUser = async (updated: User) => {
+    setUsers((prev) => {
+      const next = prev.map((u) => (u.uid === updated.uid ? updated : u));
+      try {
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
+
+    if (currentUser && currentUser.uid === updated.uid) {
+      setCurrentUser(updated);
+      try {
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updated));
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+
+    if (db) {
+      try {
+        await setDoc(doc(db, 'users', updated.uid), sanitizeForFirestore(updated), { merge: true });
+      } catch (err) {
+        console.warn('Firestore updateUser error:', err);
+      }
+    }
+  };
+
+  const addOfflineWorker = async (data: {
+    displayName: string;
+    phone?: string;
+    dailyRate: number;
+    hourlyRate?: number;
+    notes?: string;
+  }): Promise<User> => {
+    const uid = `worker_offline_${Date.now()}`;
+    const newWorker: User = {
+      uid,
+      displayName: data.displayName.trim(),
+      email: `${data.displayName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'operaio'}@ramovia.local`,
+      phone: data.phone?.trim(),
+      role: 'worker',
+      active: true,
+      workerCode: generateWorkerCode(),
+      linkedToAdmin: true,
+      isOfflineWorker: true,
+      dailyRate: data.dailyRate,
+      hourlyRate: data.hourlyRate || (data.dailyRate ? Math.round(data.dailyRate / 8) : 15),
+      notes: data.notes?.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    setUsers((prev) => {
+      const next = [...prev, newWorker];
+      try {
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
+
+    if (db) {
+      try {
+        await setDoc(doc(db, 'users', uid), sanitizeForFirestore(newWorker));
+      } catch (err) {
+        console.warn('Firestore addOfflineWorker error:', err);
+      }
+    }
+
+    return newWorker;
+  };
+
+  // WORKED DAYS (Presenze & Compensi Giornalieri)
+  const addWorkedDay = async (data: Omit<WorkedDay, 'id' | 'createdAt'>) => {
+    const id = `wd_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newDay: WorkedDay = {
+      ...data,
+      id,
+      createdAt: new Date().toISOString(),
+    };
+
+    setWorkedDays((prev) => {
+      const next = [newDay, ...prev];
+      try {
+        localStorage.setItem(STORAGE_KEYS.WORKED_DAYS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
+
+    if (db) {
+      try {
+        await setDoc(doc(db, 'worked_days', id), sanitizeForFirestore(newDay));
+      } catch (err) {
+        console.warn('Firestore setDoc worked_days error:', err);
+      }
+    }
+  };
+
+  const updateWorkedDay = async (day: WorkedDay) => {
+    setWorkedDays((prev) => {
+      const next = prev.map((d) => (d.id === day.id ? day : d));
+      try {
+        localStorage.setItem(STORAGE_KEYS.WORKED_DAYS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
+
+    if (db) {
+      try {
+        await setDoc(doc(db, 'worked_days', day.id), sanitizeForFirestore(day), { merge: true });
+      } catch (err) {
+        console.warn('Firestore updateDoc worked_days error:', err);
+      }
+    }
+  };
+
+  const deleteWorkedDay = async (id: string) => {
+    setWorkedDays((prev) => {
+      const next = prev.filter((d) => d.id !== id);
+      try {
+        localStorage.setItem(STORAGE_KEYS.WORKED_DAYS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
+
+    if (db) {
+      try {
+        await deleteDoc(doc(db, 'worked_days', id));
+      } catch (err) {
+        console.warn('Firestore deleteDoc worked_days error:', err);
+      }
+    }
+  };
+
   // CLIENT MANAGEMENT
   const addClient = async (clientData: Omit<Client, 'id' | 'createdAt'>) => {
     const id = `cli_${Date.now()}`;
@@ -905,6 +1101,61 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn(err);
       }
     }
+  };
+
+  const addJobCost = async (jobId: string, costData: Omit<JobCostItem, 'id'>) => {
+    const costId = `cost_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newCost: JobCostItem = {
+      ...costData,
+      id: costId,
+      createdAt: new Date().toISOString(),
+    };
+
+    setJobs((prev) => {
+      const next = prev.map((j) => {
+        if (j.id === jobId) {
+          const updatedCosts = [...(j.costs || []), newCost];
+          const updatedJob = { ...j, costs: updatedCosts };
+          if (db) {
+            setDoc(doc(db, 'jobs', j.id), sanitizeForFirestore(updatedJob), { merge: true }).catch((e) =>
+              console.warn('Firestore addJobCost error:', e)
+            );
+          }
+          return updatedJob;
+        }
+        return j;
+      });
+      try {
+        localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
+  };
+
+  const deleteJobCost = async (jobId: string, costId: string) => {
+    setJobs((prev) => {
+      const next = prev.map((j) => {
+        if (j.id === jobId) {
+          const updatedCosts = (j.costs || []).filter((c) => c.id !== costId);
+          const updatedJob = { ...j, costs: updatedCosts };
+          if (db) {
+            setDoc(doc(db, 'jobs', j.id), sanitizeForFirestore(updatedJob), { merge: true }).catch((e) =>
+              console.warn('Firestore deleteJobCost error:', e)
+            );
+          }
+          return updatedJob;
+        }
+        return j;
+      });
+      try {
+        localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
   };
 
   // INVENTORY MANAGEMENT
@@ -1283,6 +1534,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setReports([]);
     setExpenses([]);
     setPayouts([]);
+    setWorkedDays([]);
   };
 
   return (
@@ -1296,6 +1548,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         reports,
         expenses,
         payouts,
+        workedDays,
         shoppingList,
         loadingAuth,
         loginWithGoogle,
@@ -1306,7 +1559,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         registerAccount,
         addUser,
         updateUserRole,
+        updateUser,
         deleteUser,
+        addOfflineWorker,
         addClient,
         updateClient,
         deleteClient,
@@ -1314,6 +1569,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateJob,
         deleteJob,
         startJob,
+        addJobCost,
+        deleteJobCost,
+        addWorkedDay,
+        updateWorkedDay,
+        deleteWorkedDay,
         addInventoryItem,
         updateInventoryItem,
         deleteInventoryItem,

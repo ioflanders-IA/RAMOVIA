@@ -2,17 +2,21 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Job } from '../../types';
 import { JobModal } from '../jobs/JobModal';
+import { SquadWorkersRegistry } from './SquadWorkersRegistry';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
   Plus,
   User,
+  Users,
+  Wallet,
 } from 'lucide-react';
 
 export const CalendarView: React.FC = () => {
-  const { jobs, users, addJob, updateJob, currentUser } = useApp();
+  const { jobs, users, addJob, updateJob, currentUser, workedDays } = useApp();
 
+  const [activeView, setActiveView] = useState<'calendar' | 'workers'>('calendar');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [workerFilter, setWorkerFilter] = useState<string>('all');
   const [selectedJobForEdit, setSelectedJobForEdit] = useState<Job | null>(null);
@@ -64,54 +68,92 @@ export const CalendarView: React.FC = () => {
   return (
     <div className="space-y-[7px]">
       
-      {/* Top Header & Calendar Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-[7px]">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-[7px]">
-            <CalendarIcon className="w-5 h-5 text-emerald-700" />
-            <span>Pianificazione Settimanale Squadre</span>
-          </h1>
-          <p className="text-xs text-slate-500 mt-[7px]">
-            Calendario operativo assegnazioni cantieri e fasce orarie.
-          </p>
-        </div>
+      {/* Sub-Tabs Selector Bar */}
+      <div className="flex items-center gap-[7px] bg-slate-200/80 dark:bg-slate-800/80 p-1 rounded-[7px] text-xs font-bold">
+        <button
+          onClick={() => setActiveView('calendar')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] transition-colors cursor-pointer ${
+            activeView === 'calendar'
+              ? 'bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <CalendarIcon className="w-4 h-4" />
+          <span>Pianificazione Calendario</span>
+        </button>
 
-        <div className="flex items-center gap-[7px]">
-          {/* Worker Filter */}
-          <select
-            value={workerFilter}
-            onChange={(e) => setWorkerFilter(e.target.value)}
-            className="bg-white border border-slate-200 rounded-[7px] px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs focus:outline-emerald-600"
-          >
-            <option value="all">Tutti gli Operai & Titolare</option>
-            {currentUser && (
-              <option value={currentUser.uid}>
-                Io ({currentUser.displayName || 'Titolare'})
-              </option>
-            )}
-            {users
-              .filter((u) => u.uid !== currentUser?.uid && u.active !== false)
-              .map((w) => (
-                <option key={w.uid} value={w.uid}>
-                  {w.displayName} {w.role === 'admin' ? '(Admin)' : '(Operaio)'}
-                </option>
-              ))}
-          </select>
-
-          {currentUser?.role === 'admin' && (
-            <button
-              onClick={() => {
-                setNewJobDate(todayStr);
-                setIsCreatingNew(true);
-              }}
-              className="flex items-center gap-[7px] px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-[7px] shadow-xs transition-colors shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nuovo Intervento</span>
-            </button>
+        <button
+          onClick={() => setActiveView('workers')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] transition-colors cursor-pointer ${
+            activeView === 'workers'
+              ? 'bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <Users className="w-4 h-4 text-emerald-600" />
+          <span>Operai & Giornate Lavoro</span>
+          {workedDays.length > 0 && (
+            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              {workedDays.length}
+            </span>
           )}
-        </div>
+        </button>
       </div>
+
+      {/* VIEW 2: OPERAI & GIORNATE LAVORO HUB */}
+      {activeView === 'workers' ? (
+        <SquadWorkersRegistry />
+      ) : (
+        /* VIEW 1: WEEKLY CALENDAR PLANNING */
+        <>
+          {/* Top Header & Calendar Controls */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-[7px]">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-[7px]">
+                <CalendarIcon className="w-5 h-5 text-emerald-700" />
+                <span>Pianificazione Settimanale Squadre</span>
+              </h1>
+              <p className="text-xs text-slate-500 mt-[7px]">
+                Calendario operativo assegnazioni cantieri e fasce orarie.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-[7px]">
+              {/* Worker Filter */}
+              <select
+                value={workerFilter}
+                onChange={(e) => setWorkerFilter(e.target.value)}
+                className="bg-white border border-slate-200 rounded-[7px] px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs focus:outline-emerald-600"
+              >
+                <option value="all">Tutti gli Operai & Titolare</option>
+                {currentUser && (
+                  <option value={currentUser.uid}>
+                    Io ({currentUser.displayName || 'Titolare'})
+                  </option>
+                )}
+                {users
+                  .filter((u) => u.uid !== currentUser?.uid && u.active !== false)
+                  .map((w) => (
+                    <option key={w.uid} value={w.uid}>
+                      {w.displayName} {w.role === 'admin' ? '(Admin)' : '(Operaio)'}
+                    </option>
+                  ))}
+              </select>
+
+              {currentUser?.role === 'admin' && (
+                <button
+                  onClick={() => {
+                    setNewJobDate(todayStr);
+                    setIsCreatingNew(true);
+                  }}
+                  className="flex items-center gap-[7px] px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-[7px] shadow-xs transition-colors shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Nuovo Intervento</span>
+                </button>
+              )}
+            </div>
+          </div>
 
       {/* Week Navigator */}
       <div className="flex items-center justify-between bg-white border border-slate-200 rounded-[7px] p-[7px] shadow-xs">
@@ -231,6 +273,8 @@ export const CalendarView: React.FC = () => {
           );
         })}
       </div>
+      </>
+      )}
 
       {/* Job Edit / Create Modal */}
       {(isCreatingNew || selectedJobForEdit) && (

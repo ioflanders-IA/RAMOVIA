@@ -13,6 +13,8 @@ export interface User {
   linkedAdminUid?: string;
   hourlyRate?: number; // e.g. €15.00/h
   dailyRate?: number;  // e.g. €120.00/day
+  isOfflineWorker?: boolean;
+  notes?: string;
   createdAt?: string;
 }
 
@@ -77,6 +79,18 @@ export interface PaymentInstallment {
   createdAt?: string;
 }
 
+export type JobCostCategory = 'benzina' | 'sacchi' | 'materiale' | 'manodopera' | 'smaltimento' | 'noleggio' | 'altro';
+
+export interface JobCostItem {
+  id: string;
+  category: JobCostCategory;
+  name: string; // es. "Benzina tosaerba", "10 Sacchi verde", "Noleggio arieggiatore"
+  amount: number; // costo in €
+  quantity?: number;
+  notes?: string;
+  createdAt?: string;
+}
+
 export interface Job {
   id: string;
   clientId: string;
@@ -98,6 +112,7 @@ export interface Job {
   lng: number;
   // Financial fields
   price?: number;
+  costs?: JobCostItem[]; // Costi sostenuti per l'intervento (benzina, sacchi, ecc.)
   paymentStatus?: JobPaymentStatus;
   paymentMethod?: PaymentMethod;
   paidAmount?: number;
@@ -207,5 +222,23 @@ export interface WorkerPayout {
   paymentDate?: string;
   status: 'pending' | 'paid';
   notes?: string;
+  createdAt: string;
+}
+
+export type DayType = 'full' | 'half' | 'custom';
+
+export interface WorkedDay {
+  id: string;
+  workerId: string;
+  workerName: string;
+  date: string; // YYYY-MM-DD
+  dayType: DayType;
+  hours?: number;
+  dailyRate: number; // Tariffa giornaliera applicata (es. €90.00)
+  amount: number; // Totale per la giornata (es. €90.00 o €45.00)
+  cantiereName?: string;
+  jobId?: string;
+  notes?: string;
+  paid?: boolean;
   createdAt: string;
 }

@@ -18,6 +18,9 @@ import {
   AlertTriangle,
   Droplets,
   Wind,
+  CheckCircle2,
+  Check,
+  RotateCcw,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -325,51 +328,103 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                   </button>
                 </div>
               ) : (
-                todayJobs.map((job) => (
-                  <div
-                    key={job.id}
-                    onClick={() => setSelectedJobForModal(job)}
-                    className="p-[7px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-[7px] hover:border-emerald-300 dark:hover:border-emerald-700 cursor-pointer transition-colors space-y-[7px]"
-                  >
-                    <div className="flex items-center justify-between gap-[7px]">
-                      <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
-                        {job.clientName}
-                      </span>
-                      <span className="font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 p-[7px] py-0.5 rounded-[7px] border border-slate-200 dark:border-slate-700 shrink-0">
-                        {job.timeSlot}
-                      </span>
-                    </div>
+                todayJobs.map((job) => {
+                  const isCompleted = job.status === 'completed';
 
-                    <div className="text-xs text-slate-700 dark:text-slate-200 font-medium">
-                      {job.title}
-                    </div>
-
-                    {job.clientAddress && (
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                        {job.clientAddress}
+                  return (
+                    <div
+                      key={job.id}
+                      onClick={() => setSelectedJobForModal(job)}
+                      className={`p-[7px] border rounded-[7px] hover:border-emerald-400 dark:hover:border-emerald-600 cursor-pointer transition-all space-y-[7px] ${
+                        isCompleted
+                          ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800/80 shadow-2xs'
+                          : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-[7px]">
+                        <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate flex items-center gap-1.5">
+                          {isCompleted && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
+                          <span className={isCompleted ? 'text-emerald-950 dark:text-emerald-200' : ''}>
+                            {job.clientName}
+                          </span>
+                        </span>
+                        <span className="font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 p-[7px] py-0.5 rounded-[7px] border border-slate-200 dark:border-slate-700 shrink-0">
+                          {job.timeSlot}
+                        </span>
                       </div>
-                    )}
 
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between pt-[7px] border-t border-slate-200/60 dark:border-slate-700/60">
-                      <span>Assegnato a: <strong>{job.assignedWorkerName}</strong></span>
-                      <span
-                        className={`p-[7px] py-0.5 rounded-[7px] font-bold text-[9px] uppercase ${
-                          job.status === 'completed'
-                            ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300'
-                            : job.status === 'in_progress'
-                            ? 'bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300'
-                            : 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300'
-                        }`}
-                      >
-                        {job.status === 'completed'
-                          ? 'Completato'
-                          : job.status === 'in_progress'
-                          ? 'In Corso'
-                          : 'Programmato'}
-                      </span>
+                      <div className="text-xs text-slate-700 dark:text-slate-200 font-medium">
+                        {job.title}
+                      </div>
+
+                      {job.clientAddress && (
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                          {job.clientAddress}
+                        </div>
+                      )}
+
+                      {/* Bottom row with worker assignment & quick completion button */}
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between pt-[7px] border-t border-slate-200/60 dark:border-slate-700/60 gap-2">
+                        <span className="truncate">Assegnato a: <strong>{job.assignedWorkerName}</strong></span>
+                        
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {/* Pulsante rapido 'Segna Ultimato' con 1 clic */}
+                          {!isCompleted ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateJob({ ...job, status: 'completed' });
+                              }}
+                              className="flex items-center gap-1 p-[7px] py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] font-bold text-[10px] shadow-xs transition-colors cursor-pointer"
+                              title="Clicca per segnare subito come Ultimato / Completato"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-200" />
+                              <span>Segna Ultimato</span>
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <span className="flex items-center gap-1 p-[7px] py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-[7px] font-bold text-[9px] uppercase">
+                                <Check className="w-3 h-3 text-emerald-700 dark:text-emerald-400" />
+                                <span>Ultimato</span>
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  updateJob({ ...job, status: 'scheduled' });
+                                }}
+                                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 rounded transition-colors text-[10px]"
+                                title="Riapri e imposta come programmato"
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Selettore stato compatto per cambiare al volo */}
+                          <select
+                            value={job.status}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              updateJob({ ...job, status: e.target.value as any });
+                            }}
+                            className={`p-[7px] py-0.5 rounded-[7px] font-bold text-[9px] uppercase border cursor-pointer ${
+                              isCompleted
+                                ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                                : job.status === 'in_progress'
+                                ? 'bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-800'
+                                : 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800'
+                            }`}
+                          >
+                            <option value="scheduled">Prog.</option>
+                            <option value="in_progress">In Corso</option>
+                            <option value="completed">Ultimato</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
