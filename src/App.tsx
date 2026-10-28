@@ -182,7 +182,7 @@ const MainAppContent: React.FC = () => {
               }`}
             >
               <Calendar className="w-4 h-4" />
-              <span>Squadre</span>
+              <span>Calendario</span>
             </button>
 
             <button

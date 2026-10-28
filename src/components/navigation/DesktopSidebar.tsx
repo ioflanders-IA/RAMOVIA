@@ -135,10 +135,10 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               {!isCollapsed && <span className="truncate">Mappa Cantieri</span>}
             </button>
 
-            {/* Squadre & Interventi */}
+            {/* Calendario */}
             <button
               onClick={() => onSelectTab('calendar')}
-              title="Squadre & Interventi"
+              title="Calendario"
               className={`w-full flex items-center gap-[7px] p-[7px] rounded-[7px] text-xs font-bold transition-colors cursor-pointer ${
                 isCollapsed ? 'justify-center' : 'px-2.5 text-left'
               } ${
@@ -148,7 +148,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               }`}
             >
               <Calendar className="w-4 h-4 text-sky-500 shrink-0" />
-              {!isCollapsed && <span className="truncate">Squadre</span>}
+              {!isCollapsed && <span className="truncate">Calendario</span>}
             </button>
 
             {/* Giardini & Clienti */}

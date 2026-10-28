@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { Search, MapPin, Pentagon as PolygonIcon, Trash2, RotateCcw, Maximize2, X, Check, CornerUpLeft } from 'lucide-react';
+import { Search, MapPin, Pentagon as PolygonIcon, Trash2, RotateCcw, Maximize2, X, Check, CornerUpLeft, Layers, Compass } from 'lucide-react';
 import { PolygonPoint } from '../../types';
 
 interface ClientMapPickerProps {
@@ -49,6 +49,8 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
 
   const mapInstanceRef = useRef<L.Map | null>(null);
   const fullMapInstanceRef = useRef<L.Map | null>(null);
+  const inlineTileLayerRef = useRef<L.TileLayer | null>(null);
+  const fullTileLayerRef = useRef<L.TileLayer | null>(null);
 
   const markerRef = useRef<L.Marker | null>(null);
   const fullMarkerRef = useRef<L.Marker | null>(null);
@@ -58,6 +60,9 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
 
   const vertexMarkersRef = useRef<L.CircleMarker[]>([]);
   const fullVertexMarkersRef = useRef<L.CircleMarker[]>([]);
+
+  // Map layer: satellite (recommended for tracing garden borders) vs street
+  const [mapLayer, setMapLayer] = useState<'street' | 'satellite'>('satellite');
 
   const [mode, setMode] = useState<'pin' | 'polygon'>('pin');
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -115,10 +120,16 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
         zoomControl: true,
       });
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-        maxZoom: 19,
-      }).addTo(map);
+      const initialTile = L.tileLayer(
+        mapLayer === 'satellite'
+          ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+          : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+          attribution: mapLayer === 'satellite' ? 'Tiles &copy; Esri' : '&copy; OpenStreetMap',
+          maxZoom: 19,
+        }
+      ).addTo(map);
+      inlineTileLayerRef.current = initialTile;
 
       const marker = L.marker([initialLat, initialLng], {
         draggable: true,
@@ -152,10 +163,16 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
       zoomControl: true,
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 19,
-    }).addTo(fullMap);
+    const initialFullTile = L.tileLayer(
+      mapLayer === 'satellite'
+        ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      {
+        attribution: mapLayer === 'satellite' ? 'Tiles &copy; Esri' : '&copy; OpenStreetMap',
+        maxZoom: 19,
+      }
+    ).addTo(fullMap);
+    fullTileLayerRef.current = initialFullTile;
 
     const fullMarker = L.marker([initialLat, initialLng], {
       draggable: true,
@@ -196,6 +213,37 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
       fullMapInstanceRef.current = null;
     };
   }, [isFullScreen, mode]);
+
+  // Swap tile layer on both maps when mapLayer changes (Stradale / Satellite)
+  useEffect(() => {
+    const inlineMap = mapInstanceRef.current;
+    if (inlineMap) {
+      if (inlineTileLayerRef.current) inlineMap.removeLayer(inlineTileLayerRef.current);
+      inlineTileLayerRef.current = L.tileLayer(
+        mapLayer === 'satellite'
+          ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+          : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+          attribution: mapLayer === 'satellite' ? 'Tiles &copy; Esri' : '&copy; OpenStreetMap',
+          maxZoom: 19,
+        }
+      ).addTo(inlineMap);
+    }
+
+    const fullMap = fullMapInstanceRef.current;
+    if (fullMap) {
+      if (fullTileLayerRef.current) fullMap.removeLayer(fullTileLayerRef.current);
+      fullTileLayerRef.current = L.tileLayer(
+        mapLayer === 'satellite'
+          ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+          : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+          attribution: mapLayer === 'satellite' ? 'Tiles &copy; Esri' : '&copy; OpenStreetMap',
+          maxZoom: 19,
+        }
+      ).addTo(fullMap);
+    }
+  }, [mapLayer]);
 
   // Sync mode click listeners on Inline Map
   useEffect(() => {
@@ -392,30 +440,60 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
           </button>
         </div>
 
-        {/* Mode Selector */}
-        <div className="flex items-center gap-[7px] bg-slate-100 dark:bg-slate-800 p-1 rounded-[7px] shrink-0 text-xs">
-          <button
-            type="button"
-            onClick={() => setMode('pin')}
-            className={`px-2.5 py-1 rounded-[7px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
-              mode === 'pin'
-                ? 'bg-emerald-700 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-            }`}
-          >
-            <MapPin className="w-3.5 h-3.5" />
-            <span>Sposta Segnaposto</span>
-          </button>
+        {/* Layer Switcher & Mode Selector */}
+        <div className="flex items-center gap-[7px] flex-wrap text-xs">
+          {/* Stradale vs Satellite Switch */}
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-[7px] shrink-0 border border-slate-200 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => setMapLayer('street')}
+              className={`px-2 py-0.5 rounded-[5px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${
+                mapLayer === 'street'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              <Layers className="w-3 h-3" />
+              <span>Stradale</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMapLayer('satellite')}
+              className={`px-2 py-0.5 rounded-[5px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${
+                mapLayer === 'satellite'
+                  ? 'bg-emerald-700 text-white shadow-2xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              <Compass className="w-3 h-3" />
+              <span>Satellite</span>
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={handleOpenFullScreenPolygon}
-            className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-          >
-            <PolygonIcon className="w-3.5 h-3.5" />
-            <span>Traccia Area Giardino</span>
-            <Maximize2 className="w-3 h-3 ml-0.5" />
-          </button>
+          <div className="flex items-center gap-[7px] bg-slate-100 dark:bg-slate-800 p-1 rounded-[7px] shrink-0">
+            <button
+              type="button"
+              onClick={() => setMode('pin')}
+              className={`px-2.5 py-1 rounded-[7px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                mode === 'pin'
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+              }`}
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              <span>Sposta Segnaposto</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenFullScreenPolygon}
+              className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+            >
+              <PolygonIcon className="w-3.5 h-3.5" />
+              <span>Traccia Area Giardino</span>
+              <Maximize2 className="w-3 h-3 ml-0.5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -458,8 +536,36 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
               </h2>
             </div>
 
-            {/* Single line right-aligned icon actions (No background, No border) */}
+            {/* Actions & Satellite Switcher */}
             <div className="flex items-center gap-3">
+              {/* Stradale vs Satellite Switch in Fullscreen */}
+              <div className="flex items-center gap-1 bg-slate-800 p-0.5 rounded-[6px] border border-slate-700 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setMapLayer('street')}
+                  className={`px-2 py-0.5 rounded-[4px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${
+                    mapLayer === 'street'
+                      ? 'bg-slate-950 text-white shadow-2xs font-bold'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Layers className="w-3 h-3" />
+                  <span>Stradale</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMapLayer('satellite')}
+                  className={`px-2 py-0.5 rounded-[4px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${
+                    mapLayer === 'satellite'
+                      ? 'bg-emerald-700 text-white shadow-2xs font-bold'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Compass className="w-3 h-3" />
+                  <span>Satellite</span>
+                </button>
+              </div>
+
               {/* Indietro / Undo last point button */}
               {currentPoints.length > 0 && (
                 <button

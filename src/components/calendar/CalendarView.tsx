@@ -111,7 +111,7 @@ export const CalendarView: React.FC = () => {
             <div>
               <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-[7px]">
                 <CalendarIcon className="w-5 h-5 text-emerald-700" />
-                <span>Pianificazione Settimanale Squadre</span>
+                <span>Calendario Interventi</span>
               </h1>
               <p className="text-xs text-slate-500 mt-[7px]">
                 Calendario operativo assegnazioni cantieri e fasce orarie.

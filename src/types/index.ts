@@ -120,10 +120,14 @@ export interface Job {
   // Gestione Intervento Generale / Periodico con saldo fine mese o fine interventi
   interventionType?: 'singolo' | 'generale';
   billingArrangement?: 'standard' | 'fine_mese_giornate' | 'fine_ciclo_interventi' | 'canone_fisso_mensile';
-  frequency?: string; // es. "1 a settimana", "2 al mese", "ogni 2 settimane", "mensile"
-  sessionsCount?: number; // es. 4 interventi nel mese
+  frequency?: string; // es. personalizzato con date
+  sessionsCount?: number; // es. numero uscite/giornate pianificate
   ratePerSession?: number; // tariffa concordata a singola giornata / uscita
   billingTermsNote?: string;
+  pricingMode?: 'fixed' | 'per_session' | 'hourly'; // tariffa oraria, prezzo a uscita, canone fisso
+  hourlyRate?: number; // tariffa oraria (€/h)
+  estimatedHoursPerSession?: number; // stima ore per uscita
+  plannedDates?: string[]; // elenco date scelte liberamente dall'utente
 }
 
 export type InventoryCategory = 'equipment' | 'material';

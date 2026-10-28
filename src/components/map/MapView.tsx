@@ -14,8 +14,12 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const polygonsLayerRef = useRef<L.LayerGroup | null>(null);
+
+  // Map layer: Street vs Satellite
+  const [mapLayer, setMapLayer] = useState<'street' | 'satellite'>('street');
 
   // Filters
   const [workerFilter, setWorkerFilter] = useState<string>('all');
@@ -43,10 +47,11 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
         zoomControl: true,
       });
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      const initialTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 19,
       }).addTo(map);
+      tileLayerRef.current = initialTileLayer;
 
       markersLayerRef.current = L.layerGroup().addTo(map);
       polygonsLayerRef.current = L.layerGroup().addTo(map);
@@ -79,6 +84,34 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
       }
     };
   }, []);
+
+  // Swap tile layer when mapLayer changes (Stradale / Satellite)
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current);
+    }
+
+    if (mapLayer === 'satellite') {
+      tileLayerRef.current = L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        {
+          attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
+          maxZoom: 19,
+        }
+      ).addTo(map);
+    } else {
+      tileLayerRef.current = L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+          attribution: '&copy; OpenStreetMap contributors',
+          maxZoom: 19,
+        }
+      ).addTo(map);
+    }
+  }, [mapLayer]);
 
   // Update Markers for ALL Registered Clients + Active Job Overlays
   useEffect(() => {
@@ -290,6 +323,34 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
 
         {/* Filter Controls */}
         <div className="flex items-center gap-[7px] flex-wrap text-xs">
+          {/* Layer Switcher: Stradale vs Satellite */}
+          <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-1 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setMapLayer('street')}
+              className={`px-2 py-0.5 rounded-[7px] font-medium transition-colors flex items-center gap-1 cursor-pointer ${
+                mapLayer === 'street'
+                  ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Stradale</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMapLayer('satellite')}
+              className={`px-2 py-0.5 rounded-[7px] font-medium transition-colors flex items-center gap-1 cursor-pointer ${
+                mapLayer === 'satellite'
+                  ? 'bg-emerald-700 text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+            >
+              <Compass className="w-3.5 h-3.5" />
+              <span>Satellite</span>
+            </button>
+          </div>
+
           {/* Status Filter */}
           <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-1">
             <button

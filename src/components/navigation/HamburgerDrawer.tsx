@@ -164,7 +164,7 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
                   }`}
                 >
                   <Calendar className="w-4 h-4 text-sky-500" />
-                  <span>Squadre & Calendario</span>
+                  <span>Calendario</span>
                 </button>
 
                 <button

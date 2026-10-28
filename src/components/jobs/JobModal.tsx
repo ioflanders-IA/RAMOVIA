@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Job, JobStatus, JobPaymentStatus, MaterialRequirement, PaymentMethod, PaymentInstallment } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { X, Trash2, Package, Euro, User, UserCheck, Plus, Check, Repeat, Clock, AlertCircle } from 'lucide-react';
+import { X, Trash2, Package, Euro, User, UserCheck, Plus, Check, Repeat, Clock, AlertCircle, Calendar as CalendarIcon } from 'lucide-react';
 
 interface JobModalProps {
   job?: Job | null;
@@ -87,25 +87,85 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
     return 'bonifico';
   });
 
-  // Gestione Intervento Generale / Manutenzione Periodica con saldo a fine mese / interventi
+  // Gestione Intervento Singolo vs Periodico / Continuativo con saldo a fine mese / interventi
   const [interventionType, setInterventionType] = useState<'singolo' | 'generale'>(
     job?.interventionType || 'singolo'
   );
   const [billingArrangement, setBillingArrangement] = useState<'standard' | 'fine_mese_giornate' | 'fine_ciclo_interventi' | 'canone_fisso_mensile'>(
     job?.billingArrangement || (job?.interventionType === 'generale' ? 'fine_mese_giornate' : 'standard')
   );
-  const [frequency, setFrequency] = useState<string>(
-    job?.frequency || '1 a settimana (Settimanale)'
+
+  // Modalità di calcolo tariffa: oraria, a uscita, canone fisso
+  const [pricingMode, setPricingMode] = useState<'hourly' | 'per_session' | 'fixed'>(
+    job?.pricingMode || (job?.hourlyRate ? 'hourly' : 'per_session')
+  );
+  const [hourlyRate, setHourlyRate] = useState<number>(
+    job?.hourlyRate || 30
+  );
+  const [estimatedHoursPerSession, setEstimatedHoursPerSession] = useState<number>(
+    job?.estimatedHoursPerSession || 4
   );
   const [ratePerSession, setRatePerSession] = useState<number>(
     job?.ratePerSession || 120
   );
-  const [sessionsCount, setSessionsCount] = useState<number>(
-    job?.sessionsCount || 4
-  );
+
+  // Date pianificate liberamente dall'utente
+  const [plannedDates, setPlannedDates] = useState<string[]>(() => {
+    if (job?.plannedDates && job.plannedDates.length > 0) return [...job.plannedDates];
+    return [job?.date || initialDate || new Date().toISOString().split('T')[0]];
+  });
+  const [dateToAdd, setDateToAdd] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split('T')[0];
+  });
+
   const [billingTermsNote, setBillingTermsNote] = useState<string>(
     job?.billingTermsNote || ''
   );
+
+  // Ricalcola il totale stimato
+  const recalculateTotal = (
+    dates: string[],
+    mode: 'hourly' | 'per_session' | 'fixed',
+    hRate: number,
+    hPerSession: number,
+    sessionRate: number
+  ) => {
+    const count = dates.length || 1;
+    if (mode === 'hourly') {
+      const total = count * hPerSession * hRate;
+      setPrice(total);
+    } else if (mode === 'per_session') {
+      const total = count * sessionRate;
+      setPrice(total);
+    }
+  };
+
+  const handleAddPlannedDate = (customDate?: string) => {
+    const target = customDate || dateToAdd;
+    if (!target) return;
+    if (!plannedDates.includes(target)) {
+      const updated = [...plannedDates, target].sort();
+      setPlannedDates(updated);
+      recalculateTotal(updated, pricingMode, hourlyRate, estimatedHoursPerSession, ratePerSession);
+    }
+  };
+
+  const handleRemovePlannedDate = (dToRemove: string) => {
+    if (plannedDates.length <= 1) return;
+    const updated = plannedDates.filter((d) => d !== dToRemove);
+    setPlannedDates(updated);
+    recalculateTotal(updated, pricingMode, hourlyRate, estimatedHoursPerSession, ratePerSession);
+  };
+
+  const handleAddDaysShortcut = (days: number) => {
+    const lastDateStr = plannedDates[plannedDates.length - 1] || new Date().toISOString().split('T')[0];
+    const lastDate = new Date(lastDateStr);
+    lastDate.setDate(lastDate.getDate() + days);
+    const newStr = lastDate.toISOString().split('T')[0];
+    handleAddPlannedDate(newStr);
+  };
 
   // Gestione Acconti (Installments)
   const [installments, setInstallments] = useState<PaymentInstallment[]>(job?.installments || []);
@@ -181,7 +241,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
       assignedWorkerName: selectedWorker.isSelf
         ? (currentUser?.displayName || 'Titolare')
         : selectedWorker.displayName,
-      date,
+      date: plannedDates[0] || date,
       timeSlot,
       status,
       title,
@@ -195,9 +255,13 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
       materialsRequired,
       interventionType,
       billingArrangement: interventionType === 'generale' ? billingArrangement : 'standard',
-      frequency: interventionType === 'generale' ? frequency : undefined,
-      sessionsCount: interventionType === 'generale' ? Number(sessionsCount) : undefined,
-      ratePerSession: interventionType === 'generale' ? Number(ratePerSession) : undefined,
+      frequency: interventionType === 'generale' ? `${plannedDates.length} uscite programmate` : undefined,
+      sessionsCount: interventionType === 'generale' ? plannedDates.length : undefined,
+      ratePerSession: interventionType === 'generale' && pricingMode === 'per_session' ? Number(ratePerSession) : undefined,
+      pricingMode: interventionType === 'generale' ? pricingMode : undefined,
+      hourlyRate: interventionType === 'generale' && pricingMode === 'hourly' ? Number(hourlyRate) : undefined,
+      estimatedHoursPerSession: interventionType === 'generale' && pricingMode === 'hourly' ? Number(estimatedHoursPerSession) : undefined,
+      plannedDates: interventionType === 'generale' ? plannedDates : undefined,
       billingTermsNote: interventionType === 'generale' ? billingTermsNote : undefined,
     });
   };
@@ -328,7 +392,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
             />
           </div>
 
-          {/* Tipologia Intervento: Singolo vs Generale / Periodico con saldo fine mese */}
+          {/* Tipologia Intervento: Singolo vs Periodico */}
           <div className="p-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-[7px] space-y-2">
             <div className="flex items-center justify-between">
               <label className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1.5">
@@ -336,7 +400,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                 <span>Tipologia Intervento & Fatturazione</span>
               </label>
               <span className="text-[10px] text-slate-500 font-mono">
-                {interventionType === 'generale' ? 'Intervento Generale / Manutenzione' : 'Intervento Singolo'}
+                {interventionType === 'generale' ? 'Lavoro Continuativo / Periodico' : 'Intervento Singolo'}
               </span>
             </div>
 
@@ -347,13 +411,14 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                   setInterventionType('singolo');
                   setBillingArrangement('standard');
                 }}
-                className={`py-2 px-2.5 rounded-[7px] text-xs font-bold border transition-all cursor-pointer text-center ${
+                className={`py-2 px-2.5 rounded-[7px] text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                   interventionType === 'singolo'
                     ? 'bg-slate-900 text-white border-slate-950 shadow-xs ring-1 ring-slate-400 dark:bg-slate-100 dark:text-slate-900'
-                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-slate-100'
+                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
-                <span>🌱 Intervento Singolo</span>
+                <CalendarIcon className="w-3.5 h-3.5 text-slate-400" />
+                <span>Intervento Singolo</span>
               </button>
 
               <button
@@ -361,67 +426,258 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                 onClick={() => {
                   setInterventionType('generale');
                   setBillingArrangement('fine_mese_giornate');
-                  const calc = ratePerSession * sessionsCount;
-                  if (calc > 0 && price === 150) {
-                    setPrice(calc);
-                  }
+                  recalculateTotal(plannedDates, pricingMode, hourlyRate, estimatedHoursPerSession, ratePerSession);
                 }}
-                className={`py-2 px-2.5 rounded-[7px] text-xs font-bold border transition-all cursor-pointer text-center ${
+                className={`py-2 px-2.5 rounded-[7px] text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                   interventionType === 'generale'
                     ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs ring-2 ring-emerald-500/60'
-                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-emerald-600'
+                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-emerald-600 dark:hover:border-emerald-500'
                 }`}
               >
-                <span>🗓️ Intervento Generale / Periodico</span>
+                <Repeat className="w-3.5 h-3.5" />
+                <span>Intervento Periodico</span>
               </button>
             </div>
 
-            {/* Sottosezione per Intervento Generale / Periodico */}
+            {/* Sottosezione per Intervento Periodico / Continuativo */}
             {interventionType === 'generale' && (
-              <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-2.5 bg-emerald-50/50 dark:bg-emerald-950/20 p-2.5 rounded-[7px] border border-emerald-200/60 dark:border-emerald-900/40">
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-3 bg-emerald-50/50 dark:bg-emerald-950/20 p-2.5 rounded-[7px] border border-emerald-200/60 dark:border-emerald-900/40">
                 <div className="text-[11px] font-bold text-emerald-900 dark:text-emerald-300 flex items-center justify-between">
-                  <span>Accordo Lavoro & Pagamento Fine Mese / Interventi</span>
-                  <span className="text-[10px] font-normal text-emerald-700 dark:text-emerald-400">Es. 1 a settimana, saldo fine mese</span>
+                  <span>Accordo Lavoro & Pianificazione Date</span>
+                  <span className="text-[10px] font-normal text-emerald-700 dark:text-emerald-400">Pianifica le date e la tariffa</span>
                 </div>
 
-                {/* Cadenza / Frequenza */}
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                    Frequenza Interventi
+                {/* 1. PIANIFICAZIONE LIBERA DELLE DATE */}
+                <div className="space-y-1.5 bg-white dark:bg-slate-900 p-2 rounded-[6px] border border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                      <CalendarIcon className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Date Pianificate ({plannedDates.length} interventi)</span>
+                    </label>
+                    <span className="text-[10px] text-slate-500">Pianifica tu stesso le uscite</span>
+                  </div>
+
+                  {/* Input date + pulsante aggiungi + shortcut */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <input
+                      type="date"
+                      value={dateToAdd}
+                      onChange={(e) => setDateToAdd(e.target.value)}
+                      className="p-1 px-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[6px] font-mono text-slate-900 dark:text-slate-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddPlannedDate()}
+                      className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-[6px] text-xs flex items-center gap-1 cursor-pointer shadow-xs transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Aggiungi Data</span>
+                    </button>
+                    <div className="flex items-center gap-1 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => handleAddDaysShortcut(7)}
+                        className="px-2 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-[5px] border border-slate-300 dark:border-slate-700 font-semibold cursor-pointer"
+                        title="Aggiungi data tra 7 giorni"
+                      >
+                        +7 gg
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddDaysShortcut(14)}
+                        className="px-2 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-[5px] border border-slate-300 dark:border-slate-700 font-semibold cursor-pointer"
+                        title="Aggiungi data tra 14 giorni"
+                      >
+                        +14 gg
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Lista chips delle date pianificate */}
+                  <div className="flex flex-wrap gap-1.5 pt-1 max-h-28 overflow-y-auto">
+                    {plannedDates.map((dStr, idx) => {
+                      const dObj = new Date(dStr);
+                      const formatted = !isNaN(dObj.getTime())
+                        ? dObj.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })
+                        : dStr;
+                      return (
+                        <span
+                          key={dStr}
+                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[5px] text-[11px] font-mono font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shadow-2xs"
+                        >
+                          <span className="font-bold text-[10px] text-emerald-600 dark:text-emerald-400">#{idx + 1}</span>
+                          <span>{formatted}</span>
+                          {plannedDates.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePlannedDate(dStr)}
+                              className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors ml-0.5 cursor-pointer"
+                              title="Rimuovi data"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. MODALITÀ TARIFFA: A ORE vs A USCITA vs FORFAIT */}
+                <div className="space-y-1.5 bg-white dark:bg-slate-900 p-2 rounded-[6px] border border-slate-200 dark:border-slate-700">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Modalità di Calcolo Tariffa
                   </label>
                   <div className="grid grid-cols-3 gap-1.5">
                     {[
-                      '1 a settimana',
-                      '2 al mese',
-                      'Ogni 2 settimane',
-                      '1 al mese',
-                      '2 a settimana',
-                      'A chiamata',
-                    ].map((freq) => (
+                      { id: 'hourly', label: 'Tariffa Oraria (€/h)' },
+                      { id: 'per_session', label: 'A Uscita (€)' },
+                      { id: 'fixed', label: 'Canone Fisso (€)' },
+                    ].map((mode) => (
                       <button
-                        key={freq}
+                        key={mode.id}
                         type="button"
-                        onClick={() => setFrequency(freq)}
-                        className={`py-1.5 px-1.5 rounded-[6px] text-[10px] font-bold border transition-colors cursor-pointer text-center truncate ${
-                          frequency === freq
+                        onClick={() => {
+                          const m = mode.id as any;
+                          setPricingMode(m);
+                          recalculateTotal(plannedDates, m, hourlyRate, estimatedHoursPerSession, ratePerSession);
+                        }}
+                        className={`py-1.5 px-1.5 rounded-[6px] text-[10px] font-bold border transition-colors cursor-pointer text-center ${
+                          pricingMode === mode.id
                             ? 'bg-emerald-800 text-white border-emerald-900 shadow-2xs'
                             : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-emerald-500'
                         }`}
                       >
-                        {freq}
+                        {mode.label}
                       </button>
                     ))}
                   </div>
+
+                  {/* Campi specifici in base alla modalità scelta */}
+                  {pricingMode === 'hourly' && (
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                            Tariffa Oraria (€/ora) *
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">€</span>
+                            <input
+                              type="number"
+                              step="0.5"
+                              min="1"
+                              value={hourlyRate}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                setHourlyRate(val);
+                                recalculateTotal(plannedDates, 'hourly', val, estimatedHoursPerSession, ratePerSession);
+                              }}
+                              className="w-full p-1.5 pl-6 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[6px] text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                            Stima Ore per Uscita
+                          </label>
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0.5"
+                            value={estimatedHoursPerSession}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 1;
+                              setEstimatedHoursPerSession(val);
+                              recalculateTotal(plannedDates, 'hourly', hourlyRate, val, ratePerSession);
+                            }}
+                            className="w-full p-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[6px] text-xs font-mono font-bold text-slate-900 dark:text-slate-100"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="p-2 bg-emerald-50/70 dark:bg-emerald-950/40 rounded-[6px] border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-900 dark:text-emerald-300 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
+                          <span>
+                            {plannedDates.length} uscite × {estimatedHoursPerSession}h = <strong>{plannedDates.length * estimatedHoursPerSession} ore stimate</strong> a €{hourlyRate}/h
+                          </span>
+                        </span>
+                        <span className="font-mono font-bold text-emerald-700 dark:text-emerald-300">
+                          € {(plannedDates.length * estimatedHoursPerSession * hourlyRate).toFixed(2)} (stimato)
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 italic">
+                        A fine mese o a chiusura lavori, il totale effettivo calcolerà in automatico la somma delle ore realmente lavorate nei singoli interventi.
+                      </p>
+                    </div>
+                  )}
+
+                  {pricingMode === 'per_session' && (
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                          Prezzo Fisso a Singola Uscita / Giornata (€)
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">€</span>
+                          <input
+                            type="number"
+                            step="1"
+                            min="0"
+                            value={ratePerSession}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              setRatePerSession(val);
+                              recalculateTotal(plannedDates, 'per_session', hourlyRate, estimatedHoursPerSession, val);
+                            }}
+                            className="w-full p-1.5 pl-6 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[6px] text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="p-2 bg-emerald-50/70 dark:bg-emerald-950/40 rounded-[6px] border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-900 dark:text-emerald-300 flex items-center justify-between">
+                        <span>
+                          {plannedDates.length} uscite × €{ratePerSession}
+                        </span>
+                        <span className="font-mono font-bold text-emerald-700 dark:text-emerald-300">
+                          Totale: € {(plannedDates.length * ratePerSession).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {pricingMode === 'fixed' && (
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                          Importo Fisso Concordato (€)
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">€</span>
+                          <input
+                            type="number"
+                            step="1"
+                            min="0"
+                            value={price}
+                            onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                            className="w-full p-1.5 pl-6 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[6px] text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Modalità Accordo Compenso */}
+                {/* 3. MODALITÀ ACCORDO PAGAMENTO */}
                 <div className="space-y-1">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     Accordo di Pagamento
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
                     {[
-                      { id: 'fine_mese_giornate', label: 'A Fine Mese (somma uscite)' },
+                      { id: 'fine_mese_giornate', label: 'A Fine Mese (somma ore/uscite)' },
                       { id: 'fine_ciclo_interventi', label: 'A Fine Interventi' },
                       { id: 'canone_fisso_mensile', label: 'Canone Fisso Mensile' },
                     ].map((item) => (
@@ -439,59 +695,6 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                       </button>
                     ))}
                   </div>
-                </div>
-
-                {/* Calcolo Compenso: Tariffa a Giornata x Uscite Previste */}
-                <div className="grid grid-cols-2 gap-2 bg-white dark:bg-slate-900 p-2 rounded-[6px] border border-emerald-200/80 dark:border-emerald-900/50">
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400">
-                      Prezzo a Uscita / Giornata (€)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={ratePerSession}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        setRatePerSession(val);
-                        const total = val * sessionsCount;
-                        setPrice(total);
-                      }}
-                      className="w-full p-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[6px] text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400">
-                      Uscite Previste nel Mese
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="31"
-                      value={sessionsCount}
-                      onChange={(e) => {
-                        const count = parseInt(e.target.value) || 1;
-                        setSessionsCount(count);
-                        const total = ratePerSession * count;
-                        setPrice(total);
-                      }}
-                      className="w-full p-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[6px] text-xs font-mono font-bold text-slate-900 dark:text-slate-100"
-                    />
-                  </div>
-                </div>
-
-                <div className="p-2 bg-emerald-100/60 dark:bg-emerald-950/50 rounded-[6px] flex items-center justify-between text-xs border border-emerald-200 dark:border-emerald-800">
-                  <div className="flex items-center gap-1.5 text-emerald-900 dark:text-emerald-200 text-[11px]">
-                    <Clock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                    <span>
-                      Totale concordato a fine mese ({sessionsCount} uscite x € {ratePerSession.toFixed(2)}):
-                    </span>
-                  </div>
-                  <strong className="font-mono text-sm text-emerald-800 dark:text-emerald-300">
-                    € {(ratePerSession * sessionsCount).toFixed(2)}
-                  </strong>
                 </div>
               </div>
             )}
@@ -832,9 +1035,9 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
           </div>
 
           {/* Materials Required Section */}
-          <div className="p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] space-y-[7px]">
-            <span className="font-bold text-slate-800 uppercase tracking-wider block text-[11px] flex items-center gap-[7px]">
-              <Package className="w-3.5 h-3.5 text-emerald-700" />
+          <div className="p-[7px] bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-[7px] space-y-[7px]">
+            <span className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider block text-[11px] flex items-center gap-[7px]">
+              <Package className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
               Materiali Richiesti dal Magazzino
             </span>
 
@@ -843,17 +1046,17 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                 {materialsRequired.map((mat) => (
                   <div
                     key={mat.itemId}
-                    className="flex items-center justify-between p-[7px] bg-white border border-slate-200 rounded-[7px] text-xs"
+                    className="flex items-center justify-between p-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs"
                   >
-                    <span className="font-medium text-slate-800">{mat.name}</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">{mat.name}</span>
                     <div className="flex items-center gap-[7px]">
-                      <span className="font-mono font-bold text-emerald-800">
+                      <span className="font-mono font-bold text-emerald-800 dark:text-emerald-400">
                         {mat.qtyNeeded} {mat.unit}
                       </span>
                       <button
                         type="button"
                         onClick={() => handleRemoveMaterial(mat.itemId)}
-                        className="text-slate-400 hover:text-rose-600 rounded-[7px] p-1"
+                        className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-[7px] p-1 cursor-pointer transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -868,7 +1071,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
               <select
                 value={selectedMatId}
                 onChange={(e) => setSelectedMatId(e.target.value)}
-                className="flex-1 p-[7px] bg-white border border-slate-200 rounded-[7px] text-xs"
+                className="flex-1 p-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs text-slate-900 dark:text-slate-100"
               >
                 <option value="">Seleziona materiale da associare...</option>
                 {inventory
@@ -885,13 +1088,13 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                 min="1"
                 value={selectedMatQty}
                 onChange={(e) => setSelectedMatQty(parseInt(e.target.value) || 1)}
-                className="w-16 p-[7px] bg-white border border-slate-200 rounded-[7px] text-xs font-mono font-bold text-right"
+                className="w-16 p-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs font-mono font-bold text-right text-slate-900 dark:text-slate-100"
               />
 
               <button
                 type="button"
                 onClick={handleAddMaterial}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-[7px] text-xs"
+                className="px-3 py-1.5 bg-slate-800 dark:bg-emerald-700 hover:bg-slate-700 dark:hover:bg-emerald-600 text-white font-medium rounded-[7px] text-xs cursor-pointer shadow-xs transition-colors"
               >
                 Aggiungi
               </button>
@@ -899,12 +1102,12 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
           </div>
 
           {/* Status */}
-          <div className="pt-[7px] border-t border-slate-200 space-y-[7px]">
-            <label className="font-semibold text-slate-700 block">Stato Lavoro</label>
+          <div className="pt-[7px] border-t border-slate-200 dark:border-slate-700 space-y-[7px]">
+            <label className="font-semibold text-slate-700 dark:text-slate-300 block">Stato Lavoro</label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as JobStatus)}
-              className="w-full p-[7px] bg-slate-50 border border-slate-200 rounded-[7px] text-xs font-bold"
+              className="w-full p-[7px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs font-bold text-slate-900 dark:text-slate-100"
             >
               <option value="scheduled">Programmato</option>
               <option value="in_progress">In Corso</option>
@@ -914,17 +1117,17 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
           </div>
 
           {/* Action Footer */}
-          <div className="pt-[7px] border-t border-slate-200 flex items-center justify-end gap-[7px]">
+          <div className="pt-[7px] border-t border-slate-200 dark:border-slate-700 flex items-center justify-end gap-[7px]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-[7px] font-medium"
+              className="px-4 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-[7px] font-medium cursor-pointer transition-colors"
             >
               Annulla
             </button>
             <button
               type="submit"
-              className="px-5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] font-bold shadow-xs flex items-center gap-[7px]"
+              className="px-5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] font-bold shadow-xs flex items-center gap-[7px] cursor-pointer transition-colors"
             >
               <Check className="w-4 h-4" />
               <span>Salva Intervento</span>

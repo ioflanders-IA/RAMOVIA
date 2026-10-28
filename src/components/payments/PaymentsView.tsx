@@ -359,20 +359,6 @@ export const PaymentsView: React.FC = () => {
 
   return (
     <div className="space-y-[7px]">
-      {/* Header Banner */}
-      <div className="bg-slate-900 dark:bg-slate-950 text-white p-2.5 px-3 rounded-[7px] flex items-center justify-between gap-[7px] shadow-xs">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-[7px] bg-emerald-800 flex items-center justify-center text-emerald-300 shrink-0">
-            <Wallet className="w-4 h-4" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-white">Gestione Pagamenti, Stipendi & Bilancio</h1>
-            <p className="text-[10px] text-slate-300">
-              Storico incassi lavori, calcolo giornate operai, registro spese e report finanziari
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* Financial KPI Summary Grid - 4 card su UN'UNICA LINEA */}
       <div className="grid grid-cols-4 gap-1 sm:gap-2">
@@ -500,15 +486,16 @@ export const PaymentsView: React.FC = () => {
             <span className="truncate">Bilancio</span>
           </button>
 
-          {/* Tasto Registra Spesa: solo con simbolo + senza testi a destra dei tasti */}
+          {/* Tasto Registra Spesa: + Spesa */}
           <button
             type="button"
             onClick={() => setShowExpenseModal(true)}
             title="Registra Nuova Spesa"
             aria-label="Registra Nuova Spesa"
-            className="flex items-center justify-center py-2 px-2 rounded-[7px] bg-emerald-700 hover:bg-emerald-600 text-white font-bold transition-colors cursor-pointer shadow-xs"
+            className="flex items-center justify-center gap-1 py-2 px-2 rounded-[7px] bg-emerald-700 hover:bg-emerald-600 text-white font-bold transition-colors cursor-pointer shadow-xs text-center"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Spesa</span>
           </button>
         </div>
       </div>
@@ -776,7 +763,7 @@ export const PaymentsView: React.FC = () => {
                           </span>
                           {job.interventionType === 'generale' && (
                             <span className="font-mono text-[10px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-800 shrink-0">
-                              🗓️ Generale {job.frequency ? `· ${job.frequency}` : ''} · Saldo fine mese
+                              Periodico {job.pricingMode === 'hourly' && job.hourlyRate ? `· €${job.hourlyRate}/h` : ''} {job.frequency ? `· ${job.frequency}` : ''} · Saldo fine mese
                             </span>
                           )}
                         </div>

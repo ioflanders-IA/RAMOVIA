@@ -4,7 +4,7 @@ import { fetchWeatherForClients } from '../../services/weatherService';
 import { Job, WorkReport, WeatherData } from '../../types';
 import { JobModal } from '../jobs/JobModal';
 import { WorkReportModal } from '../report/WorkReportModal';
-import { isJobTimeExpired } from '../../utils/jobTimeUtils';
+import { isJobTimeExpired, isJobCurrentlyInProgress } from '../../utils/jobTimeUtils';
 import {
   Calendar,
   Clock,
@@ -35,6 +35,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
   const [isCreatingJob, setIsCreatingJob] = useState(false);
   const [selectedReportForModal, setSelectedReportForModal] = useState<WorkReport | null>(null);
 
+  // Clock ticker to refresh time-based statuses (in corso, orario scaduto) automatically every 30s
+  const [, setClockTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setClockTick((t) => t + 1);
+    }, 30000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Weather state across cantieri for alert detection
   const [weatherMap, setWeatherMap] = useState<Record<string, WeatherData>>({});
 
@@ -60,7 +69,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
   const todayJobs = jobs.filter((j) => j.date === todayStr);
   const completedToday = todayJobs.filter((j) => j.status === 'completed');
   const expiredJobsToday = todayJobs.filter((j) => isJobTimeExpired(j));
-  const inProgressToday = todayJobs.filter((j) => j.status === 'in_progress');
+  const inProgressToday = todayJobs.filter((j) => isJobCurrentlyInProgress(j));
 
   const pendingApprovalReports = reports.filter((r) => r.status === 'submitted');
 
@@ -335,7 +344,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
             <div className="flex items-center justify-between pb-[7px] border-b border-slate-100 dark:border-slate-800">
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-[7px]">
                 <Clock className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-                <span>Programma Interventi di Oggi ({todayJobs.length})</span>
+                <span>Interventi di Oggi ({todayJobs.length})</span>
               </span>
               <button
                 onClick={() => onNavigateTab('calendar')}
@@ -364,6 +373,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                 todayJobs.map((job) => {
                   const isCompleted = job.status === 'completed';
                   const isExpired = !isCompleted && isJobTimeExpired(job);
+                  const isInProgress = !isCompleted && isJobCurrentlyInProgress(job);
 
                   return (
                     <div
@@ -372,6 +382,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                       className={`p-[7px] border rounded-[7px] hover:border-emerald-400 dark:hover:border-emerald-600 cursor-pointer transition-all space-y-[7px] ${
                         isCompleted
                           ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800/80 shadow-2xs'
+                          : isInProgress
+                          ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-400 dark:border-emerald-700/80 shadow-2xs'
                           : isExpired
                           ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800/70'
                           : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800'
@@ -413,18 +425,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                         <span className="truncate">Assegnato a: <strong>{job.assignedWorkerName}</strong></span>
                         
                         <div className="flex items-center gap-1.5 shrink-0">
-                          {/* Pulsante trasparente 'Segna Ultimato' con 1 clic */}
+                          {/* Pulsante 'In Corso' o 'Segna Ultimato' con 1 clic per completare */}
                           {!isCompleted ? (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 updateJob({ ...job, status: 'completed' });
                               }}
-                              className="flex items-center gap-1 p-[7px] py-1 bg-transparent hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-600 dark:border-emerald-500 rounded-[7px] font-bold text-[10px] transition-colors cursor-pointer"
-                              title="Clicca per segnare subito come Ultimato / Completato"
+                              className={`flex items-center gap-1.5 p-[7px] py-1 bg-transparent hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-600 dark:border-emerald-500 rounded-[7px] font-bold text-[10px] transition-colors cursor-pointer ${
+                                isInProgress ? 'ring-1 ring-emerald-500/30' : ''
+                              }`}
+                              title={
+                                isInProgress
+                                  ? 'Intervento in corso · Clicca per segnare come Ultimato'
+                                  : 'Clicca per segnare subito come Ultimato / Completato'
+                              }
                             >
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                              <span>Segna Ultimato</span>
+                              {isInProgress ? (
+                                <>
+                                  <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600 dark:bg-emerald-400"></span>
+                                  </span>
+                                  <span>In Corso</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                  <span>Segna Ultimato</span>
+                                </>
+                              )}
                             </button>
                           ) : (
                             <div className="flex items-center gap-1">
