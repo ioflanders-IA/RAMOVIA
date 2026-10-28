@@ -49,8 +49,8 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
 
   const mapInstanceRef = useRef<L.Map | null>(null);
   const fullMapInstanceRef = useRef<L.Map | null>(null);
-  const inlineTileLayerRef = useRef<L.TileLayer | null>(null);
-  const fullTileLayerRef = useRef<L.TileLayer | null>(null);
+  const inlineTileLayerRef = useRef<L.Layer | null>(null);
+  const fullTileLayerRef = useRef<L.Layer | null>(null);
 
   const markerRef = useRef<L.Marker | null>(null);
   const fullMarkerRef = useRef<L.Marker | null>(null);
@@ -83,6 +83,26 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
     const newMq = calculatePolygonAreaSqMeters(currentPoints);
     onPolygonChange(currentPoints, newMq);
   }, [currentPoints]);
+
+  // Helper to create street or satellite base layer
+  const createMapTileLayer = (layerType: 'street' | 'satellite'): L.TileLayer => {
+    if (layerType === 'satellite') {
+      return L.tileLayer(
+        'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+        {
+          subdomains: ['0', '1', '2', '3'],
+          attribution: '&copy; Google Satellite Imagery',
+          maxZoom: 21,
+          className: 'satellite-tiles',
+        }
+      );
+    }
+    return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19,
+      className: 'street-tiles',
+    });
+  };
 
   // Clean SVG Pin Marker Icon
   const createPinIcon = () =>
@@ -120,16 +140,9 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
         zoomControl: true,
       });
 
-      const initialTile = L.tileLayer(
-        mapLayer === 'satellite'
-          ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-          : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        {
-          attribution: mapLayer === 'satellite' ? 'Tiles &copy; Esri' : '&copy; OpenStreetMap',
-          maxZoom: 19,
-        }
-      ).addTo(map);
+      const initialTile = createMapTileLayer(mapLayer).addTo(map);
       inlineTileLayerRef.current = initialTile;
+      map.getContainer().classList.toggle('satellite-mode', mapLayer === 'satellite');
 
       const marker = L.marker([initialLat, initialLng], {
         draggable: true,
@@ -163,16 +176,9 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
       zoomControl: true,
     });
 
-    const initialFullTile = L.tileLayer(
-      mapLayer === 'satellite'
-        ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      {
-        attribution: mapLayer === 'satellite' ? 'Tiles &copy; Esri' : '&copy; OpenStreetMap',
-        maxZoom: 19,
-      }
-    ).addTo(fullMap);
+    const initialFullTile = createMapTileLayer(mapLayer).addTo(fullMap);
     fullTileLayerRef.current = initialFullTile;
+    fullMap.getContainer().classList.toggle('satellite-mode', mapLayer === 'satellite');
 
     const fullMarker = L.marker([initialLat, initialLng], {
       draggable: true,
@@ -218,30 +224,16 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
   useEffect(() => {
     const inlineMap = mapInstanceRef.current;
     if (inlineMap) {
+      inlineMap.getContainer().classList.toggle('satellite-mode', mapLayer === 'satellite');
       if (inlineTileLayerRef.current) inlineMap.removeLayer(inlineTileLayerRef.current);
-      inlineTileLayerRef.current = L.tileLayer(
-        mapLayer === 'satellite'
-          ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-          : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        {
-          attribution: mapLayer === 'satellite' ? 'Tiles &copy; Esri' : '&copy; OpenStreetMap',
-          maxZoom: 19,
-        }
-      ).addTo(inlineMap);
+      inlineTileLayerRef.current = createMapTileLayer(mapLayer).addTo(inlineMap);
     }
 
     const fullMap = fullMapInstanceRef.current;
     if (fullMap) {
+      fullMap.getContainer().classList.toggle('satellite-mode', mapLayer === 'satellite');
       if (fullTileLayerRef.current) fullMap.removeLayer(fullTileLayerRef.current);
-      fullTileLayerRef.current = L.tileLayer(
-        mapLayer === 'satellite'
-          ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-          : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        {
-          attribution: mapLayer === 'satellite' ? 'Tiles &copy; Esri' : '&copy; OpenStreetMap',
-          maxZoom: 19,
-        }
-      ).addTo(fullMap);
+      fullTileLayerRef.current = createMapTileLayer(mapLayer).addTo(fullMap);
     }
   }, [mapLayer]);
 
@@ -505,7 +497,7 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
 
       {/* Inline Map Frame */}
       <div className="relative w-full h-[240px] rounded-[7px] border border-slate-300 dark:border-slate-700 overflow-hidden shadow-inner">
-        <div ref={mapContainerRef} className="w-full h-full" />
+        <div ref={mapContainerRef} className={`w-full h-full ${mapLayer === 'satellite' ? 'satellite-mode' : ''}`} />
 
         {/* Floating Area Indicator in Bottom Right Corner (Fixed min-width) */}
         <div className="absolute bottom-[24px] right-[8px] z-[400] bg-slate-900/90 text-emerald-400 border border-emerald-800/80 rounded-[7px] p-[5px] px-3 shadow-md flex items-center justify-center gap-1.5 text-xs font-mono font-bold tabular-nums min-w-[115px] select-none">
@@ -614,7 +606,7 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
 
           {/* Full Screen Map Viewport */}
           <div className="relative flex-1 w-full rounded-[7px] border border-slate-800 overflow-hidden shadow-2xl">
-            <div ref={fullMapContainerRef} className="w-full h-full" />
+            <div ref={fullMapContainerRef} className={`w-full h-full ${mapLayer === 'satellite' ? 'satellite-mode' : ''}`} />
 
             {/* Fixed-Width Square Meter Badge in Bottom Right Corner (Where indicated in red box) */}
             <div className="absolute bottom-[24px] right-[8px] z-[400] bg-slate-900/90 text-emerald-400 border border-emerald-800/80 rounded-[7px] p-[6px] px-3 shadow-xl flex items-center justify-center gap-1.5 text-xs font-mono font-bold tabular-nums min-w-[120px] select-none">

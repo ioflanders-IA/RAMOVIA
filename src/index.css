@@ -98,9 +98,20 @@
   background-color: #0f172a;
 }
 
-/* Dark mode Leaflet tile inversion for seamless dark theme */
-.dark .leaflet-tile-pane {
-  filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(1.2);
+/* Dark mode Leaflet tile inversion ONLY for standard street tiles */
+.dark .leaflet-tile.street-tiles,
+.dark img.leaflet-tile.street-tiles {
+  filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(1.2) !important;
+  -webkit-filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(1.2) !important;
+}
+
+/* Satellite tiles are ALWAYS 100% natural photographic colors */
+.leaflet-tile.satellite-tiles,
+.dark .leaflet-tile.satellite-tiles,
+img.satellite-tiles,
+.dark img.satellite-tiles {
+  filter: none !important;
+  -webkit-filter: none !important;
 }
 
 .dark .leaflet-container {

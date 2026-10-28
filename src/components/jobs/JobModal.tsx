@@ -1067,18 +1067,18 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
             )}
 
             {/* Selector to add requirement */}
-            <div className="flex items-center gap-[7px] pt-1">
+            <div className="flex items-center gap-1.5 pt-1 w-full min-w-0">
               <select
                 value={selectedMatId}
                 onChange={(e) => setSelectedMatId(e.target.value)}
-                className="flex-1 p-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs text-slate-900 dark:text-slate-100"
+                className="flex-1 min-w-0 p-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs text-slate-900 dark:text-slate-100 truncate focus:outline-emerald-600"
               >
-                <option value="">Seleziona materiale da associare...</option>
+                <option value="">Seleziona</option>
                 {inventory
                   .filter((i) => i.category === 'material')
                   .map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.name} ({m.quantity} {m.unit} disponibili)
+                      {m.name} ({m.quantity} {m.unit})
                     </option>
                   ))}
               </select>
@@ -1088,15 +1088,17 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                 min="1"
                 value={selectedMatQty}
                 onChange={(e) => setSelectedMatQty(parseInt(e.target.value) || 1)}
-                className="w-16 p-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs font-mono font-bold text-right text-slate-900 dark:text-slate-100"
+                className="w-12 sm:w-14 shrink-0 p-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs font-mono font-bold text-center text-slate-900 dark:text-slate-100"
               />
 
               <button
                 type="button"
                 onClick={handleAddMaterial}
-                className="px-3 py-1.5 bg-slate-800 dark:bg-emerald-700 hover:bg-slate-700 dark:hover:bg-emerald-600 text-white font-medium rounded-[7px] text-xs cursor-pointer shadow-xs transition-colors"
+                className="shrink-0 px-2.5 py-1.5 bg-slate-800 dark:bg-emerald-700 hover:bg-slate-700 dark:hover:bg-emerald-600 text-white font-medium rounded-[7px] text-xs cursor-pointer shadow-xs transition-colors flex items-center gap-1 whitespace-nowrap"
+                title="Aggiungi materiale"
               >
-                Aggiungi
+                <Plus className="w-3.5 h-3.5" />
+                <span>Aggiungi</span>
               </button>
             </div>
           </div>

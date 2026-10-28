@@ -54,7 +54,12 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenFi
               <img
                 src="/RAMOVIA_Logo_long.svg"
                 alt="RAMOVIA"
-                className="h-[42px] w-auto object-contain block"
+                className="h-[42px] w-auto object-contain block dark:hidden"
+              />
+              <img
+                src="/RAMOVIA_Logo_long_white.svg"
+                alt="RAMOVIA"
+                className="h-[42px] w-auto object-contain hidden dark:block"
               />
             </button>
           </div>

@@ -64,7 +64,12 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               <img
                 src="/RAMOVIA_Logo_long.svg"
                 alt="RAMOVIA"
-                className="h-[38px] w-auto object-contain block"
+                className="h-[38px] w-auto object-contain block dark:hidden"
+              />
+              <img
+                src="/RAMOVIA_Logo_long_white.svg"
+                alt="RAMOVIA"
+                className="h-[38px] w-auto object-contain hidden dark:block"
               />
             </button>
             <button
@@ -85,7 +90,12 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               <img
                 src="/RAMOVIA_Logo.svg"
                 alt="RAMOVIA"
-                className="w-7 h-7 object-contain block"
+                className="w-7 h-7 object-contain block dark:hidden"
+              />
+              <img
+                src="/RAMOVIA_Logo_white.svg"
+                alt="RAMOVIA"
+                className="w-7 h-7 object-contain hidden dark:block"
               />
             </button>
             <button
