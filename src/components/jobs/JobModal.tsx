@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Job, JobStatus, JobPaymentStatus, MaterialRequirement, PaymentMethod, PaymentInstallment } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { X, Trash2, Package, Euro, User, UserCheck, Plus, Check } from 'lucide-react';
+import { X, Trash2, Package, Euro, User, UserCheck, Plus, Check, Repeat, Clock, AlertCircle } from 'lucide-react';
 
 interface JobModalProps {
   job?: Job | null;
@@ -86,6 +86,26 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
     }
     return 'bonifico';
   });
+
+  // Gestione Intervento Generale / Manutenzione Periodica con saldo a fine mese / interventi
+  const [interventionType, setInterventionType] = useState<'singolo' | 'generale'>(
+    job?.interventionType || 'singolo'
+  );
+  const [billingArrangement, setBillingArrangement] = useState<'standard' | 'fine_mese_giornate' | 'fine_ciclo_interventi' | 'canone_fisso_mensile'>(
+    job?.billingArrangement || (job?.interventionType === 'generale' ? 'fine_mese_giornate' : 'standard')
+  );
+  const [frequency, setFrequency] = useState<string>(
+    job?.frequency || '1 a settimana (Settimanale)'
+  );
+  const [ratePerSession, setRatePerSession] = useState<number>(
+    job?.ratePerSession || 120
+  );
+  const [sessionsCount, setSessionsCount] = useState<number>(
+    job?.sessionsCount || 4
+  );
+  const [billingTermsNote, setBillingTermsNote] = useState<string>(
+    job?.billingTermsNote || ''
+  );
 
   // Gestione Acconti (Installments)
   const [installments, setInstallments] = useState<PaymentInstallment[]>(job?.installments || []);
@@ -173,6 +193,12 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
       paidAmount: Number(paidAmount),
       installments,
       materialsRequired,
+      interventionType,
+      billingArrangement: interventionType === 'generale' ? billingArrangement : 'standard',
+      frequency: interventionType === 'generale' ? frequency : undefined,
+      sessionsCount: interventionType === 'generale' ? Number(sessionsCount) : undefined,
+      ratePerSession: interventionType === 'generale' ? Number(ratePerSession) : undefined,
+      billingTermsNote: interventionType === 'generale' ? billingTermsNote : undefined,
     });
   };
 
@@ -302,7 +328,176 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
             />
           </div>
 
-          {/* Financial & Payment Section - Con Tastini Cliccabili leggibili, senza emoticon e senza spunta */}
+          {/* Tipologia Intervento: Singolo vs Generale / Periodico con saldo fine mese */}
+          <div className="p-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-[7px] space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1.5">
+                <Repeat className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Tipologia Intervento & Fatturazione</span>
+              </label>
+              <span className="text-[10px] text-slate-500 font-mono">
+                {interventionType === 'generale' ? 'Intervento Generale / Manutenzione' : 'Intervento Singolo'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setInterventionType('singolo');
+                  setBillingArrangement('standard');
+                }}
+                className={`py-2 px-2.5 rounded-[7px] text-xs font-bold border transition-all cursor-pointer text-center ${
+                  interventionType === 'singolo'
+                    ? 'bg-slate-900 text-white border-slate-950 shadow-xs ring-1 ring-slate-400 dark:bg-slate-100 dark:text-slate-900'
+                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <span>🌱 Intervento Singolo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setInterventionType('generale');
+                  setBillingArrangement('fine_mese_giornate');
+                  const calc = ratePerSession * sessionsCount;
+                  if (calc > 0 && price === 150) {
+                    setPrice(calc);
+                  }
+                }}
+                className={`py-2 px-2.5 rounded-[7px] text-xs font-bold border transition-all cursor-pointer text-center ${
+                  interventionType === 'generale'
+                    ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs ring-2 ring-emerald-500/60'
+                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-emerald-600'
+                }`}
+              >
+                <span>🗓️ Intervento Generale / Periodico</span>
+              </button>
+            </div>
+
+            {/* Sottosezione per Intervento Generale / Periodico */}
+            {interventionType === 'generale' && (
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-2.5 bg-emerald-50/50 dark:bg-emerald-950/20 p-2.5 rounded-[7px] border border-emerald-200/60 dark:border-emerald-900/40">
+                <div className="text-[11px] font-bold text-emerald-900 dark:text-emerald-300 flex items-center justify-between">
+                  <span>Accordo Lavoro & Pagamento Fine Mese / Interventi</span>
+                  <span className="text-[10px] font-normal text-emerald-700 dark:text-emerald-400">Es. 1 a settimana, saldo fine mese</span>
+                </div>
+
+                {/* Cadenza / Frequenza */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                    Frequenza Interventi
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      '1 a settimana',
+                      '2 al mese',
+                      'Ogni 2 settimane',
+                      '1 al mese',
+                      '2 a settimana',
+                      'A chiamata',
+                    ].map((freq) => (
+                      <button
+                        key={freq}
+                        type="button"
+                        onClick={() => setFrequency(freq)}
+                        className={`py-1.5 px-1.5 rounded-[6px] text-[10px] font-bold border transition-colors cursor-pointer text-center truncate ${
+                          frequency === freq
+                            ? 'bg-emerald-800 text-white border-emerald-900 shadow-2xs'
+                            : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-emerald-500'
+                        }`}
+                      >
+                        {freq}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Modalità Accordo Compenso */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                    Accordo di Pagamento
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                    {[
+                      { id: 'fine_mese_giornate', label: 'A Fine Mese (somma uscite)' },
+                      { id: 'fine_ciclo_interventi', label: 'A Fine Interventi' },
+                      { id: 'canone_fisso_mensile', label: 'Canone Fisso Mensile' },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setBillingArrangement(item.id as any)}
+                        className={`py-1.5 px-2 rounded-[6px] text-[10px] font-bold border transition-colors cursor-pointer text-center leading-tight ${
+                          billingArrangement === item.id
+                            ? 'bg-emerald-800 text-white border-emerald-900 shadow-2xs'
+                            : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-emerald-500'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Calcolo Compenso: Tariffa a Giornata x Uscite Previste */}
+                <div className="grid grid-cols-2 gap-2 bg-white dark:bg-slate-900 p-2 rounded-[6px] border border-emerald-200/80 dark:border-emerald-900/50">
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                      Prezzo a Uscita / Giornata (€)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={ratePerSession}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setRatePerSession(val);
+                        const total = val * sessionsCount;
+                        setPrice(total);
+                      }}
+                      className="w-full p-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[6px] text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                      Uscite Previste nel Mese
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={sessionsCount}
+                      onChange={(e) => {
+                        const count = parseInt(e.target.value) || 1;
+                        setSessionsCount(count);
+                        const total = ratePerSession * count;
+                        setPrice(total);
+                      }}
+                      className="w-full p-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[6px] text-xs font-mono font-bold text-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-2 bg-emerald-100/60 dark:bg-emerald-950/50 rounded-[6px] flex items-center justify-between text-xs border border-emerald-200 dark:border-emerald-800">
+                  <div className="flex items-center gap-1.5 text-emerald-900 dark:text-emerald-200 text-[11px]">
+                    <Clock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                    <span>
+                      Totale concordato a fine mese ({sessionsCount} uscite x € {ratePerSession.toFixed(2)}):
+                    </span>
+                  </div>
+                  <strong className="font-mono text-sm text-emerald-800 dark:text-emerald-300">
+                    € {(ratePerSession * sessionsCount).toFixed(2)}
+                  </strong>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Financial & Payment Section */}
           <div className="p-2.5 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-[7px] space-y-2.5">
             <span className="font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wider block text-[11px] flex items-center gap-[7px]">
               <Euro className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
@@ -313,7 +508,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="space-y-1">
                 <label className="font-semibold text-slate-700 dark:text-slate-300 block text-xs">
-                  Prezzo Intervento (€) *
+                  Prezzo Totale Intervento (€) *
                 </label>
                 <div className="relative">
                   <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">€</span>
@@ -361,12 +556,12 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
               </div>
             </div>
 
-            {/* Stato Pagamento - Tastini Cliccabili senza tendina, senza spunta e con testo per intero */}
+            {/* Stato Pagamento - SU UNICO RIGO (3 colonne fisse) */}
             <div className="space-y-1">
               <label className="font-semibold text-slate-700 dark:text-slate-300 block text-xs">
                 Stato Pagamento
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-1.5">
                 {PAYMENT_STATUSES.map((ps) => {
                   const isSelected = paymentStatus === ps.id;
                   return (
@@ -378,7 +573,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                         if (ps.id === 'paid') setPaidAmount(price);
                         if (ps.id === 'unpaid') setPaidAmount(0);
                       }}
-                      className={`flex items-center justify-center py-2 px-3 rounded-[7px] text-xs font-bold transition-all cursor-pointer border text-center ${
+                      className={`flex items-center justify-center py-2 px-1.5 rounded-[7px] text-xs font-bold transition-all cursor-pointer border text-center ${
                         isSelected
                           ? ps.id === 'paid'
                             ? 'bg-emerald-700 text-white border-emerald-800 shadow-sm ring-2 ring-emerald-500/60'
@@ -395,12 +590,12 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
               </div>
             </div>
 
-            {/* Modalità Pagamento - Tastini Cliccabili senza emoticon e senza spunta */}
+            {/* Modalità Pagamento - SU 3 COLONNE OGNI RIGO */}
             <div className="space-y-1">
               <label className="font-semibold text-slate-700 dark:text-slate-300 block text-xs">
                 Modalità Pagamento Predefinita *
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+              <div className="grid grid-cols-3 gap-1.5">
                 {PAYMENT_METHODS.map((pm) => {
                   const isSelected = paymentMethod === pm.id;
                   return (
@@ -408,7 +603,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                       key={pm.id}
                       type="button"
                       onClick={() => setPaymentMethod(pm.id)}
-                      className={`flex items-center justify-center py-2 px-2.5 rounded-[7px] text-xs font-bold transition-all cursor-pointer border text-center ${
+                      className={`flex items-center justify-center py-2 px-2 rounded-[7px] text-xs font-bold transition-all cursor-pointer border text-center ${
                         isSelected
                           ? 'bg-emerald-800 dark:bg-emerald-700 text-white border-emerald-950 dark:border-emerald-500 shadow-sm ring-2 ring-emerald-400/60'
                           : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-emerald-600 hover:bg-emerald-50/50 dark:hover:bg-slate-800'
@@ -446,7 +641,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                   className="p-1.5 px-3 bg-emerald-800 hover:bg-emerald-700 text-white rounded-[7px] text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>{isAddingInstallment ? 'Annulla' : '+ Aggiungi Acconto'}</span>
+                  <span>{isAddingInstallment ? 'Annulla' : 'Aggiungi Acconto'}</span>
                 </button>
               </div>
 
@@ -486,11 +681,12 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                     </div>
                   </div>
 
+                  {/* Modalità Pagamento Acconto - SU 3 COLONNE OGNI RIGO */}
                   <div className="space-y-1">
                     <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
                       Modalità Pagamento Acconto
                     </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                    <div className="grid grid-cols-3 gap-1.5">
                       {PAYMENT_METHODS.map((pm) => {
                         const isSel = instMethod === pm.id;
                         return (
@@ -510,6 +706,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                       })}
                     </div>
                   </div>
+
 
                   <div className="space-y-1">
                     <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">

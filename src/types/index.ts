@@ -117,6 +117,13 @@ export interface Job {
   paymentMethod?: PaymentMethod;
   paidAmount?: number;
   installments?: PaymentInstallment[];
+  // Gestione Intervento Generale / Periodico con saldo fine mese o fine interventi
+  interventionType?: 'singolo' | 'generale';
+  billingArrangement?: 'standard' | 'fine_mese_giornate' | 'fine_ciclo_interventi' | 'canone_fisso_mensile';
+  frequency?: string; // es. "1 a settimana", "2 al mese", "ogni 2 settimane", "mensile"
+  sessionsCount?: number; // es. 4 interventi nel mese
+  ratePerSession?: number; // tariffa concordata a singola giornata / uscita
+  billingTermsNote?: string;
 }
 
 export type InventoryCategory = 'equipment' | 'material';

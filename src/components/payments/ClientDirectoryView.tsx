@@ -545,7 +545,7 @@ export const ClientDirectoryView: React.FC<ClientDirectoryViewProps> = ({
                                         onClick={() => onOpenAccontoModal(job)}
                                         className="p-[7px] px-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] rounded-[7px] shadow-2xs transition-colors shrink-0"
                                       >
-                                        + Acconto
+                                        Acconto
                                       </button>
                                     )}
                                   </div>
