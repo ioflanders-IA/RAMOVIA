@@ -145,6 +145,93 @@ function sanitizeForFirestore<T>(data: T): T {
   return clean;
 }
 
+/**
+ * Deduplicate and normalize users list:
+ * - Unifies "andblasi" and "Andrea Blasi" into a single profile ("Andrea Blasi")
+ * - Unifies "Alvaro Fazi" and ensures Alvaro Fazi is always Admin (never downgraded)
+ * - Ensures any known admin (or user previously set as admin) stays Admin
+ * - Merges duplicates by email or normalized name
+ * - Preserves the current authenticated user's record or the most complete record
+ */
+export function deduplicateUsers(rawUsers: User[], currentAuthUid?: string): User[] {
+  const mapByEmail = new Map<string, User>();
+  const mapByName = new Map<string, User>();
+  const result: User[] = [];
+
+  for (const u of rawUsers) {
+    if (!u) continue;
+    let name = (u.displayName || u.email || 'Utente').trim();
+    // Strip trailing tags like (Io), (Admin), (Operaio)
+    name = name.replace(/\s*\((Io|Admin|Operaio)\)\s*$/i, '').trim();
+
+    const emailKey = (u.email || '').toLowerCase().trim();
+    const nameLower = name.toLowerCase();
+
+    // Check known admins / identities
+    const isAndreaBlasi =
+      nameLower === 'andblasi' ||
+      nameLower === 'andrea blasi' ||
+      emailKey === 'andblasi@gmail.com' ||
+      emailKey === 'infoa.blasi@gmail.com' ||
+      emailKey.includes('andblasi');
+
+    const isAlvaroFazi =
+      nameLower.includes('alvaro') ||
+      nameLower.includes('fazi') ||
+      emailKey.includes('alvaro') ||
+      emailKey.includes('fazi');
+
+    if (isAndreaBlasi) {
+      name = 'Andrea Blasi';
+    } else if (isAlvaroFazi) {
+      name = 'Alvaro Fazi';
+    }
+
+    const isPermanentAdmin =
+      isAndreaBlasi ||
+      isAlvaroFazi ||
+      emailKey.includes('admin') ||
+      emailKey.includes('titolare') ||
+      nameLower.includes('admin') ||
+      nameLower.includes('titolare') ||
+      u.role === 'admin';
+
+    const normalizedUser: User = {
+      ...u,
+      displayName: name,
+      role: isPermanentAdmin ? 'admin' : (u.role || 'worker'),
+      linkedToAdmin: isPermanentAdmin ? true : (u.linkedToAdmin ?? false),
+    };
+
+    const existingByEmail = emailKey ? mapByEmail.get(emailKey) : undefined;
+    const existingByName = mapByName.get(name.toLowerCase());
+    const existing = existingByEmail || existingByName;
+
+    if (existing) {
+      const preferCurrent =
+        u.uid === currentAuthUid ||
+        (!existing.photoURL && !!u.photoURL) ||
+        (!existing.email && !!u.email) ||
+        (existing.displayName.toLowerCase() === 'andblasi' && name === 'Andrea Blasi');
+
+      if (preferCurrent) {
+        const idx = result.indexOf(existing);
+        if (idx >= 0) {
+          result[idx] = normalizedUser;
+          if (emailKey) mapByEmail.set(emailKey, normalizedUser);
+          mapByName.set(name.toLowerCase(), normalizedUser);
+        }
+      }
+    } else {
+      result.push(normalizedUser);
+      if (emailKey) mapByEmail.set(emailKey, normalizedUser);
+      mapByName.set(name.toLowerCase(), normalizedUser);
+    }
+  }
+
+  return result;
+}
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -152,7 +239,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-      return saved ? JSON.parse(saved) : null;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed) {
+          let name = (parsed.displayName || parsed.email || '').trim().replace(/\s*\((Io|Admin|Operaio)\)\s*$/i, '');
+          const nameLower = name.toLowerCase();
+          const emailLower = (parsed.email || '').toLowerCase();
+          const isKnownAdmin =
+            nameLower.includes('alvaro') ||
+            nameLower.includes('fazi') ||
+            nameLower === 'andblasi' ||
+            nameLower === 'andrea blasi' ||
+            emailLower === 'andblasi@gmail.com' ||
+            emailLower.includes('alvaro') ||
+            emailLower.includes('fazi') ||
+            parsed.role === 'admin';
+
+          if (nameLower === 'andblasi' || emailLower === 'andblasi@gmail.com') {
+            name = 'Andrea Blasi';
+          } else if (nameLower.includes('alvaro') || emailLower.includes('alvaro')) {
+            name = 'Alvaro Fazi';
+          }
+
+          return {
+            ...parsed,
+            displayName: name,
+            role: isKnownAdmin ? 'admin' : (parsed.role || 'worker'),
+            linkedToAdmin: isKnownAdmin ? true : (parsed.linkedToAdmin ?? false),
+          };
+        }
+      }
+      return null;
     } catch {
       return null;
     }
@@ -164,7 +281,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [users, setUsers] = useState<User[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.USERS);
-      return saved ? JSON.parse(saved) : [];
+      const parsed: User[] = saved ? JSON.parse(saved) : [];
+      return deduplicateUsers(parsed);
     } catch {
       return [];
     }
@@ -489,9 +607,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       (snap) => {
         const docs = snap.docs.map((d) => ({ uid: d.id, ...d.data() } as User));
         if (docs.length > 0) {
-          setUsers(docs);
+          const cleanDocs = deduplicateUsers(docs, auth?.currentUser?.uid);
+          setUsers(cleanDocs);
           try {
-            localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(docs));
+            localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cleanDocs));
           } catch (e) {
             console.warn(e);
           }
@@ -522,21 +641,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
       if (fbUser && !fbUser.isAnonymous && fbUser.email) {
         const emailLower = fbUser.email.toLowerCase();
-        const isAdmin =
+        let displayName = (fbUser.displayName || emailLower.split('@')[0] || 'Utente RAMOVIA').trim();
+        displayName = displayName.replace(/\s*\((Io|Admin|Operaio)\)\s*$/i, '').trim();
+        const nameLower = displayName.toLowerCase();
+
+        // Check if saved user in localStorage was already admin
+        let savedRole: UserRole | undefined;
+        try {
+          const savedStr = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+          if (savedStr) {
+            const parsed = JSON.parse(savedStr);
+            if (parsed && parsed.role) savedRole = parsed.role;
+          }
+        } catch {
+          // ignore
+        }
+
+        const isKnownAdmin =
           emailLower === 'andblasi@gmail.com' ||
           emailLower === 'infoa.blasi@gmail.com' ||
           emailLower.includes('admin') ||
-          emailLower.includes('titolare');
+          emailLower.includes('titolare') ||
+          emailLower.includes('alvaro') ||
+          emailLower.includes('fazi') ||
+          nameLower.includes('alvaro') ||
+          nameLower.includes('fazi') ||
+          nameLower.includes('andrea blasi') ||
+          nameLower === 'andblasi' ||
+          savedRole === 'admin';
+
+        if (nameLower === 'andblasi' || emailLower === 'andblasi@gmail.com' || emailLower === 'infoa.blasi@gmail.com') {
+          displayName = 'Andrea Blasi';
+        } else if (nameLower.includes('alvaro') || emailLower.includes('alvaro') || nameLower.includes('fazi')) {
+          displayName = 'Alvaro Fazi';
+        }
+
+        const roleToUse: UserRole = isKnownAdmin ? 'admin' : (savedRole || 'worker');
 
         const fallbackUser: User = {
           uid: fbUser.uid,
           email: emailLower,
-          displayName: fbUser.displayName || emailLower.split('@')[0] || 'Utente RAMOVIA',
+          displayName,
           photoURL: fbUser.photoURL || undefined,
-          role: isAdmin ? 'admin' : 'worker',
+          role: roleToUse,
           active: true,
-          workerCode: isAdmin ? undefined : 'OP-' + fbUser.uid.substring(0, 6).toUpperCase(),
-          linkedToAdmin: isAdmin ? true : false,
+          workerCode: roleToUse === 'admin' ? undefined : 'OP-' + fbUser.uid.substring(0, 6).toUpperCase(),
+          linkedToAdmin: roleToUse === 'admin',
           createdAt: new Date().toISOString(),
         };
 
@@ -550,10 +700,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         // Background sync user document in Firestore
         try {
-          const userDocData = await handleUserDocOnLogin(fbUser, isAdmin ? 'admin' : 'worker');
+          const userDocData = await handleUserDocOnLogin(fbUser, roleToUse);
           if (userDocData) {
-            setCurrentUser(userDocData);
-            localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(userDocData));
+            const safeDocData: User = {
+              ...userDocData,
+              role: isKnownAdmin ? 'admin' : userDocData.role,
+              displayName: displayName || userDocData.displayName,
+              linkedToAdmin: isKnownAdmin ? true : (userDocData.linkedToAdmin ?? false),
+            };
+            setCurrentUser(safeDocData);
+            try {
+              localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(safeDocData));
+            } catch {
+              // ignore
+            }
           }
         } catch (err) {
           console.warn('User doc sync error:', err);
@@ -566,9 +726,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             (snap) => {
               if (snap.exists()) {
                 const updated = snap.data() as User;
-                setCurrentUser(updated);
+                const safeUpdated: User = {
+                  ...updated,
+                  role: isKnownAdmin ? 'admin' : updated.role,
+                  displayName: displayName || updated.displayName,
+                  linkedToAdmin: isKnownAdmin ? true : (updated.linkedToAdmin ?? false),
+                };
+                setCurrentUser(safeUpdated);
                 try {
-                  localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updated));
+                  localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(safeUpdated));
                 } catch {
                   // ignore
                 }
@@ -588,6 +754,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           try {
             const parsed = JSON.parse(saved);
             if (parsed && parsed.email) {
+              const nameLower = (parsed.displayName || '').toLowerCase();
+              const emailLower = (parsed.email || '').toLowerCase();
+              const isKnownAdmin =
+                emailLower === 'andblasi@gmail.com' ||
+                emailLower === 'infoa.blasi@gmail.com' ||
+                emailLower.includes('admin') ||
+                emailLower.includes('titolare') ||
+                emailLower.includes('alvaro') ||
+                emailLower.includes('fazi') ||
+                nameLower.includes('alvaro') ||
+                nameLower.includes('fazi') ||
+                nameLower.includes('andrea blasi') ||
+                nameLower === 'andblasi' ||
+                parsed.role === 'admin';
+
+              if (isKnownAdmin) {
+                parsed.role = 'admin';
+                parsed.linkedToAdmin = true;
+              }
+              if (nameLower === 'andblasi' || emailLower === 'andblasi@gmail.com') {
+                parsed.displayName = 'Andrea Blasi';
+              } else if (nameLower.includes('alvaro') || emailLower.includes('alvaro')) {
+                parsed.displayName = 'Alvaro Fazi';
+              }
               setCurrentUser(parsed);
             }
           } catch {
@@ -662,17 +852,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     role: UserRole = 'admin'
   ): Promise<{ success: boolean; error?: string }> => {
     const cleanEmail = email.trim().toLowerCase();
-    const isOwner = role === 'admin' || cleanEmail.includes('admin') || cleanEmail.includes('titolare') || cleanEmail.includes('andblasi') || cleanEmail.includes('infoa.blasi');
+    const isOwner =
+      role === 'admin' ||
+      cleanEmail.includes('admin') ||
+      cleanEmail.includes('titolare') ||
+      cleanEmail.includes('andblasi') ||
+      cleanEmail.includes('infoa.blasi') ||
+      cleanEmail.includes('alvaro') ||
+      cleanEmail.includes('fazi');
     const effectiveRole: UserRole = isOwner ? 'admin' : role;
 
-    const existing = users.find((u) => u.email && u.email.toLowerCase() === cleanEmail);
+    let computedName = cleanEmail.split('@')[0].replace(/[._-]/g, ' ');
+    if (cleanEmail === 'andblasi@gmail.com' || cleanEmail.includes('andblasi')) {
+      computedName = 'Andrea Blasi';
+    } else if (cleanEmail.includes('alvaro') || cleanEmail.includes('fazi')) {
+      computedName = 'Alvaro Fazi';
+    }
+
+    const existing = users.find(
+      (u) =>
+        (u.email && u.email.toLowerCase() === cleanEmail) ||
+        (computedName === 'Andrea Blasi' && (u.displayName?.toLowerCase() === 'andblasi' || u.displayName?.toLowerCase() === 'andrea blasi')) ||
+        (computedName === 'Alvaro Fazi' && (u.displayName?.toLowerCase().includes('alvaro') || u.displayName?.toLowerCase().includes('fazi')))
+    );
+
     if (existing) {
       const updatedUser: User = {
         ...existing,
+        displayName: computedName,
         role: effectiveRole,
         linkedToAdmin: true,
       };
       setCurrentUser(updatedUser);
+      setUsers((prev) => deduplicateUsers(prev.map((u) => (u.uid === existing.uid ? updatedUser : u))));
       try {
         localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedUser));
       } catch {
@@ -684,7 +896,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newUser: User = {
       uid: auth?.currentUser?.uid || `usr_${Date.now()}`,
       email: cleanEmail,
-      displayName: cleanEmail.split('@')[0].replace(/[._-]/g, ' '),
+      displayName: computedName,
       role: effectiveRole,
       active: true,
       workerCode: isOwner ? undefined : generateWorkerCode(),
@@ -694,7 +906,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (db) {
       try {
-        await setDoc(doc(db, 'users', newUser.uid), sanitizeForFirestore(newUser));
+        await setDoc(doc(db, 'users', newUser.uid), sanitizeForFirestore(newUser), { merge: true });
       } catch (err) {
         console.warn('setDoc in loginWithEmail:', err);
       }
@@ -704,7 +916,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {
       // ignore
     }
-    setUsers((prev) => [...prev, newUser]);
+    setUsers((prev) => deduplicateUsers([...prev, newUser]));
     setCurrentUser(newUser);
     return { success: true };
   };

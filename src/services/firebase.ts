@@ -16,6 +16,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   onSnapshot,
   query,
   where,
@@ -112,14 +113,39 @@ export const handleUserDocOnLogin = async (
   preferredRole: UserRole = 'admin',
   overrideEmail?: string
 ): Promise<User> => {
-  const emailLower = (overrideEmail || fbUser.email || '').toLowerCase();
-  const isOwner = emailLower === 'andblasi@gmail.com' || emailLower === 'infoa.blasi@gmail.com' || emailLower.includes('admin') || emailLower.includes('titolare') || preferredRole === 'admin';
+  const emailLower = (overrideEmail || fbUser.email || '').toLowerCase().trim();
+  const nameRaw = (fbUser.displayName || '').trim();
+  const nameLower = nameRaw.toLowerCase();
 
-  const role: UserRole = isOwner ? 'admin' : preferredRole;
+  // Known admin list / patterns (including Alvaro Fazi & Andrea Blasi)
+  const isKnownAdmin =
+    emailLower === 'andblasi@gmail.com' ||
+    emailLower === 'infoa.blasi@gmail.com' ||
+    emailLower.includes('alvaro') ||
+    emailLower.includes('fazi') ||
+    nameLower.includes('alvaro') ||
+    nameLower.includes('fazi') ||
+    nameLower.includes('andblasi') ||
+    nameLower.includes('andrea blasi') ||
+    emailLower.includes('admin') ||
+    emailLower.includes('titolare') ||
+    preferredRole === 'admin';
+
+  // Display Name normalization: "andblasi" -> "Andrea Blasi", "alvaro fazi" -> "Alvaro Fazi"
+  let cleanDisplayName = nameRaw;
+  if (!cleanDisplayName || cleanDisplayName.toLowerCase() === 'andblasi' || emailLower === 'andblasi@gmail.com') {
+    cleanDisplayName = 'Andrea Blasi';
+  } else if (cleanDisplayName.toLowerCase().includes('alvaro') || cleanDisplayName.toLowerCase().includes('fazi')) {
+    cleanDisplayName = 'Alvaro Fazi';
+  }
+  // Strip any accidental "(Io)" suffix from stored displayName
+  cleanDisplayName = cleanDisplayName.replace(/\s*\(Io\)\s*$/i, '').trim();
+
+  const role: UserRole = isKnownAdmin ? 'admin' : preferredRole;
   const fallbackUser: User = {
     uid: fbUser.uid,
     email: emailLower || 'utente@ramovia.it',
-    displayName: fbUser.displayName || (emailLower ? emailLower.split('@')[0] : 'Titolare RAMOVIA'),
+    displayName: cleanDisplayName || 'Titolare RAMOVIA',
     photoURL: fbUser.photoURL || undefined,
     role,
     active: true,
@@ -134,12 +160,14 @@ export const handleUserDocOnLogin = async (
     const userRef = doc(db, 'users', fbUser.uid);
     const userSnap = await getDoc(userRef);
 
+    let finalUser: User;
+
     if (!userSnap.exists()) {
       const newUser: User = {
         ...fallbackUser,
-        role,
-        workerCode: role === 'worker' ? generateWorkerCode() : undefined,
-        linkedToAdmin: role === 'admin' ? true : false,
+        role: isKnownAdmin ? 'admin' : preferredRole,
+        workerCode: !isKnownAdmin && preferredRole === 'worker' ? generateWorkerCode() : undefined,
+        linkedToAdmin: isKnownAdmin ? true : false,
       };
 
       try {
@@ -147,27 +175,57 @@ export const handleUserDocOnLogin = async (
       } catch (e) {
         console.warn('setDoc user error:', e);
       }
-      return newUser;
+      finalUser = newUser;
     } else {
       const existingData = userSnap.data() as User;
+      // CRITICAL: An existing admin MUST NEVER be demoted to worker!
+      const isAlreadyAdmin = existingData.role === 'admin' || isKnownAdmin;
+      const finalRole: UserRole = isAlreadyAdmin ? 'admin' : (preferredRole || existingData.role || 'worker');
+
       const updatedData: Partial<User> = {
-        displayName: fbUser.displayName || existingData.displayName || fallbackUser.displayName,
+        displayName: cleanDisplayName || existingData.displayName || fallbackUser.displayName,
         photoURL: fbUser.photoURL || existingData.photoURL,
         email: emailLower || existingData.email || fallbackUser.email,
-        role: isOwner ? 'admin' : (preferredRole || existingData.role),
+        role: finalRole,
+        linkedToAdmin: finalRole === 'admin' ? true : (existingData.linkedToAdmin ?? false),
       };
-
-      if (role === 'admin') {
-        updatedData.linkedToAdmin = true;
-      }
 
       try {
         await updateDoc(userRef, updatedData);
       } catch (e) {
         console.warn('updateDoc user error:', e);
       }
-      return { ...existingData, ...updatedData };
+      finalUser = { ...existingData, ...updatedData };
     }
+
+    // Deduplication in Firestore: prune any old duplicate documents for this user (e.g. "andblasi" or duplicate email)
+    try {
+      const usersColl = collection(db, 'users');
+      // 1. By email
+      if (emailLower) {
+        const dupSnap = await getDocs(query(usersColl, where('email', '==', emailLower)));
+        for (const d of dupSnap.docs) {
+          if (d.id !== fbUser.uid) {
+            console.log('Removing duplicate user doc by email:', d.id);
+            await deleteDoc(doc(db, 'users', d.id));
+          }
+        }
+      }
+      // 2. By "andblasi" displayName if current user is Andrea Blasi
+      if (emailLower === 'andblasi@gmail.com' || cleanDisplayName === 'Andrea Blasi') {
+        const dupNameSnap = await getDocs(query(usersColl, where('displayName', '==', 'andblasi')));
+        for (const d of dupNameSnap.docs) {
+          if (d.id !== fbUser.uid) {
+            console.log('Removing duplicate andblasi doc:', d.id);
+            await deleteDoc(doc(db, 'users', d.id));
+          }
+        }
+      }
+    } catch (cleanErr) {
+      console.warn('User deduplication error:', cleanErr);
+    }
+
+    return finalUser;
   } catch (error) {
     console.warn('handleUserDocOnLogin Firestore error, using fallback:', error);
     return fallbackUser;

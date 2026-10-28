@@ -27,28 +27,70 @@ const PAYMENT_STATUSES: Array<{ id: JobPaymentStatus; label: string }> = [
 export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, onSave }) => {
   const { clients, users, inventory, currentUser } = useApp();
 
-  // Lista di tutti gli esecutori selezionabili, includendo sempre l'utente corrente in prima posizione
+  // Lista di tutti gli esecutori selezionabili, includendo sempre l'utente corrente in prima posizione e senza doppioni
   const availableWorkers = useMemo(() => {
     const list: Array<{ uid: string; displayName: string; role: string; isSelf: boolean }> = [];
-    
+    const seenNames = new Set<string>();
+    const seenEmails = new Set<string>();
+
     if (currentUser) {
+      let cleanSelfName = (currentUser.displayName || 'Titolare').replace(/\s*\(Io\)\s*$/i, '').trim();
+      const lowerSelf = cleanSelfName.toLowerCase();
+      if (lowerSelf === 'andblasi' || currentUser.email?.toLowerCase() === 'andblasi@gmail.com') {
+        cleanSelfName = 'Andrea Blasi';
+      } else if (lowerSelf.includes('alvaro') || lowerSelf.includes('fazi')) {
+        cleanSelfName = 'Alvaro Fazi';
+      }
+
       list.push({
         uid: currentUser.uid,
-        displayName: `${currentUser.displayName || 'Titolare'} (Io)`,
+        displayName: `${cleanSelfName} (Io)`,
         role: currentUser.role,
         isSelf: true,
       });
+
+      seenNames.add(cleanSelfName.toLowerCase());
+      if (cleanSelfName.toLowerCase() === 'andrea blasi') {
+        seenNames.add('andblasi');
+      }
+      if (currentUser.email) {
+        seenEmails.add(currentUser.email.toLowerCase().trim());
+      }
     }
 
     users.forEach((u) => {
-      if (!list.some((item) => item.uid === u.uid)) {
-        list.push({
-          uid: u.uid,
-          displayName: u.displayName || u.email,
-          role: u.role,
-          isSelf: false,
-        });
+      let cleanName = (u.displayName || u.email || 'Utente').replace(/\s*\(Io\)\s*$/i, '').trim();
+      const lowerName = cleanName.toLowerCase();
+      const emailKey = (u.email || '').toLowerCase().trim();
+
+      if (lowerName === 'andblasi' || emailKey === 'andblasi@gmail.com') {
+        cleanName = 'Andrea Blasi';
+      } else if (lowerName.includes('alvaro') || lowerName.includes('fazi')) {
+        cleanName = 'Alvaro Fazi';
       }
+
+      const normalizedKey = cleanName.toLowerCase();
+
+      // Skip if this matches current user or already added user
+      if (currentUser && u.uid === currentUser.uid) return;
+      if (list.some((item) => item.uid === u.uid)) return;
+      if (emailKey && seenEmails.has(emailKey)) return;
+      if (seenNames.has(normalizedKey)) return;
+      if (normalizedKey === 'andblasi' && seenNames.has('andrea blasi')) return;
+      if (normalizedKey === 'andrea blasi' && seenNames.has('andblasi')) return;
+
+      const isUserAdmin = u.role === 'admin' || normalizedKey === 'alvaro fazi' || normalizedKey === 'andrea blasi';
+
+      list.push({
+        uid: u.uid,
+        displayName: cleanName,
+        role: isUserAdmin ? 'admin' : u.role,
+        isSelf: false,
+      });
+
+      seenNames.add(normalizedKey);
+      if (normalizedKey === 'andrea blasi') seenNames.add('andblasi');
+      if (emailKey) seenEmails.add(emailKey);
     });
 
     return list;
