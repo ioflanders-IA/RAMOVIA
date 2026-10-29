@@ -351,24 +351,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                           : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-[7px]">
-                        <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate flex items-center gap-1.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate flex items-center gap-1.5 pt-0.5">
                           {isCompleted && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
                           <span className={isCompleted ? 'text-emerald-950 dark:text-emerald-200' : ''}>
                             {job.clientName}
                           </span>
                         </span>
 
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 px-2 py-0.5 rounded-[7px] border border-slate-200 dark:border-slate-700 shrink-0">
+                            {job.timeSlot}
+                          </span>
                           {isExpired && (
-                            <span className="text-[10px] text-amber-700 dark:text-amber-400 font-bold bg-amber-100/80 dark:bg-amber-900/40 px-1.5 py-0.5 rounded-[5px] border border-amber-300 dark:border-amber-700 flex items-center gap-1">
-                              <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                            <span className="text-[9px] text-amber-700 dark:text-amber-400 font-bold bg-amber-100/80 dark:bg-amber-900/40 px-1.5 py-0.5 rounded-[5px] border border-amber-300 dark:border-amber-700 flex items-center gap-1">
+                              <Clock className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />
                               <span>Orario terminato</span>
                             </span>
                           )}
-                          <span className="font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 p-[7px] py-0.5 rounded-[7px] border border-slate-200 dark:border-slate-700 shrink-0">
-                            {job.timeSlot}
-                          </span>
                         </div>
                       </div>
 
