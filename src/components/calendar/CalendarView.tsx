@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { Job } from '../../types';
 import { JobModal } from '../jobs/JobModal';
 import { SquadWorkersRegistry } from './SquadWorkersRegistry';
+import { formatLocalDate, parseLocalDate, formatItalianDate } from '../../utils/dateUtils';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -84,8 +85,8 @@ export const CalendarView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedJobForEdit, setSelectedJobForEdit] = useState<Job | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
-  const [newJobDate, setNewJobDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [selectedDateISO, setSelectedDateISO] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [newJobDate, setNewJobDate] = useState<string>(() => formatLocalDate(new Date()));
+  const [selectedDateISO, setSelectedDateISO] = useState<string>(() => formatLocalDate(new Date()));
 
   // Long-press delete state
   const [activeDeleteJobId, setActiveDeleteJobId] = useState<string | null>(null);
@@ -94,7 +95,7 @@ export const CalendarView: React.FC = () => {
   // Quick Month/Year Dropdown
   const [showMonthPicker, setShowMonthPicker] = useState(false);
 
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayStr = useMemo(() => formatLocalDate(new Date()), []);
 
   // Filter jobs based on worker, status and search query
   const filteredJobs = useMemo(() => {
@@ -103,6 +104,7 @@ export const CalendarView: React.FC = () => {
       if (workerFilter !== 'all') {
         const matchesWorker =
           job.assignedWorkerId === workerFilter ||
+          (job.assignedWorkerIds && job.assignedWorkerIds.includes(workerFilter)) ||
           (workerFilter === currentUser?.uid &&
             (job.assignedWorkerName?.toLowerCase().includes('andrea') ||
               job.assignedWorkerName?.toLowerCase().includes('blasi') ||
@@ -127,29 +129,23 @@ export const CalendarView: React.FC = () => {
   }, [jobs, workerFilter, statusFilter, searchQuery, currentUser]);
 
   const selectedDateObj = useMemo(() => {
-    if (!selectedDateISO) return new Date();
-    const parts = selectedDateISO.split('-');
-    if (parts.length === 3) {
-      return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-    }
-    return new Date();
+    return parseLocalDate(selectedDateISO);
   }, [selectedDateISO]);
 
   const selectedDayJobs = useMemo(() => {
     return filteredJobs.filter((job) => isJobScheduledOnDate(job, selectedDateISO));
   }, [filteredJobs, selectedDateISO]);
 
-  // WEEK NAVIGATION & DATES
+  // WEEK NAVIGATION & DATES (computed with midday hour to avoid DST shifts)
   const getWeekDates = (baseDate: Date) => {
-    const current = new Date(baseDate);
+    const current = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), 12, 0, 0);
     const day = current.getDay();
     const diff = current.getDate() - day + (day === 0 ? -6 : 1); // Monday is start
-    const monday = new Date(current.setDate(diff));
+    const monday = new Date(current.getFullYear(), current.getMonth(), diff, 12, 0, 0);
 
     const week: Date[] = [];
     for (let i = 0; i < 7; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
+      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i, 12, 0, 0);
       week.push(d);
     }
     return week;
@@ -157,13 +153,13 @@ export const CalendarView: React.FC = () => {
 
   const weekDates = useMemo(() => getWeekDates(currentDate), [currentDate]);
 
-  // MONTH NAVIGATION & MATRIX
+  // MONTH NAVIGATION & MATRIX (computed using local date helpers to avoid UTC day-offset)
   const monthMatrix = useMemo(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
 
-    const firstDayOfMonth = new Date(year, month, 1);
-    const lastDayOfMonth = new Date(year, month + 1, 0);
+    const firstDayOfMonth = new Date(year, month, 1, 12, 0, 0);
+    const lastDayOfMonth = new Date(year, month + 1, 0, 12, 0, 0);
 
     const startDayOfWeek = (firstDayOfMonth.getDay() + 6) % 7;
     const totalDays = lastDayOfMonth.getDate();
@@ -171,25 +167,25 @@ export const CalendarView: React.FC = () => {
     const cells: { date: Date; dateISO: string; isCurrentMonth: boolean; isToday: boolean }[] = [];
 
     // Leading days from previous month
-    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    const prevMonthLastDay = new Date(year, month, 0, 12, 0, 0).getDate();
     for (let i = startDayOfWeek - 1; i >= 0; i--) {
-      const d = new Date(year, month - 1, prevMonthLastDay - i);
-      const iso = d.toISOString().split('T')[0];
+      const d = new Date(year, month - 1, prevMonthLastDay - i, 12, 0, 0);
+      const iso = formatLocalDate(d);
       cells.push({ date: d, dateISO: iso, isCurrentMonth: false, isToday: iso === todayStr });
     }
 
     // Days of current month
     for (let i = 1; i <= totalDays; i++) {
-      const d = new Date(year, month, i);
-      const iso = d.toISOString().split('T')[0];
+      const d = new Date(year, month, i, 12, 0, 0);
+      const iso = formatLocalDate(d);
       cells.push({ date: d, dateISO: iso, isCurrentMonth: true, isToday: iso === todayStr });
     }
 
     // Trailing days to fill standard 35 or 42 grid
     const remaining = (7 - (cells.length % 7)) % 7;
     for (let i = 1; i <= remaining; i++) {
-      const d = new Date(year, month + 1, i);
-      const iso = d.toISOString().split('T')[0];
+      const d = new Date(year, month + 1, i, 12, 0, 0);
+      const iso = formatLocalDate(d);
       cells.push({ date: d, dateISO: iso, isCurrentMonth: false, isToday: iso === todayStr });
     }
 
@@ -301,6 +297,44 @@ export const CalendarView: React.FC = () => {
           dot: 'bg-amber-500',
         };
     }
+  };
+
+  // Helper to determine aggregate status style for a given day's jobs
+  const getDayStatusStyle = (jobsOnDay: Job[]) => {
+    if (jobsOnDay.length === 0) return null;
+
+    const hasInProgress = jobsOnDay.some((j) => j.status === 'in_progress');
+    if (hasInProgress) {
+      return {
+        bg: 'bg-sky-100 dark:bg-sky-950/70 text-sky-900 dark:text-sky-200 border border-sky-400 dark:border-sky-600 hover:bg-sky-200',
+        dot: 'bg-sky-500',
+        label: 'In Corso',
+      };
+    }
+
+    const hasScheduled = jobsOnDay.some((j) => j.status === 'scheduled');
+    if (hasScheduled) {
+      return {
+        bg: 'bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border border-amber-400 dark:border-amber-600 hover:bg-amber-200',
+        dot: 'bg-amber-500',
+        label: 'Programmato',
+      };
+    }
+
+    const allCompleted = jobsOnDay.every((j) => j.status === 'completed');
+    if (allCompleted) {
+      return {
+        bg: 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-900 dark:text-emerald-200 border border-emerald-400 dark:border-emerald-600 hover:bg-emerald-200',
+        dot: 'bg-emerald-500',
+        label: 'Ultimato',
+      };
+    }
+
+    return {
+      bg: 'bg-rose-100 dark:bg-rose-950/70 text-rose-900 dark:text-rose-200 border border-rose-400 dark:border-rose-600 hover:bg-rose-200',
+      dot: 'bg-rose-500',
+      label: 'Annullato',
+    };
   };
 
   // Header Title based on active mode
@@ -664,7 +698,7 @@ export const CalendarView: React.FC = () => {
             {calendarMode === 'week' && (
               <div className="grid grid-cols-1 md:grid-cols-7 gap-[3px]">
                 {weekDates.map((dayDate) => {
-                  const dateISO = dayDate.toISOString().split('T')[0];
+                  const dateISO = formatLocalDate(dayDate);
                   const isToday = dateISO === todayStr;
                   const dayJobs = filteredJobs.filter((job) => isJobScheduledOnDate(job, dateISO));
 
@@ -1125,25 +1159,28 @@ export const CalendarView: React.FC = () => {
                             const isCurrentDay = dISO === todayStr;
                             const jobsOnDay = filteredJobs.filter((j) => isJobScheduledOnDate(j, dISO));
 
+                            const dayStatus = jobsOnDay.length > 0 ? getDayStatusStyle(jobsOnDay) : null;
+
                             return (
                               <button
                                 key={dayNum}
                                 onClick={() => {
+                                  setSelectedDateISO(dISO);
                                   setCurrentDate(new Date(currentYear, monthIndex, dayNum));
-                                  setCalendarMode('day');
+                                  setCalendarMode('month');
                                 }}
                                 className={`h-5 w-5 mx-auto rounded-full text-[10px] font-mono flex items-center justify-center transition-all cursor-pointer relative ${
                                   isCurrentDay
                                     ? 'bg-emerald-700 text-white font-bold ring-1 ring-emerald-500'
-                                    : jobsOnDay.length > 0
-                                    ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 font-bold hover:bg-emerald-200'
+                                    : dayStatus
+                                    ? dayStatus.bg
                                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                                 }`}
-                                title={`${dayNum} ${monthName}: ${jobsOnDay.length} interventi`}
+                                title={`${dayNum} ${monthName}: ${jobsOnDay.length} interventi${dayStatus ? ` (${dayStatus.label})` : ''}`}
                               >
                                 <span>{dayNum}</span>
-                                {jobsOnDay.length > 0 && !isCurrentDay && (
-                                  <span className="absolute -bottom-0.5 w-1 h-1 rounded-full bg-emerald-600" />
+                                {dayStatus && !isCurrentDay && (
+                                  <span className={`absolute -bottom-0.5 w-1 h-1 rounded-full ${dayStatus.dot}`} />
                                 )}
                               </button>
                             );
@@ -1287,7 +1324,7 @@ export const CalendarView: React.FC = () => {
                   {currentUser?.role === 'admin' && (
                     <button
                       onClick={() => {
-                        setNewJobDate(currentDate.toISOString().split('T')[0]);
+                        setNewJobDate(formatLocalDate(currentDate));
                         setIsCreatingNew(true);
                       }}
                       className="flex items-center gap-1 px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-[5px] shadow-xs transition-colors cursor-pointer"
@@ -1300,7 +1337,7 @@ export const CalendarView: React.FC = () => {
 
                 {/* Day's jobs list with long-press delete */}
                 {(() => {
-                  const targetDayISO = currentDate.toISOString().split('T')[0];
+                  const targetDayISO = formatLocalDate(currentDate);
                   const dayJobs = filteredJobs.filter((job) => isJobScheduledOnDate(job, targetDayISO));
 
                   if (dayJobs.length === 0) {

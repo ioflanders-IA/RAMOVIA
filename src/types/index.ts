@@ -101,6 +101,8 @@ export interface Job {
   clientPhone?: string;
   assignedWorkerId: string;
   assignedWorkerName: string;
+  assignedWorkerIds?: string[];
+  assignedWorkerNames?: string[];
   date: string; // YYYY-MM-DD
   timeSlot: string; // e.g. "08:30 - 12:30"
   status: JobStatus;

@@ -471,7 +471,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                 .slice(0, 5)
                 .map((worker) => {
                   const workerJobsToday = todayJobs.filter(
-                    (j) => j.assignedWorkerId === worker.uid || j.assignedWorkerName === worker.displayName
+                    (j) =>
+                      j.assignedWorkerId === worker.uid ||
+                      (j.assignedWorkerIds && j.assignedWorkerIds.includes(worker.uid)) ||
+                      (j.assignedWorkerName && j.assignedWorkerName.includes(worker.displayName))
                   );
                   return (
                     <div

@@ -4,6 +4,7 @@ import { Job, WorkReport } from '../../types';
 import { ReportSubmissionModal } from './ReportSubmissionModal';
 import { WorkReportModal } from '../report/WorkReportModal';
 import { FormattedNote } from '../common/FormattedNote';
+import { formatLocalDate } from '../../utils/dateUtils';
 import {
   Calendar,
   Clock,
@@ -45,12 +46,14 @@ export const WorkerView: React.FC = () => {
     return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Filter jobs strictly assigned to this worker
-  const myJobs = jobs.filter((j) => j.assignedWorkerId === currentUser?.uid);
+  // Filter jobs assigned to this worker (single or multi-worker team)
+  const myJobs = jobs.filter(
+    (j) => j.assignedWorkerId === currentUser?.uid || (j.assignedWorkerIds && j.assignedWorkerIds.includes(currentUser?.uid || ''))
+  );
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayJobs = myJobs.filter((j) => j.date === todayStr);
-  const otherJobs = myJobs.filter((j) => j.date !== todayStr);
+  const todayStr = formatLocalDate(new Date());
+  const todayJobs = myJobs.filter((j) => j.date === todayStr || (j.plannedDates && j.plannedDates.includes(todayStr)));
+  const otherJobs = myJobs.filter((j) => j.date !== todayStr && (!j.plannedDates || !j.plannedDates.includes(todayStr)));
 
   const handleStartWork = (jobId: string) => {
     startJob(jobId);

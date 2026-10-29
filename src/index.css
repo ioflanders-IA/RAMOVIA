@@ -99,6 +99,8 @@
 }
 
 /* Dark mode Leaflet tile inversion ONLY for standard street tiles */
+.dark .street-tiles .leaflet-tile,
+.dark .street-tiles img,
 .dark .leaflet-tile.street-tiles,
 .dark img.leaflet-tile.street-tiles {
   filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(1.2) !important;
@@ -106,6 +108,10 @@
 }
 
 /* Satellite tiles are ALWAYS 100% natural photographic colors */
+.satellite-tiles .leaflet-tile,
+.satellite-tiles img,
+.dark .satellite-tiles .leaflet-tile,
+.dark .satellite-tiles img,
 .leaflet-tile.satellite-tiles,
 .dark .leaflet-tile.satellite-tiles,
 img.satellite-tiles,

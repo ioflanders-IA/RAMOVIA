@@ -92,7 +92,7 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
         {
           subdomains: ['0', '1', '2', '3'],
           attribution: '&copy; Google Satellite Imagery',
-          maxZoom: 21,
+          maxZoom: 20,
           className: 'satellite-tiles',
         }
       );
@@ -141,8 +141,10 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
       });
 
       const initialTile = createMapTileLayer(mapLayer).addTo(map);
+      if ('bringToBack' in initialTile) {
+        (initialTile as any).bringToBack();
+      }
       inlineTileLayerRef.current = initialTile;
-      map.getContainer().classList.toggle('satellite-mode', mapLayer === 'satellite');
 
       const marker = L.marker([initialLat, initialLng], {
         draggable: true,
@@ -157,9 +159,12 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
       markerRef.current = marker;
       mapInstanceRef.current = map;
 
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 150);
+      const invalidate = () => {
+        if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
+      };
+      invalidate();
+      setTimeout(invalidate, 150);
+      setTimeout(invalidate, 400);
     }
   }, []);
 
@@ -177,8 +182,10 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
     });
 
     const initialFullTile = createMapTileLayer(mapLayer).addTo(fullMap);
+    if ('bringToBack' in initialFullTile) {
+      (initialFullTile as any).bringToBack();
+    }
     fullTileLayerRef.current = initialFullTile;
-    fullMap.getContainer().classList.toggle('satellite-mode', mapLayer === 'satellite');
 
     const fullMarker = L.marker([initialLat, initialLng], {
       draggable: true,
@@ -209,9 +216,12 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
 
     fullMap.on('click', handleFullMapClick);
 
-    setTimeout(() => {
-      fullMap.invalidateSize();
-    }, 150);
+    const invalidate = () => {
+      if (fullMapInstanceRef.current) fullMapInstanceRef.current.invalidateSize();
+    };
+    invalidate();
+    setTimeout(invalidate, 150);
+    setTimeout(invalidate, 400);
 
     return () => {
       fullMap.off('click', handleFullMapClick);
@@ -220,20 +230,49 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
     };
   }, [isFullScreen, mode]);
 
-  // Swap tile layer on both maps when mapLayer changes (Stradale / Satellite)
+  // Swap tile layer on both maps cleanly when mapLayer changes (Stradale / Satellite)
+  const isFirstInlineTileSwap = useRef(true);
   useEffect(() => {
     const inlineMap = mapInstanceRef.current;
     if (inlineMap) {
-      inlineMap.getContainer().classList.toggle('satellite-mode', mapLayer === 'satellite');
-      if (inlineTileLayerRef.current) inlineMap.removeLayer(inlineTileLayerRef.current);
-      inlineTileLayerRef.current = createMapTileLayer(mapLayer).addTo(inlineMap);
+      if (isFirstInlineTileSwap.current) {
+        isFirstInlineTileSwap.current = false;
+      } else {
+        if (inlineTileLayerRef.current) {
+          inlineMap.removeLayer(inlineTileLayerRef.current);
+          inlineTileLayerRef.current = null;
+        }
+        const newLayer = createMapTileLayer(mapLayer);
+        newLayer.addTo(inlineMap);
+        if ('bringToBack' in newLayer) {
+          (newLayer as any).bringToBack();
+        }
+        inlineTileLayerRef.current = newLayer;
+
+        inlineMap.invalidateSize();
+        setTimeout(() => {
+          if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
+        }, 100);
+      }
     }
 
     const fullMap = fullMapInstanceRef.current;
     if (fullMap) {
-      fullMap.getContainer().classList.toggle('satellite-mode', mapLayer === 'satellite');
-      if (fullTileLayerRef.current) fullMap.removeLayer(fullTileLayerRef.current);
-      fullTileLayerRef.current = createMapTileLayer(mapLayer).addTo(fullMap);
+      if (fullTileLayerRef.current) {
+        fullMap.removeLayer(fullTileLayerRef.current);
+        fullTileLayerRef.current = null;
+      }
+      const newLayer = createMapTileLayer(mapLayer);
+      newLayer.addTo(fullMap);
+      if ('bringToBack' in newLayer) {
+        (newLayer as any).bringToBack();
+      }
+      fullTileLayerRef.current = newLayer;
+
+      fullMap.invalidateSize();
+      setTimeout(() => {
+        if (fullMapInstanceRef.current) fullMapInstanceRef.current.invalidateSize();
+      }, 100);
     }
   }, [mapLayer]);
 
@@ -497,7 +536,7 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
 
       {/* Inline Map Frame */}
       <div className="relative w-full h-[240px] rounded-[7px] border border-slate-300 dark:border-slate-700 overflow-hidden shadow-inner">
-        <div ref={mapContainerRef} className={`w-full h-full ${mapLayer === 'satellite' ? 'satellite-mode' : ''}`} />
+        <div ref={mapContainerRef} className="w-full h-full" />
 
         {/* Floating Area Indicator in Bottom Right Corner (Fixed min-width) */}
         <div className="absolute bottom-[24px] right-[8px] z-[400] bg-slate-900/90 text-emerald-400 border border-emerald-800/80 rounded-[7px] p-[5px] px-3 shadow-md flex items-center justify-center gap-1.5 text-xs font-mono font-bold tabular-nums min-w-[115px] select-none">
@@ -606,7 +645,7 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
 
           {/* Full Screen Map Viewport */}
           <div className="relative flex-1 w-full rounded-[7px] border border-slate-800 overflow-hidden shadow-2xl">
-            <div ref={fullMapContainerRef} className={`w-full h-full ${mapLayer === 'satellite' ? 'satellite-mode' : ''}`} />
+            <div ref={fullMapContainerRef} className="w-full h-full" />
 
             {/* Fixed-Width Square Meter Badge in Bottom Right Corner (Where indicated in red box) */}
             <div className="absolute bottom-[24px] right-[8px] z-[400] bg-slate-900/90 text-emerald-400 border border-emerald-800/80 rounded-[7px] p-[6px] px-3 shadow-xl flex items-center justify-center gap-1.5 text-xs font-mono font-bold tabular-nums min-w-[120px] select-none">

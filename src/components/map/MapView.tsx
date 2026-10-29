@@ -3,6 +3,7 @@ import L from 'leaflet';
 import { Job, PolygonPoint, Client } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { MapPin, Search, Layers, Compass } from 'lucide-react';
+import { formatLocalDate } from '../../utils/dateUtils';
 
 interface MapViewProps {
   onSelectJob?: (job: Job) => void;
@@ -14,7 +15,7 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const tileLayerRef = useRef<L.Layer | null>(null);
+  const currentTileLayerRef = useRef<L.TileLayer | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const polygonsLayerRef = useRef<L.LayerGroup | null>(null);
 
@@ -26,15 +27,38 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = formatLocalDate(new Date());
 
   // Filter jobs
   const activeJobs = jobs.filter((job) => {
-    if (workerFilter !== 'all' && job.assignedWorkerId !== workerFilter) return false;
+    if (
+      workerFilter !== 'all' &&
+      job.assignedWorkerId !== workerFilter &&
+      (!job.assignedWorkerIds || !job.assignedWorkerIds.includes(workerFilter))
+    ) {
+      return false;
+    }
     if (statusFilter !== 'all' && job.status !== statusFilter) return false;
-    if (dateFilter === 'today' && job.date !== todayStr) return false;
+    if (dateFilter === 'today' && job.date !== todayStr && (!job.plannedDates || !job.plannedDates.includes(todayStr))) return false;
     return true;
   });
+
+  // Helper to create street or satellite base layer
+  const createTileLayer = (type: 'street' | 'satellite') => {
+    if (type === 'satellite') {
+      return L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        subdomains: ['0', '1', '2', '3'],
+        attribution: '&copy; Google Satellite Imagery',
+        maxZoom: 20,
+        className: 'satellite-tiles',
+      });
+    }
+    return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19,
+      className: 'street-tiles',
+    });
+  };
 
   // Initialize Map
   useEffect(() => {
@@ -47,12 +71,9 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
         zoomControl: true,
       });
 
-      const initialTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-        maxZoom: 19,
-        className: 'street-tiles',
-      }).addTo(map);
-      tileLayerRef.current = initialTileLayer;
+      const initialLayer = createTileLayer(mapLayer);
+      initialLayer.addTo(map);
+      currentTileLayerRef.current = initialLayer;
 
       markersLayerRef.current = L.layerGroup().addTo(map);
       polygonsLayerRef.current = L.layerGroup().addTo(map);
@@ -87,38 +108,40 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
   }, []);
 
   // Swap tile layer when mapLayer changes (Stradale / Satellite)
+  const isFirstLayerRender = useRef(true);
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    map.getContainer().classList.toggle('satellite-mode', mapLayer === 'satellite');
-
-    if (tileLayerRef.current) {
-      map.removeLayer(tileLayerRef.current);
+    if (isFirstLayerRender.current) {
+      isFirstLayerRender.current = false;
+      return;
     }
 
-    if (mapLayer === 'satellite') {
-      const satLayer = L.tileLayer(
-        'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
-        {
-          subdomains: ['0', '1', '2', '3'],
-          attribution: '&copy; Google Satellite Imagery',
-          maxZoom: 21,
-          className: 'satellite-tiles',
-        }
-      ).addTo(map);
-      tileLayerRef.current = satLayer;
-    } else {
-      const streetLayer = L.tileLayer(
-        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        {
-          attribution: '&copy; OpenStreetMap contributors',
-          maxZoom: 19,
-          className: 'street-tiles',
-        }
-      ).addTo(map);
-      tileLayerRef.current = streetLayer;
+    if (currentTileLayerRef.current) {
+      map.removeLayer(currentTileLayerRef.current);
+      currentTileLayerRef.current = null;
     }
+
+    const newLayer = createTileLayer(mapLayer);
+    newLayer.addTo(map);
+    if ('bringToBack' in newLayer) {
+      (newLayer as any).bringToBack();
+    }
+    currentTileLayerRef.current = newLayer;
+
+    map.invalidateSize();
+    const t1 = setTimeout(() => {
+      if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
+    }, 80);
+    const t2 = setTimeout(() => {
+      if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
+    }, 300);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, [mapLayer]);
 
   // Update Markers for ALL Registered Clients + Active Job Overlays
@@ -420,7 +443,7 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
       <div className="relative flex-1 w-full min-h-[400px] rounded-[7px] overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm">
         <div
           ref={mapContainerRef}
-          className={`w-full h-full min-h-[400px] ${mapLayer === 'satellite' ? 'satellite-mode' : ''}`}
+          className="w-full h-full min-h-[400px]"
         />
 
         {clients.length === 0 && (

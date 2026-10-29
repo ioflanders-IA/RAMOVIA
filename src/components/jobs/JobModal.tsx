@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Job, JobStatus, JobPaymentStatus, MaterialRequirement, PaymentMethod, PaymentInstallment } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { X, Trash2, Package, Euro, User, UserCheck, Plus, Check, Repeat, Clock, AlertCircle, Calendar as CalendarIcon } from 'lucide-react';
+import { X, Trash2, Package, Euro, User, UserCheck, Plus, Check, Repeat, Clock, AlertCircle, Calendar as CalendarIcon, Users } from 'lucide-react';
+import { formatLocalDate, parseLocalDate, formatItalianDate } from '../../utils/dateUtils';
 
 interface JobModalProps {
   job?: Job | null;
@@ -98,15 +99,32 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
 
   const [clientId, setClientId] = useState<string>(job?.clientId || clients[0]?.id || '');
   
-  // Di default assegna all'intervento esistente, oppure a se stesso (currentUser), oppure al primo operaio disponibile
-  const [assignedWorkerId, setAssignedWorkerId] = useState<string>(() => {
-    if (job?.assignedWorkerId) return job.assignedWorkerId;
-    if (currentUser?.uid) return currentUser.uid;
-    return users.find((u) => u.role === 'worker')?.uid || '';
+  // Support multiple assigned workers (squadra di lavoro)
+  const [assignedWorkerIds, setAssignedWorkerIds] = useState<string[]>(() => {
+    if (job?.assignedWorkerIds && job.assignedWorkerIds.length > 0) {
+      return [...job.assignedWorkerIds];
+    }
+    if (job?.assignedWorkerId) {
+      return [job.assignedWorkerId];
+    }
+    if (currentUser?.uid) return [currentUser.uid];
+    const firstWorker = users.find((u) => u.role === 'worker');
+    return firstWorker ? [firstWorker.uid] : [];
   });
 
+  const toggleWorkerSelection = (workerUid: string) => {
+    setAssignedWorkerIds((prev) => {
+      if (prev.includes(workerUid)) {
+        if (prev.length === 1) return prev; // keep at least one
+        return prev.filter((id) => id !== workerUid);
+      } else {
+        return [...prev, workerUid];
+      }
+    });
+  };
+
   const [date, setDate] = useState<string>(
-    job?.date || initialDate || new Date().toISOString().split('T')[0]
+    job?.date || initialDate || formatLocalDate(new Date())
   );
   const [timeSlot, setTimeSlot] = useState<string>(job?.timeSlot || '08:30 - 12:30');
   const [status, setStatus] = useState<JobStatus>(job?.status || 'scheduled');
@@ -154,12 +172,12 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
   // Date pianificate liberamente dall'utente
   const [plannedDates, setPlannedDates] = useState<string[]>(() => {
     if (job?.plannedDates && job.plannedDates.length > 0) return [...job.plannedDates];
-    return [job?.date || initialDate || new Date().toISOString().split('T')[0]];
+    return [job?.date || initialDate || formatLocalDate(new Date())];
   });
   const [dateToAdd, setDateToAdd] = useState<string>(() => {
     const d = new Date();
     d.setDate(d.getDate() + 7);
-    return d.toISOString().split('T')[0];
+    return formatLocalDate(d);
   });
 
   const [billingTermsNote, setBillingTermsNote] = useState<string>(
@@ -202,10 +220,10 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
   };
 
   const handleAddDaysShortcut = (days: number) => {
-    const lastDateStr = plannedDates[plannedDates.length - 1] || new Date().toISOString().split('T')[0];
-    const lastDate = new Date(lastDateStr);
+    const lastDateStr = plannedDates[plannedDates.length - 1] || formatLocalDate(new Date());
+    const lastDate = parseLocalDate(lastDateStr);
     lastDate.setDate(lastDate.getDate() + days);
-    const newStr = lastDate.toISOString().split('T')[0];
+    const newStr = formatLocalDate(lastDate);
     handleAddPlannedDate(newStr);
   };
 
@@ -213,7 +231,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
   const [installments, setInstallments] = useState<PaymentInstallment[]>(job?.installments || []);
   const [isAddingInstallment, setIsAddingInstallment] = useState(false);
   const [instAmount, setInstAmount] = useState<number>(50);
-  const [instDate, setInstDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [instDate, setInstDate] = useState<string>(formatLocalDate(new Date()));
   const [instMethod, setInstMethod] = useState<PaymentMethod>(paymentMethod);
   const [instNotes, setInstNotes] = useState<string>('');
 
@@ -232,11 +250,6 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
   const [selectedMatQty, setSelectedMatQty] = useState<number>(1);
 
   const selectedClient = clients.find((c) => c.id === clientId);
-  const selectedWorker =
-    availableWorkers.find((u) => u.uid === assignedWorkerId) ||
-    (currentUser && currentUser.uid === assignedWorkerId
-      ? { uid: currentUser.uid, displayName: currentUser.displayName || 'Titolare', role: currentUser.role, isSelf: true }
-      : null);
 
   const handleAddMaterial = () => {
     if (!selectedMatId) return;
@@ -270,7 +283,21 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedClient || !selectedWorker) return;
+    if (!selectedClient) return;
+
+    // Resolve all assigned workers (squadra)
+    const selectedWorkers = availableWorkers.filter((w) => assignedWorkerIds.includes(w.uid));
+    const fallbackWorker = availableWorkers[0] || {
+      uid: currentUser?.uid || 'unknown',
+      displayName: currentUser?.displayName || 'Titolare',
+      role: 'admin',
+      isSelf: true,
+    };
+    const primaryWorker = selectedWorkers[0] || fallbackWorker;
+    const workerNames = selectedWorkers.length > 0
+      ? selectedWorkers.map((w) => (w.isSelf ? (currentUser?.displayName || 'Titolare') : w.displayName))
+      : [primaryWorker.displayName];
+    const combinedWorkerName = workerNames.join(', ');
 
     onSave({
       clientId: selectedClient.id,
@@ -279,11 +306,11 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
       clientPhone: selectedClient.phone,
       lat: selectedClient.lat,
       lng: selectedClient.lng,
-      assignedWorkerId: selectedWorker.uid,
-      assignedWorkerName: selectedWorker.isSelf
-        ? (currentUser?.displayName || 'Titolare')
-        : selectedWorker.displayName,
-      date: interventionType === 'generale' ? (plannedDates[0] || date) : (date || plannedDates[0] || new Date().toISOString().split('T')[0]),
+      assignedWorkerId: primaryWorker.uid,
+      assignedWorkerName: combinedWorkerName,
+      assignedWorkerIds: assignedWorkerIds.length > 0 ? assignedWorkerIds : [primaryWorker.uid],
+      assignedWorkerNames: workerNames,
+      date: interventionType === 'generale' ? (plannedDates[0] || date) : (date || plannedDates[0] || formatLocalDate(new Date())),
       timeSlot,
       status,
       title,
@@ -344,51 +371,74 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
             </select>
           </div>
 
-          {/* Worker (Esecutore), Date, TimeSlot */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-[7px]">
-            <div className="space-y-[7px]">
-              <div className="flex items-center justify-between">
-                <label className="font-semibold text-slate-700 dark:text-slate-300 block">
-                  Esecutore Assegnato *
-                </label>
-                {currentUser && assignedWorkerId !== currentUser.uid && (
+          {/* Operai Assegnati (supporto esecutori multipli / squadra) */}
+          <div className="space-y-1.5 bg-slate-50 dark:bg-slate-800/60 p-2 rounded-[7px] border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between">
+              <label className="font-semibold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Operai Assegnati ({assignedWorkerIds.length}) *</span>
+              </label>
+              <div className="flex items-center gap-2">
+                {currentUser && !assignedWorkerIds.includes(currentUser.uid) && (
                   <button
                     type="button"
-                    onClick={() => setAssignedWorkerId(currentUser.uid)}
+                    onClick={() => toggleWorkerSelection(currentUser.uid)}
                     className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold hover:underline cursor-pointer flex items-center gap-1"
-                    title="Assegna a me stesso"
+                    title="Aggiungi me stesso alla squadra"
                   >
                     <UserCheck className="w-3 h-3" />
-                    <span>Assegna a me</span>
+                    <span>+ Aggiungi me</span>
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (assignedWorkerIds.length === availableWorkers.length) {
+                      setAssignedWorkerIds([availableWorkers[0]?.uid || '']);
+                    } else {
+                      setAssignedWorkerIds(availableWorkers.map((w) => w.uid));
+                    }
+                  }}
+                  className="text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline cursor-pointer"
+                >
+                  {assignedWorkerIds.length === availableWorkers.length ? 'Solo uno' : 'Tutti'}
+                </button>
               </div>
-              <select
-                required
-                value={assignedWorkerId}
-                onChange={(e) => setAssignedWorkerId(e.target.value)}
-                className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
-              >
-                {availableWorkers.length === 0 ? (
-                  <option value="">Nessun esecutore disponibile</option>
-                ) : (
-                  availableWorkers.map((w) => (
-                    <option key={w.uid} value={w.uid}>
-                      {w.isSelf ? w.displayName : `${w.displayName} (${w.role === 'admin' ? 'Admin' : 'Operaio'})`}
-                    </option>
-                  ))
-                )}
-              </select>
-              {currentUser && assignedWorkerId === currentUser.uid && (
-                <div className="text-[10px] text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-[5px] inline-flex items-center gap-1 font-semibold border border-emerald-200 dark:border-emerald-800/50">
-                  <User className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                  <span>Esecutore: Tu stesso (Titolare)</span>
-                </div>
-              )}
             </div>
 
+            {/* Chips operai con selezione multipla (tocca per aggiungere/togliere) */}
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
+              {availableWorkers.map((w) => {
+                const isSelected = assignedWorkerIds.includes(w.uid);
+                return (
+                  <button
+                    key={w.uid}
+                    type="button"
+                    onClick={() => toggleWorkerSelection(w.uid)}
+                    className={`px-2 py-1 rounded-[6px] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                      isSelected
+                        ? 'bg-emerald-700 text-white border-emerald-800 shadow-2xs ring-1 ring-emerald-500/40'
+                        : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <User className={`w-3 h-3 ${isSelected ? 'text-emerald-200' : 'text-slate-400'}`} />
+                    <span>{w.isSelf ? `${w.displayName} (Tu)` : w.displayName}</span>
+                    {isSelected && (
+                      <Check className="w-3 h-3 text-white ml-0.5" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500">
+              Tocca gli operai per includerli o rimuoverli dalla squadra di questo intervento.
+            </p>
+          </div>
+
+          {/* Date & TimeSlot */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-[7px]">
             <div className="space-y-[7px]">
-              <label className="font-semibold text-slate-700 dark:text-slate-300 block">Data Intervento *</label>
+              <label className="font-semibold text-slate-700 dark:text-slate-300 block text-xs">Data Intervento *</label>
               <input
                 type="date"
                 required
@@ -403,7 +453,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
             </div>
 
             <div className="space-y-[7px]">
-              <label className="font-semibold text-slate-700 dark:text-slate-300 block">Fascia Oraria</label>
+              <label className="font-semibold text-slate-700 dark:text-slate-300 block text-xs">Fascia Oraria</label>
               <input
                 type="text"
                 value={timeSlot}
@@ -542,10 +592,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                   {/* Lista chips delle date pianificate */}
                   <div className="flex flex-wrap gap-1.5 pt-1 max-h-28 overflow-y-auto">
                     {plannedDates.map((dStr, idx) => {
-                      const dObj = new Date(dStr);
-                      const formatted = !isNaN(dObj.getTime())
-                        ? dObj.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })
-                        : dStr;
+                      const formatted = formatItalianDate(dStr, { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
                       return (
                         <span
                           key={dStr}
