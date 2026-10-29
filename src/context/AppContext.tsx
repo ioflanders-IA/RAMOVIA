@@ -362,127 +362,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser]);
 
-  // Sync state changes to LocalStorage (only write non-empty or when intended)
+  // Sync state changes to LocalStorage unconditionally so deletions are preserved
   useEffect(() => {
-    if (users.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-    }
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
   }, [users]);
 
   useEffect(() => {
-    if (clients.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients));
-    }
+    localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients));
   }, [clients]);
 
   useEffect(() => {
-    if (jobs.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(jobs));
-    }
+    localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(jobs));
   }, [jobs]);
 
   useEffect(() => {
-    if (inventory.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(inventory));
-    }
+    localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(inventory));
   }, [inventory]);
 
   useEffect(() => {
-    if (reports.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
-    }
+    localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
   }, [reports]);
 
   useEffect(() => {
-    if (expenses.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses));
-    }
+    localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses));
   }, [expenses]);
 
   useEffect(() => {
-    if (payouts.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.PAYOUTS, JSON.stringify(payouts));
-    }
+    localStorage.setItem(STORAGE_KEYS.PAYOUTS, JSON.stringify(payouts));
   }, [payouts]);
 
   useEffect(() => {
-    if (workedDays.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.WORKED_DAYS, JSON.stringify(workedDays));
-    }
+    localStorage.setItem(STORAGE_KEYS.WORKED_DAYS, JSON.stringify(workedDays));
   }, [workedDays]);
 
   // 3. Firestore snapshot listeners & real-time cross-device sync (PC <-> Mobile)
   useEffect(() => {
     if (!db) return;
-
-    // Immediately push any locally stored records to Firestore so PC data syncs to Mobile
-    try {
-      const savedClients = localStorage.getItem(STORAGE_KEYS.CLIENTS);
-      if (savedClients) {
-        const list: Client[] = JSON.parse(savedClients);
-        list.forEach((c) => {
-          if (c && c.id) {
-            setDoc(doc(db, 'clients', c.id), sanitizeForFirestore(c), { merge: true }).catch((e) => console.warn('Sync client error:', e));
-          }
-        });
-      }
-      const savedJobs = localStorage.getItem(STORAGE_KEYS.JOBS);
-      if (savedJobs) {
-        const list: Job[] = JSON.parse(savedJobs);
-        list.forEach((j) => {
-          if (j && j.id) {
-            setDoc(doc(db, 'jobs', j.id), sanitizeForFirestore(j), { merge: true }).catch((e) => console.warn('Sync job error:', e));
-          }
-        });
-      }
-      const savedInv = localStorage.getItem(STORAGE_KEYS.INVENTORY);
-      if (savedInv) {
-        const list: InventoryItem[] = JSON.parse(savedInv);
-        list.forEach((i) => {
-          if (i && i.id) {
-            setDoc(doc(db, 'inventory', i.id), sanitizeForFirestore(i), { merge: true }).catch((e) => console.warn('Sync inv error:', e));
-          }
-        });
-      }
-      const savedReports = localStorage.getItem(STORAGE_KEYS.REPORTS);
-      if (savedReports) {
-        const list: WorkReport[] = JSON.parse(savedReports);
-        list.forEach((r) => {
-          if (r && r.id) {
-            setDoc(doc(db, 'timesheets_and_reports', r.id), sanitizeForFirestore(r), { merge: true }).catch((e) => console.warn('Sync report error:', e));
-          }
-        });
-      }
-      const savedExpenses = localStorage.getItem(STORAGE_KEYS.EXPENSES);
-      if (savedExpenses) {
-        const list: ExpenseRecord[] = JSON.parse(savedExpenses);
-        list.forEach((ex) => {
-          if (ex && ex.id) {
-            setDoc(doc(db, 'expenses', ex.id), sanitizeForFirestore(ex), { merge: true }).catch((e) => console.warn('Sync expense error:', e));
-          }
-        });
-      }
-      const savedPayouts = localStorage.getItem(STORAGE_KEYS.PAYOUTS);
-      if (savedPayouts) {
-        const list: WorkerPayout[] = JSON.parse(savedPayouts);
-        list.forEach((p) => {
-          if (p && p.id) {
-            setDoc(doc(db, 'worker_payouts', p.id), sanitizeForFirestore(p), { merge: true }).catch((e) => console.warn('Sync payout error:', e));
-          }
-        });
-      }
-      const savedWorkedDays = localStorage.getItem(STORAGE_KEYS.WORKED_DAYS);
-      if (savedWorkedDays) {
-        const list: WorkedDay[] = JSON.parse(savedWorkedDays);
-        list.forEach((wd) => {
-          if (wd && wd.id) {
-            setDoc(doc(db, 'worked_days', wd.id), sanitizeForFirestore(wd), { merge: true }).catch((e) => console.warn('Sync workedDay error:', e));
-          }
-        });
-      }
-    } catch (e) {
-      console.warn('Initial seed to Firestore warning:', e);
-    }
 
     // CLIENTS LISTENER
     const unsubClients = onSnapshot(
@@ -504,13 +419,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       collection(db, 'jobs'),
       (snap) => {
         const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Job));
-        if (docs.length > 0) {
-          setJobs(docs);
-          try {
-            localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(docs));
-          } catch (e) {
-            console.warn(e);
-          }
+        setJobs(docs);
+        try {
+          localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(docs));
+        } catch (e) {
+          console.warn(e);
         }
       },
       (err) => console.warn('jobs snapshot error:', err)
@@ -521,13 +434,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       collection(db, 'inventory'),
       (snap) => {
         const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as InventoryItem));
-        if (docs.length > 0) {
-          setInventory(docs);
-          try {
-            localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(docs));
-          } catch (e) {
-            console.warn(e);
-          }
+        setInventory(docs);
+        try {
+          localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(docs));
+        } catch (e) {
+          console.warn(e);
         }
       },
       (err) => console.warn('inventory snapshot error:', err)
@@ -538,13 +449,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       collection(db, 'timesheets_and_reports'),
       (snap) => {
         const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as WorkReport));
-        if (docs.length > 0) {
-          setReports(docs);
-          try {
-            localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(docs));
-          } catch (e) {
-            console.warn(e);
-          }
+        setReports(docs);
+        try {
+          localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(docs));
+        } catch (e) {
+          console.warn(e);
         }
       },
       (err) => console.warn('reports snapshot error:', err)
@@ -555,13 +464,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       collection(db, 'expenses'),
       (snap) => {
         const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as ExpenseRecord));
-        if (docs.length > 0) {
-          setExpenses(docs);
-          try {
-            localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(docs));
-          } catch (e) {
-            console.warn(e);
-          }
+        setExpenses(docs);
+        try {
+          localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(docs));
+        } catch (e) {
+          console.warn(e);
         }
       },
       (err) => console.warn('expenses snapshot error:', err)
@@ -572,13 +479,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       collection(db, 'worker_payouts'),
       (snap) => {
         const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as WorkerPayout));
-        if (docs.length > 0) {
-          setPayouts(docs);
-          try {
-            localStorage.setItem(STORAGE_KEYS.PAYOUTS, JSON.stringify(docs));
-          } catch (e) {
-            console.warn(e);
-          }
+        setPayouts(docs);
+        try {
+          localStorage.setItem(STORAGE_KEYS.PAYOUTS, JSON.stringify(docs));
+        } catch (e) {
+          console.warn(e);
         }
       },
       (err) => console.warn('payouts snapshot error:', err)
@@ -589,13 +494,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       collection(db, 'worked_days'),
       (snap) => {
         const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as WorkedDay));
-        if (docs.length > 0) {
-          setWorkedDays(docs);
-          try {
-            localStorage.setItem(STORAGE_KEYS.WORKED_DAYS, JSON.stringify(docs));
-          } catch (e) {
-            console.warn(e);
-          }
+        setWorkedDays(docs);
+        try {
+          localStorage.setItem(STORAGE_KEYS.WORKED_DAYS, JSON.stringify(docs));
+        } catch (e) {
+          console.warn(e);
         }
       },
       (err) => console.warn('worked_days snapshot error:', err)
@@ -1263,6 +1166,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return next;
     });
+
+    if (updated.status === 'completed') {
+      const targetWorkerIds = updated.assignedWorkerIds && updated.assignedWorkerIds.length > 0
+        ? updated.assignedWorkerIds
+        : [updated.assignedWorkerId];
+
+      targetWorkerIds.forEach((wId) => {
+        if (!wId) return;
+        const workerObj = users.find((u) => u.uid === wId);
+        const wName = workerObj?.displayName || updated.assignedWorkerName || 'Operaio';
+        const existing = workedDays.find((wd) => wd.jobId === updated.id && wd.workerId === wId);
+        if (!existing) {
+          const defaultDailyRate = workerObj?.dailyRate || 90;
+          addWorkedDay({
+            workerId: wId,
+            workerName: wName,
+            date: updated.date,
+            dayType: 'full',
+            dailyRate: defaultDailyRate,
+            amount: defaultDailyRate,
+            cantiereName: updated.cantiereName || updated.clientName,
+            jobId: updated.id,
+            notes: `Completato: ${updated.title}`,
+            paid: false,
+          });
+        }
+      });
+    }
 
     if (db) {
       try {

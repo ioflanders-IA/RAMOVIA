@@ -137,8 +137,9 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
       const map = L.map(mapContainerRef.current, {
         center: [initialLat, initialLng],
         zoom: 16,
-        zoomControl: true,
+        zoomControl: false,
       });
+      L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
       const initialTile = createMapTileLayer(mapLayer).addTo(map);
       if ('bringToBack' in initialTile) {
@@ -178,8 +179,9 @@ export const ClientMapPicker: React.FC<ClientMapPickerProps> = ({
     const fullMap = L.map(fullMapContainerRef.current, {
       center: [initialLat, initialLng],
       zoom: 17,
-      zoomControl: true,
+      zoomControl: false,
     });
+    L.control.zoom({ position: 'bottomleft' }).addTo(fullMap);
 
     const initialFullTile = createMapTileLayer(mapLayer).addTo(fullMap);
     if ('bringToBack' in initialFullTile) {

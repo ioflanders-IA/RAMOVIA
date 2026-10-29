@@ -242,21 +242,30 @@ export const CalendarView: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handlePrev, handleNext]);
 
-  // Touch Swipe detection for intuitive scrolling
+  // Touch Swipe detection for intuitive scrolling (ignoring vertical scrolls)
   const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
   };
+
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const diff = touchStartX.current - touchEndX;
-    if (diff > 60) {
-      handleNext();
-    } else if (diff < -60) {
-      handlePrev();
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const diffX = touchStartX.current - e.changedTouches[0].clientX;
+    const diffY = touchStartY.current - e.changedTouches[0].clientY;
+
+    // Only trigger horizontal week/month change if horizontal move > 80px AND significantly greater than vertical scroll
+    if (Math.abs(diffX) > 80 && Math.abs(diffX) > Math.abs(diffY) * 1.8) {
+      if (diffX > 0) {
+        handleNext();
+      } else if (diffX < 0) {
+        handlePrev();
+      }
     }
     touchStartX.current = null;
+    touchStartY.current = null;
   };
 
   const handleSaveJob = (jobData: any) => {
@@ -389,14 +398,22 @@ export const CalendarView: React.FC = () => {
     return { total, completed, inProgress, scheduled };
   }, [monthJobs]);
 
-  // Helper hook / handlers for long-press on cards
+  // Helper hook / handlers for long-press on cards (safeguarded against scrolling)
   const createLongPressCardProps = (job: Job) => {
     let pressTimer: NodeJS.Timeout | null = null;
     let didLongPress = false;
+    let touchStartPos = { x: 0, y: 0 };
+    let hasMovedDuringTouch = false;
 
-    const start = () => {
+    const start = (clientX?: number, clientY?: number) => {
       didLongPress = false;
+      hasMovedDuringTouch = false;
+      if (clientX !== undefined && clientY !== undefined) {
+        touchStartPos = { x: clientX, y: clientY };
+      }
+      if (pressTimer) clearTimeout(pressTimer);
       pressTimer = setTimeout(() => {
+        if (hasMovedDuringTouch) return;
         didLongPress = true;
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
           navigator.vibrate(60);
@@ -405,23 +422,42 @@ export const CalendarView: React.FC = () => {
       }, 500); // 500ms long press threshold
     };
 
+    const handleMove = (clientX: number, clientY: number) => {
+      const dist = Math.hypot(clientX - touchStartPos.x, clientY - touchStartPos.y);
+      if (dist > 8) {
+        hasMovedDuringTouch = true;
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+      }
+    };
+
     const clear = (triggerClick: boolean) => {
       if (pressTimer) {
         clearTimeout(pressTimer);
         pressTimer = null;
       }
-      if (triggerClick && !didLongPress && activeDeleteJobId !== job.id) {
+      if (triggerClick && !didLongPress && !hasMovedDuringTouch && activeDeleteJobId !== job.id) {
         setSelectedJobForEdit(job);
       }
     };
 
     return {
-      onMouseDown: () => start(),
+      onMouseDown: (e: React.MouseEvent) => start(e.clientX, e.clientY),
       onMouseUp: () => clear(true),
       onMouseLeave: () => clear(false),
-      onTouchStart: () => start(),
+      onTouchStart: (e: React.TouchEvent) => {
+        if (e.touches.length > 0) {
+          start(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      },
+      onTouchMove: (e: React.TouchEvent) => {
+        if (e.touches.length > 0) {
+          handleMove(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      },
       onTouchEnd: () => clear(true),
-      onTouchMove: () => clear(false),
       onContextMenu: (e: React.MouseEvent) => {
         e.preventDefault();
         setActiveDeleteJobId(job.id);
@@ -431,44 +467,8 @@ export const CalendarView: React.FC = () => {
 
   return (
     <div className="space-y-[3px]">
-      {/* Top Sub-Tabs Selector Bar: Calendario | Operai (gap a 3px) */}
-      <div className="flex items-center gap-[3px] bg-slate-200/80 dark:bg-slate-800/80 p-[3px] rounded-[7px] text-xs font-bold">
-        <button
-          onClick={() => setActiveTab('calendar')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] transition-colors cursor-pointer ${
-            activeTab === 'calendar'
-              ? 'bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <CalendarIcon className="w-4 h-4" />
-          <span>Calendario Interventi</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('workers')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] transition-colors cursor-pointer ${
-            activeTab === 'workers'
-              ? 'bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <Users className="w-4 h-4 text-emerald-600" />
-          <span>Operai & Presenze</span>
-          {workedDays.length > 0 && (
-            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-              {workedDays.length}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {/* VIEW 2: OPERAI & GIORNATE LAVORO HUB */}
-      {activeTab === 'workers' ? (
-        <SquadWorkersRegistry />
-      ) : (
-        /* VIEW 1: CALENDAR PLANNING (Optimized for Mobile with 3px gaps) */
-        <div className="space-y-[3px]">
+      {/* VIEW 1: CALENDAR PLANNING (Optimized for Mobile with 3px gaps) */}
+      <div className="space-y-[3px]">
           
           {/* Top Controls Box: Clean, Non-chaotic on both Mobile and Desktop */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[3px] sm:p-2 shadow-xs space-y-[3px]">
@@ -1447,7 +1447,6 @@ export const CalendarView: React.FC = () => {
             )}
           </div>
         </div>
-      )}
 
       {/* Confirmation Modal for Job Deletion (triggered by long-press) */}
       {jobToDeleteConfirm && (

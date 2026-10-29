@@ -65,6 +65,7 @@ export const SquadWorkersRegistry: React.FC = () => {
   const [dayType, setDayType] = useState<DayType>('full');
   const [dayHours, setDayHours] = useState<number>(8);
   const [dayRate, setDayRate] = useState<number>(90);
+  const [dayHourlyRate, setDayHourlyRate] = useState<number>(15);
   const [dayAmount, setDayAmount] = useState<number>(90);
   const [dayCantiere, setDayCantiere] = useState<string>('');
   const [dayNotes, setDayNotes] = useState<string>('');
@@ -161,33 +162,40 @@ export const SquadWorkersRegistry: React.FC = () => {
     setDayWorkerId(workerId);
     const w = workers.find((u) => u.uid === workerId);
     const rate = w?.dailyRate || 90;
+    const hourly = w?.hourlyRate || Math.round((rate / 8) * 100) / 100;
     setDayRate(rate);
-    calculateAmount(rate, dayType, dayHours);
+    setDayHourlyRate(hourly);
+    calculateAmount(rate, hourly, dayType, dayHours);
   };
 
   const handleDayTypeChange = (type: DayType) => {
     setDayType(type);
-    calculateAmount(dayRate, type, dayHours);
+    calculateAmount(dayRate, dayHourlyRate, type, dayHours);
   };
 
   const handleHoursChange = (h: number) => {
     setDayHours(h);
-    calculateAmount(dayRate, 'custom', h);
+    calculateAmount(dayRate, dayHourlyRate, 'custom', h);
   };
 
   const handleRateChange = (r: number) => {
     setDayRate(r);
-    calculateAmount(r, dayType, dayHours);
+    calculateAmount(r, dayHourlyRate, dayType, dayHours);
   };
 
-  const calculateAmount = (rate: number, type: DayType, hours: number) => {
+  const handleHourlyRateChange = (hr: number) => {
+    setDayHourlyRate(hr);
+    calculateAmount(dayRate, hr, dayType, dayHours);
+  };
+
+  const calculateAmount = (dailyRate: number, hourlyRate: number, type: DayType, hours: number) => {
     if (type === 'full') {
-      setDayAmount(rate);
+      setDayAmount(dailyRate);
     } else if (type === 'half') {
-      setDayAmount(Math.round((rate / 2) * 100) / 100);
+      setDayAmount(Math.round((dailyRate / 2) * 100) / 100);
     } else {
-      const hourly = rate / 8;
-      setDayAmount(Math.round(hourly * hours * 100) / 100);
+      const hRate = hourlyRate > 0 ? hourlyRate : dailyRate / 8;
+      setDayAmount(Math.round(hRate * hours * 100) / 100);
     }
   };
 
@@ -678,6 +686,55 @@ export const SquadWorkersRegistry: React.FC = () => {
         )}
       </div>
 
+      {/* STORICO PAGAMENTI STIPENDI OPERAI */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
+        <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+            <CreditCard className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+            <span>Storico Pagamenti Stipendi ({payouts.length} erogazioni)</span>
+          </h3>
+        </div>
+
+        {payouts.length === 0 ? (
+          <div className="p-4 text-center text-xs text-slate-400">
+            Nessun pagamento di stipendio o acconto ancora erogato.
+          </div>
+        ) : (
+          <div className="space-y-[7px] max-h-72 overflow-y-auto">
+            {payouts
+              .sort((a, b) => (b.paymentDate || b.createdAt).localeCompare(a.paymentDate || a.createdAt))
+              .map((p) => (
+                <div
+                  key={p.id}
+                  className="p-[7px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-[7px] flex items-center justify-between gap-[7px] text-xs"
+                >
+                  <div className="space-y-0.5 min-w-0 flex-1">
+                    <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <span>{p.workerName}</span>
+                      <span className="font-mono text-[10px] bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.2 rounded font-bold">
+                        {p.period}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                      Pagato il: <strong className="text-slate-700 dark:text-slate-300">{p.paymentDate || p.createdAt.split('T')[0]}</strong> · Metodo: <strong className="text-slate-700 dark:text-slate-300">{p.paymentMethod}</strong>
+                    </div>
+                    {p.notes && <div className="text-[10px] text-slate-400 italic truncate">{p.notes}</div>}
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <div className="font-mono font-bold text-sm text-emerald-700 dark:text-emerald-400">
+                      € {p.totalAmount.toFixed(2)}
+                    </div>
+                    <span className="text-[9px] font-bold uppercase text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
+                      LIQUIDATO
+                    </span>
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+
       {/* MODAL: NUOVO OPERAIO OFFLINE */}
       {showAddWorkerModal && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 p-[7px] backdrop-blur-xs">
@@ -851,28 +908,39 @@ export const SquadWorkersRegistry: React.FC = () => {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-[7px]">
+              <div className="grid grid-cols-3 gap-[7px]">
                 <div className="space-y-[7px]">
-                  <label className="font-semibold block">Tariffa Giornaliera Base (€)</label>
+                  <label className="font-semibold block truncate">Tariffa GG (€)</label>
                   <input
                     type="number"
                     step="1"
                     required
                     value={dayRate}
                     onChange={(e) => handleRateChange(parseFloat(e.target.value) || 0)}
-                    className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px] font-mono"
+                    className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px] font-mono text-xs"
                   />
                 </div>
 
                 <div className="space-y-[7px]">
-                  <label className="font-semibold block">Totale Giornata (€) *</label>
+                  <label className="font-semibold block truncate">Tariffa Oraria (€/h)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={dayHourlyRate}
+                    onChange={(e) => handleHourlyRateChange(parseFloat(e.target.value) || 0)}
+                    className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px] font-mono text-xs text-sky-600 dark:text-sky-400 font-bold"
+                  />
+                </div>
+
+                <div className="space-y-[7px]">
+                  <label className="font-semibold block truncate">Totale (€) *</label>
                   <input
                     type="number"
                     step="0.5"
                     required
                     value={dayAmount}
                     onChange={(e) => setDayAmount(parseFloat(e.target.value) || 0)}
-                    className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px] font-mono font-bold text-emerald-600 text-sm"
+                    className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px] font-mono font-bold text-emerald-600 text-xs"
                   />
                 </div>
               </div>
@@ -952,7 +1020,7 @@ export const SquadWorkersRegistry: React.FC = () => {
                   onChange={(e) => setPayoutMethod(e.target.value as PaymentMethod)}
                   className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px]"
                 >
-                  <option value="bonifico">Bonifico Bancario</option>
+                  <option value="bonifico">Bonifico</option>
                   <option value="contanti">Contanti Diretti</option>
                   <option value="pos_carta">Carta / POS</option>
                   <option value="assegno">Assegno</option>

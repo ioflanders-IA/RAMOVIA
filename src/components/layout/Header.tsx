@@ -22,8 +22,8 @@ import {
 } from 'lucide-react';
 
 interface HeaderProps {
-  activeTab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather';
-  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather') => void;
+  activeTab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather';
+  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather') => void;
   onOpenFirebaseModal?: () => void;
   isSidebarCollapsed?: boolean;
 }

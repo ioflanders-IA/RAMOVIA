@@ -44,12 +44,13 @@ export const PaymentsView: React.FC = () => {
     recordWorkerPayout,
     updateWorkerPayout,
     updateJob,
+    deleteJob,
     updateUserRole,
     addClient,
     updateClient,
   } = useApp();
 
-  const [activeSubTab, setActiveSubTab] = useState<'stipendi' | 'incassi' | 'clienti' | 'spese' | 'grafici'>('incassi');
+  const [activeSubTab, setActiveSubTab] = useState<'incassi' | 'clienti' | 'spese' | 'grafici'>('incassi');
   const [statusFilter, setStatusFilter] = useState<'all' | 'unpaid' | 'partial' | 'paid'>('all');
 
   // Expense modal state
@@ -91,8 +92,11 @@ export const PaymentsView: React.FC = () => {
   // Confirmation modal to delete a specific installment
   const [installmentToDelete, setInstallmentToDelete] = useState<{ job: Job; installment: PaymentInstallment } | null>(null);
 
-  // Confirmation modal to reset/delete payments for a job
+  // Confirmation modal to reset payments for a job
   const [jobToResetPayments, setJobToResetPayments] = useState<Job | null>(null);
+
+  // Confirmation modal to delete an entire job / cantiere
+  const [jobToDelete, setJobToDelete] = useState<Job | null>(null);
 
   // Long-press state for revealing icon-only actions (modifica & azzera) in bottom-right
   const [longPressedPaymentJobId, setLongPressedPaymentJobId] = useState<string | null>(null);
@@ -261,7 +265,7 @@ export const PaymentsView: React.FC = () => {
   const getMethodLabel = (method?: PaymentMethod) => {
     switch (method) {
       case 'bonifico':
-        return 'Bonifico Bancario';
+        return 'Bonifico';
       case 'contanti':
         return 'Contanti';
       case 'pos_carta':
@@ -496,22 +500,9 @@ export const PaymentsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Sub Tabs Navigation - 2 Righi con 3 tasti adattati allo schermo, testi essenziali, tasto registra spesa solo con simbolo + a destra */}
+      {/* Sub Tabs Navigation - 2 Righi con tasti adattati allo schermo */}
       <div className="bg-slate-200/80 dark:bg-slate-800/80 p-1.5 rounded-[7px]">
         <div className="grid grid-cols-3 gap-1.5 text-xs font-bold">
-          {/* Riga 1 */}
-          <button
-            onClick={() => setActiveSubTab('stipendi')}
-            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-[7px] transition-colors cursor-pointer text-center ${
-              activeSubTab === 'stipendi'
-                ? 'bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-300/40 dark:hover:bg-slate-700/40'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">Stipendi</span>
-          </button>
-
           <button
             onClick={() => setActiveSubTab('incassi')}
             className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-[7px] transition-colors cursor-pointer text-center ${
@@ -536,7 +527,6 @@ export const PaymentsView: React.FC = () => {
             <span className="truncate">Spese</span>
           </button>
 
-          {/* Riga 2 */}
           <button
             onClick={() => setActiveSubTab('clienti')}
             className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-[7px] transition-colors cursor-pointer text-center ${
@@ -567,137 +557,14 @@ export const PaymentsView: React.FC = () => {
             onClick={() => setShowExpenseModal(true)}
             title="Registra Nuova Spesa"
             aria-label="Registra Nuova Spesa"
-            className="flex items-center justify-center gap-1 py-2 px-2 rounded-[7px] bg-emerald-700 hover:bg-emerald-600 text-white font-bold transition-colors cursor-pointer shadow-xs text-center"
+            className="col-span-2 flex items-center justify-center gap-1 py-2 px-2 rounded-[7px] bg-emerald-700 hover:bg-emerald-600 text-white font-bold transition-colors cursor-pointer shadow-xs text-center"
           >
             <Plus className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">Spesa</span>
+            <span className="truncate">Nuova Spesa</span>
           </button>
         </div>
       </div>
 
-      {/* TAB 1: WORKER SALARIES & DAILY WAGES */}
-      {activeSubTab === 'stipendi' && (
-        <div className="space-y-[7px]">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[7px]">
-            {workerStats.length === 0 ? (
-              <div className="col-span-full p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] text-center text-xs text-slate-500">
-                Nessun operaio ancora registrato nella squadra.
-              </div>
-            ) : (
-              workerStats.map((st) => (
-                <div
-                  key={st.worker.uid}
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px] flex flex-col justify-between"
-                >
-                  <div className="space-y-[7px]">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-[7px]">
-                        {st.worker.photoURL ? (
-                          <img
-                            src={st.worker.photoURL}
-                            alt={st.worker.displayName}
-                            className="w-8 h-8 rounded-[7px] object-cover"
-                          />
-                        ) : (
-                          <div className="w-8 h-8 rounded-[7px] bg-emerald-800 text-white font-bold text-xs flex items-center justify-center">
-                            {st.worker.displayName.charAt(0)}
-                          </div>
-                        )}
-                        <div>
-                          <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100">
-                            {st.worker.displayName}
-                          </h3>
-                          <span className="text-[10px] text-slate-500 font-mono">
-                            Cod: {st.worker.workerCode || 'OP----'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <span className="text-xs font-mono font-bold text-emerald-800 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 p-1 px-2 rounded-[7px]">
-                        € {st.hourlyRate.toFixed(2)}/h
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-[7px] bg-slate-50 dark:bg-slate-800/60 p-[7px] rounded-[7px] text-xs">
-                      <div>
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Ore Rendicontate:</span>
-                        <strong className="font-mono text-slate-900 dark:text-slate-100">{st.totalHours.toFixed(1)} h</strong>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Giornate Lavoro:</span>
-                        <strong className="font-mono text-slate-900 dark:text-slate-100">{st.daysWorked} gg</strong>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Maturato Totale:</span>
-                        <strong className="font-mono text-emerald-700 dark:text-emerald-400">€ {st.estimatedEarnings.toFixed(2)}</strong>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Da Saldate:</span>
-                        <strong className="font-mono text-amber-600 dark:text-amber-400">€ {st.pendingPayout.toFixed(2)}</strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setSelectedWorkerForPayout(st);
-                      setPayoutAmount(st.pendingPayout > 0 ? st.pendingPayout : st.estimatedEarnings);
-                    }}
-                    className="w-full p-[7px] bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] text-xs font-bold transition-colors shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <CreditCard className="w-3.5 h-3.5" />
-                    <span>Registra Pagamento Stipendio</span>
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Historical Payouts List */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-            <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider">
-              Storico Pagamenti Stipendi ({payouts.length})
-            </h3>
-
-            {payouts.length === 0 ? (
-              <div className="p-4 text-center text-xs text-slate-400">
-                Nessun pagamento di stipendio ancora registrato.
-              </div>
-            ) : (
-              <div className="space-y-[7px] max-h-80 overflow-y-auto">
-                {payouts.map((p) => (
-                  <div
-                    key={p.id}
-                    className="p-[7px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-[7px] flex items-center justify-between text-xs"
-                  >
-                    <div className="space-y-0.5">
-                      <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                        <span>{p.workerName}</span>
-                        <span className="font-mono text-[10px] bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300">
-                          {p.period}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                        {p.totalHours} ore · {p.paymentDate || p.createdAt.split('T')[0]} · {getMethodLabel(p.paymentMethod)}
-                      </div>
-                      {p.notes && <div className="text-[10px] text-slate-400 italic">{p.notes}</div>}
-                    </div>
-
-                    <div className="text-right">
-                      <div className="font-mono font-bold text-sm text-emerald-700 dark:text-emerald-400">
-                        € {p.totalAmount.toFixed(2)}
-                      </div>
-                      <span className="text-[9px] font-bold uppercase text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
-                        PAGATO
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* TAB 2: JOB COLLECTIONS & REVENUE */}
       {activeSubTab === 'incassi' && (
@@ -741,7 +608,7 @@ export const PaymentsView: React.FC = () => {
                   : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50 hover:bg-amber-100'
               }`}
             >
-              Parziale
+              Acconto
             </button>
             <button
               type="button"
@@ -875,7 +742,7 @@ export const PaymentsView: React.FC = () => {
                                 : 'bg-rose-500'
                             }`}
                           />
-                          <span>{status === 'paid' ? 'Saldato' : status === 'partial' ? 'Parziale' : 'Da Incassare'}</span>
+                          <span>{status === 'paid' ? 'Saldato' : status === 'partial' ? 'Acconto' : 'Da Incassare'}</span>
                         </span>
                       </div>
                     </div>
@@ -983,32 +850,66 @@ export const PaymentsView: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Actions Toolbar: Left = Modifica & Azzera icon-only upon long press; Right = Saldato & + Acconto (inverted) */}
+                    {/* Actions Toolbar: Left = Modifica, Elimina Cantiere, Azzera Incassi; Right = Saldato & + Acconto */}
                     <div className="flex items-center justify-between gap-2 px-1 pt-1 border-t border-slate-100 dark:border-slate-800 min-h-[34px]">
-                      {/* Left: Modifica & Azzera (icon-only, no background, no border, only after long-press) */}
-                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                        {isLongPressed && (
+                      {/* Left: Icon-only actions with stopPropagation */}
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
+                        {isLongPressed ? (
                           <div className="flex items-center gap-1 animate-in fade-in zoom-in-90 duration-150">
                             <button
                               type="button"
-                              onClick={() => handleOpenEditPayment(job)}
-                              className="p-1.5 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer bg-transparent border-0"
-                              title="Modifica pagamento cantiere"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                handleOpenEditPayment(job);
+                              }}
+                              className="p-1.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors cursor-pointer bg-slate-100 dark:bg-slate-800/80 rounded-[5px]"
+                              title="Modifica pagamento e dettagli cantiere"
                             >
-                              <Edit2 className="w-4 h-4" />
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                setJobToDelete(job);
+                              }}
+                              className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 transition-colors cursor-pointer bg-rose-50 dark:bg-rose-950/60 rounded-[5px]"
+                              title="Elimina definitivamente questo intervento/cantiere"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
 
                             {(paid > 0 || installments.length > 0) && (
                               <button
                                 type="button"
-                                onClick={() => setJobToResetPayments(job)}
-                                className="p-1.5 text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 transition-colors cursor-pointer bg-transparent border-0"
-                                title="Azzera incassi cantiere"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  setJobToResetPayments(job);
+                                }}
+                                className="p-1.5 text-amber-600 dark:text-amber-400 hover:text-amber-700 transition-colors cursor-pointer bg-amber-50 dark:bg-amber-950/60 rounded-[5px]"
+                                title="Azzera incassi del cantiere"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <RotateCcw className="w-3.5 h-3.5" />
                               </button>
                             )}
                           </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              handleOpenEditPayment(job);
+                            }}
+                            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                            title="Pressione prolungata o clicca per opzioni (Modifica / Elimina)"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
                         )}
                       </div>
 
@@ -1576,7 +1477,7 @@ export const PaymentsView: React.FC = () => {
                   </label>
                   <div className="grid grid-cols-3 gap-1.5">
                     {[
-                      { id: 'bonifico', label: 'Bonifico Bancario' },
+                      { id: 'bonifico', label: 'Bonifico' },
                       { id: 'contanti', label: 'Contanti' },
                       { id: 'pos_carta', label: 'POS / Carta' },
                       { id: 'assegno', label: 'Assegno' },
@@ -1680,7 +1581,7 @@ export const PaymentsView: React.FC = () => {
                 <div className="grid grid-cols-3 gap-1.5">
                   {[
                     { id: 'unpaid', label: 'Da Incassare' },
-                    { id: 'partial', label: 'Parziale' },
+                    { id: 'partial', label: 'Acconto' },
                     { id: 'paid', label: 'Saldato' },
                   ].map((s) => (
                     <button
@@ -1709,7 +1610,7 @@ export const PaymentsView: React.FC = () => {
                 </label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {[
-                    { id: 'bonifico', label: 'Bonifico Bancario' },
+                    { id: 'bonifico', label: 'Bonifico' },
                     { id: 'contanti', label: 'Contanti' },
                     { id: 'pos_carta', label: 'POS / Carta' },
                     { id: 'assegno', label: 'Assegno' },
@@ -1744,22 +1645,75 @@ export const PaymentsView: React.FC = () => {
                 />
               </div>
 
-              <div className="pt-2 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="pt-2 flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setSelectedJobForEditPayment(null)}
-                  className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-[7px] text-slate-700 dark:text-slate-300 font-medium cursor-pointer"
+                  onClick={() => {
+                    const job = selectedJobForEditPayment;
+                    setSelectedJobForEditPayment(null);
+                    setJobToDelete(job);
+                  }}
+                  className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 rounded-[7px] text-xs font-bold cursor-pointer flex items-center gap-1 transition-colors"
                 >
-                  Annulla
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Elimina Intervento</span>
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-[7px] shadow-xs cursor-pointer"
-                >
-                  Salva Modifiche
-                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedJobForEditPayment(null)}
+                    className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-[7px] text-slate-700 dark:text-slate-300 font-medium cursor-pointer"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-[7px] shadow-xs cursor-pointer"
+                  >
+                    Salva Modifiche
+                  </button>
+                </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmation: Delete Entire Job / Intervention */}
+      {jobToDelete && (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/60 p-[7px] backdrop-blur-xs">
+          <div className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-4 shadow-2xl space-y-3 text-slate-900 dark:text-slate-100">
+            <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-bold text-sm">
+              <Trash2 className="w-5 h-5" />
+              <span>Elimina Intervento / Cantiere</span>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              Sei sicuro di voler eliminare definitivamente l'intervento <strong>"{jobToDelete.title}"</strong> di <strong>"{jobToDelete.clientName}"</strong> ({jobToDelete.date})?
+            </p>
+            <p className="text-[11px] text-slate-400 italic">
+              Questa azione rimuoverà la voce dal registro incassi, dal calendario e da tutti i bilanci dell'applicazione.
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setJobToDelete(null)}
+                className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-[7px] text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-200 cursor-pointer"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await deleteJob(jobToDelete.id);
+                  setJobToDelete(null);
+                }}
+                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-[7px] text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Elimina Definitivamente</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1824,7 +1778,7 @@ export const PaymentsView: React.FC = () => {
                 </label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {[
-                    { id: 'bonifico', label: 'Bonifico Bancario' },
+                    { id: 'bonifico', label: 'Bonifico' },
                     { id: 'contanti', label: 'Contanti' },
                     { id: 'pos_carta', label: 'POS / Carta' },
                     { id: 'assegno', label: 'Assegno' },

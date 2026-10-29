@@ -8,17 +8,17 @@ import { ClientsView } from './components/clients/ClientsView';
 import { InventoryView } from './components/inventory/InventoryView';
 import { ReportsHub } from './components/report/ReportsHub';
 import { PaymentsView } from './components/payments/PaymentsView';
+import { WorkersView } from './components/workers/WorkersView';
+import { WeatherView } from './components/weather/WeatherView';
 import { WorkerView } from './components/worker/WorkerView';
+import { LoginScreen } from './components/auth/LoginScreen';
 import { WorkerPendingScreen } from './components/worker/WorkerPendingScreen';
-import { FirebaseConfigModal } from './components/firebase/FirebaseConfigModal';
+import { DesktopSidebar } from './components/navigation/DesktopSidebar';
 import { HamburgerDrawer } from './components/navigation/HamburgerDrawer';
 import { AccountModal } from './components/account/AccountModal';
 import { SettingsModal } from './components/settings/SettingsModal';
 import { TeamManagementModal } from './components/admin/TeamManagementModal';
-import { useOnlineStatus } from './hooks/usePWA';
-import { LoginScreen } from './components/auth/LoginScreen';
-import { WeatherView } from './components/weather/WeatherView';
-import { DesktopSidebar } from './components/navigation/DesktopSidebar';
+import { FirebaseConfigModal } from './components/firebase/FirebaseConfigModal';
 import {
   LayoutDashboard,
   MapPin,
@@ -29,14 +29,26 @@ import {
   Menu,
   Flame,
   WifiOff,
+  HardHat,
 } from 'lucide-react';
 
 const MainAppContent: React.FC = () => {
   const { currentUser, loadingAuth, logout } = useApp();
-  const isOnline = useOnlineStatus();
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  React.useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather'
+    'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather'
   >('dashboard');
 
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
@@ -126,6 +138,7 @@ const MainAppContent: React.FC = () => {
             )}
             {activeTab === 'map' && <MapTabScreen />}
             {activeTab === 'calendar' && <CalendarView />}
+            {activeTab === 'workers' && <WorkersView />}
             {activeTab === 'clients' && <ClientsView />}
             {activeTab === 'inventory' && <InventoryView />}
             {activeTab === 'reports' && <ReportsHub />}
@@ -145,25 +158,25 @@ const MainAppContent: React.FC = () => {
         )}
       </main>
 
-      {/* Mobile Bottom Navigation Bar with 7px spacing & Hamburger Menu Button */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 p-[7px] flex items-center justify-around text-[10px] font-semibold text-slate-600 dark:text-slate-400 gap-[7px]">
+      {/* Mobile Bottom Navigation Bar: grid-cols-6 for 0 overflow, HOME & Clienti renamed, enlarged hamburger without text */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 py-1.5 px-0.5 grid grid-cols-6 items-center text-[10px] font-semibold text-slate-600 dark:text-slate-400 text-center overflow-hidden select-none">
         {currentUser.role === 'admin' ? (
           <>
             <button
               onClick={() => setActiveTab('dashboard')}
-              className={`flex flex-col items-center p-[7px] gap-[7px] rounded-[7px] transition-colors ${
+              className={`flex flex-col items-center justify-center py-1 px-0.5 rounded-[7px] transition-colors ${
                 activeTab === 'dashboard'
                   ? 'text-emerald-800 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
               <LayoutDashboard className="w-4 h-4" />
-              <span>Dashboard</span>
+              <span>HOME</span>
             </button>
 
             <button
               onClick={() => setActiveTab('map')}
-              className={`flex flex-col items-center p-[7px] gap-[7px] rounded-[7px] transition-colors ${
+              className={`flex flex-col items-center justify-center py-1 px-0.5 rounded-[7px] transition-colors ${
                 activeTab === 'map'
                   ? 'text-emerald-800 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60'
                   : 'text-slate-500 dark:text-slate-400'
@@ -175,7 +188,7 @@ const MainAppContent: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('calendar')}
-              className={`flex flex-col items-center p-[7px] gap-[7px] rounded-[7px] transition-colors ${
+              className={`flex flex-col items-center justify-center py-1 px-0.5 rounded-[7px] transition-colors ${
                 activeTab === 'calendar'
                   ? 'text-emerald-800 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60'
                   : 'text-slate-500 dark:text-slate-400'
@@ -186,31 +199,44 @@ const MainAppContent: React.FC = () => {
             </button>
 
             <button
+              onClick={() => setActiveTab('workers')}
+              className={`flex flex-col items-center justify-center py-1 px-0.5 rounded-[7px] transition-colors ${
+                activeTab === 'workers'
+                  ? 'text-emerald-800 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60'
+                  : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              <HardHat className="w-4 h-4" />
+              <span>Operai</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('clients')}
-              className={`flex flex-col items-center p-[7px] gap-[7px] rounded-[7px] transition-colors ${
+              className={`flex flex-col items-center justify-center py-1 px-0.5 rounded-[7px] transition-colors ${
                 activeTab === 'clients'
                   ? 'text-emerald-800 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
               <Users className="w-4 h-4" />
-              <span>Giardini</span>
+              <span>Clienti</span>
             </button>
 
-            {/* Hamburger Drawer Trigger on Bottom Bar */}
+            {/* Enlarged Hamburger Menu Icon without text label */}
             <button
               onClick={() => setHamburgerOpen(true)}
-              className="flex flex-col items-center p-[7px] gap-[7px] rounded-[7px] text-slate-700 dark:text-slate-200 hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors"
+              className="flex flex-col items-center justify-center py-1 px-0.5 rounded-[7px] text-slate-700 dark:text-slate-200 hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors"
+              title="Apri Menu Navigazione"
+              aria-label="Apri Menu"
             >
-              <Menu className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-              <span>Menu</span>
+              <Menu className="w-6 h-6 text-emerald-700 dark:text-emerald-400" />
             </button>
           </>
         ) : (
           <>
             <button
               onClick={() => setActiveTab('dashboard')}
-              className={`flex flex-col items-center p-[7px] gap-[7px] rounded-[7px] transition-colors flex-1 ${
+              className={`flex flex-col items-center justify-center py-1 px-0.5 rounded-[7px] transition-colors ${
                 activeTab === 'dashboard'
                   ? 'text-emerald-800 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60'
                   : 'text-slate-500 dark:text-slate-400'
@@ -222,7 +248,7 @@ const MainAppContent: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('reports')}
-              className={`flex flex-col items-center p-[7px] gap-[7px] rounded-[7px] transition-colors flex-1 ${
+              className={`flex flex-col items-center justify-center py-1 px-0.5 rounded-[7px] transition-colors ${
                 activeTab === 'reports'
                   ? 'text-emerald-800 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60'
                   : 'text-slate-500 dark:text-slate-400'
@@ -234,10 +260,11 @@ const MainAppContent: React.FC = () => {
 
             <button
               onClick={() => setHamburgerOpen(true)}
-              className="flex flex-col items-center p-[7px] gap-[7px] rounded-[7px] text-slate-700 dark:text-slate-200 hover:text-emerald-800 transition-colors flex-1"
+              className="flex flex-col items-center justify-center py-1 px-0.5 rounded-[7px] text-slate-700 dark:text-slate-200 hover:text-emerald-800 transition-colors"
+              title="Apri Menu"
+              aria-label="Apri Menu"
             >
-              <Menu className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
-              <span>Menu</span>
+              <Menu className="w-6 h-6 text-emerald-700 dark:text-emerald-400" />
             </button>
           </>
         )}

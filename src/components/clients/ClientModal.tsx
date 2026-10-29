@@ -144,7 +144,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
                   onChange={(e) => setPreferredPaymentMethod(e.target.value as PaymentMethod)}
                   className="w-full p-[7px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-[7px] focus:outline-emerald-600 text-xs font-semibold text-slate-900 dark:text-slate-100"
                 >
-                  <option value="bonifico">Bonifico Bancario</option>
+                  <option value="bonifico">Bonifico</option>
                   <option value="contanti">Contanti</option>
                   <option value="pos">POS / Carta di Credito</option>
                   <option value="assegno">Assegno</option>

@@ -23,8 +23,8 @@ import {
 import { NotificationCenter } from '../common/NotificationCenter';
 
 interface DesktopSidebarProps {
-  activeTab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather';
-  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather') => void;
+  activeTab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather';
+  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather') => void;
   onOpenAccount: () => void;
   onOpenSettings: () => void;
   onOpenTeamModal: () => void;
@@ -113,10 +113,10 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
       <nav className="flex-1 overflow-y-auto space-y-[7px] pr-[2px]">
         {currentUser.role === 'admin' ? (
           <>
-            {/* Dashboard */}
+            {/* HOME */}
             <button
               onClick={() => onSelectTab('dashboard')}
-              title="Dashboard"
+              title="HOME"
               className={`w-full flex items-center gap-[7px] p-[7px] rounded-[7px] text-xs font-bold transition-colors cursor-pointer ${
                 isCollapsed ? 'justify-center' : 'px-2.5 text-left'
               } ${
@@ -126,7 +126,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               }`}
             >
               <LayoutDashboard className="w-4 h-4 text-emerald-500 shrink-0" />
-              {!isCollapsed && <span className="truncate">Dashboard</span>}
+              {!isCollapsed && <span className="truncate">HOME</span>}
             </button>
 
             {/* Mappa Cantieri */}
@@ -161,10 +161,26 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               {!isCollapsed && <span className="truncate">Calendario</span>}
             </button>
 
-            {/* Giardini & Clienti */}
+            {/* Operai & Presenze */}
+            <button
+              onClick={() => onSelectTab('workers')}
+              title="Operai & Presenze"
+              className={`w-full flex items-center gap-[7px] p-[7px] rounded-[7px] text-xs font-bold transition-colors cursor-pointer ${
+                isCollapsed ? 'justify-center' : 'px-2.5 text-left'
+              } ${
+                activeTab === 'workers'
+                  ? 'bg-emerald-950 text-white dark:bg-emerald-800'
+                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <HardHat className="w-4 h-4 text-amber-500 shrink-0" />
+              {!isCollapsed && <span className="truncate">Operai & Presenze</span>}
+            </button>
+
+            {/* Clienti & Giardini */}
             <button
               onClick={() => onSelectTab('clients')}
-              title="Giardini & Clienti"
+              title="Clienti & Giardini"
               className={`w-full flex items-center gap-[7px] p-[7px] rounded-[7px] text-xs font-bold transition-colors cursor-pointer ${
                 isCollapsed ? 'justify-center' : 'px-2.5 text-left'
               } ${
@@ -174,7 +190,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               }`}
             >
               <Users className="w-4 h-4 text-indigo-500 shrink-0" />
-              {!isCollapsed && <span className="truncate">Giardini & Clienti</span>}
+              {!isCollapsed && <span className="truncate">Clienti & Giardini</span>}
             </button>
 
             {/* Magazzino & Mezzi */}

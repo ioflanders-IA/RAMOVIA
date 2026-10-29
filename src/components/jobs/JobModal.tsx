@@ -3,6 +3,7 @@ import { Job, JobStatus, JobPaymentStatus, MaterialRequirement, PaymentMethod, P
 import { useApp } from '../../context/AppContext';
 import { X, Trash2, Package, Euro, User, UserCheck, Plus, Check, Repeat, Clock, AlertCircle, Calendar as CalendarIcon, Users } from 'lucide-react';
 import { formatLocalDate, parseLocalDate, formatItalianDate } from '../../utils/dateUtils';
+import { RichNoteBox } from '../common/RichNoteBox';
 
 interface JobModalProps {
   job?: Job | null;
@@ -12,7 +13,7 @@ interface JobModalProps {
 }
 
 const PAYMENT_METHODS: Array<{ id: PaymentMethod; label: string }> = [
-  { id: 'bonifico', label: 'Bonifico Bancario' },
+  { id: 'bonifico', label: 'Bonifico' },
   { id: 'contanti', label: 'Contanti' },
   { id: 'pos_carta', label: 'POS / Carta' },
   { id: 'assegno', label: 'Assegno' },
@@ -21,7 +22,7 @@ const PAYMENT_METHODS: Array<{ id: PaymentMethod; label: string }> = [
 
 const PAYMENT_STATUSES: Array<{ id: JobPaymentStatus; label: string }> = [
   { id: 'unpaid', label: 'Da Incassare' },
-  { id: 'partial', label: 'Parziale (Acconto)' },
+  { id: 'partial', label: 'Acconto' },
   { id: 'paid', label: 'Saldato' },
 ];
 
@@ -281,6 +282,10 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
     setMaterialsRequired((prev) => prev.filter((m) => m.itemId !== itemId));
   };
 
+  const [sessionsCount, setSessionsCount] = useState<number>(
+    job?.sessionsCount || (job?.plannedDates ? job.plannedDates.length : 1)
+  );
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClient) return;
@@ -325,34 +330,44 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
       interventionType,
       billingArrangement: interventionType === 'generale' ? billingArrangement : 'standard',
       frequency: interventionType === 'generale' ? `${plannedDates.length} uscite programmate` : undefined,
-      sessionsCount: interventionType === 'generale' ? plannedDates.length : undefined,
-      ratePerSession: interventionType === 'generale' && pricingMode === 'per_session' ? Number(ratePerSession) : undefined,
-      pricingMode: interventionType === 'generale' ? pricingMode : undefined,
-      hourlyRate: interventionType === 'generale' && pricingMode === 'hourly' ? Number(hourlyRate) : undefined,
-      estimatedHoursPerSession: interventionType === 'generale' && pricingMode === 'hourly' ? Number(estimatedHoursPerSession) : undefined,
+      sessionsCount: interventionType === 'generale' ? plannedDates.length : (sessionsCount || 1),
+      ratePerSession: Number(ratePerSession),
+      pricingMode: pricingMode,
+      hourlyRate: Number(hourlyRate),
+      estimatedHoursPerSession: Number(estimatedHoursPerSession),
       plannedDates: interventionType === 'generale' ? plannedDates : undefined,
       billingTermsNote: interventionType === 'generale' ? billingTermsNote : undefined,
     });
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-[7px] overflow-y-auto backdrop-blur-xs">
-      <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-[7px] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden my-2 max-h-[92vh] flex flex-col space-y-[7px]">
-        {/* Header */}
-        <div className="bg-slate-900 text-white p-[7px] px-3 flex items-center justify-between shrink-0">
-          <h2 className="text-sm font-bold">
+    <div className="fixed inset-0 z-[1000] bg-slate-900 text-slate-100 overflow-y-auto flex flex-col min-h-screen">
+      {/* Full Page Header Bar */}
+      <div className="sticky top-0 z-50 bg-slate-950 text-white p-[7px] px-3 border-b border-slate-800 flex items-center justify-between shrink-0 shadow-md">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1 px-2.5 rounded-[7px] text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+          >
+            ← Indietro
+          </button>
+          <h2 className="text-sm font-bold pl-1">
             {job ? 'Modifica Intervento' : 'Pianifica Nuovo Intervento'}
           </h2>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-[7px] text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
+        <button
+          onClick={onClose}
+          className="p-1.5 rounded-[7px] text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+          title="Chiudi"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-[7px] overflow-y-auto space-y-[7px] text-xs text-slate-700 dark:text-slate-300">
+      {/* Full Page Body */}
+      <div className="w-full max-w-3xl mx-auto p-3 space-y-[7px] flex-1 pb-16">
+        <form onSubmit={handleSubmit} className="space-y-[7px] text-xs text-slate-700 dark:text-slate-300">
           
           {/* Client Selection */}
           <div className="space-y-[7px]">
@@ -374,9 +389,9 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
           {/* Operai Assegnati (supporto esecutori multipli / squadra) */}
           <div className="space-y-1.5 bg-slate-50 dark:bg-slate-800/60 p-2 rounded-[7px] border border-slate-200 dark:border-slate-700">
             <div className="flex items-center justify-between">
-              <label className="font-semibold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+              <label className="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5 uppercase tracking-wider">
                 <Users className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Operai Assegnati ({assignedWorkerIds.length}) *</span>
+                <span>OPERAI ASSEGNATI ({assignedWorkerIds.length}) *</span>
               </label>
               <div className="flex items-center gap-2">
                 {currentUser && !assignedWorkerIds.includes(currentUser.uid) && (
@@ -399,7 +414,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                       setAssignedWorkerIds(availableWorkers.map((w) => w.uid));
                     }
                   }}
-                  className="text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline cursor-pointer"
+                  className="text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline cursor-pointer font-bold"
                 >
                   {assignedWorkerIds.length === availableWorkers.length ? 'Solo uno' : 'Tutti'}
                 </button>
@@ -430,15 +445,14 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                 );
               })}
             </div>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500">
-              Tocca gli operai per includerli o rimuoverli dalla squadra di questo intervento.
-            </p>
           </div>
 
-          {/* Date & TimeSlot */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-[7px]">
+          {/* Date & TimeSlot (Coordinati e affiancati) */}
+          <div className="grid grid-cols-2 gap-[7px]">
             <div className="space-y-[7px]">
-              <label className="font-semibold text-slate-700 dark:text-slate-300 block text-xs">Data Intervento *</label>
+              <label className="font-bold text-slate-800 dark:text-slate-200 block text-xs uppercase tracking-wider">
+                DATA INTERVENTO *
+              </label>
               <input
                 type="date"
                 required
@@ -453,7 +467,14 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
             </div>
 
             <div className="space-y-[7px]">
-              <label className="font-semibold text-slate-700 dark:text-slate-300 block text-xs">Fascia Oraria</label>
+              <label className="font-bold text-slate-800 dark:text-slate-200 block text-xs uppercase tracking-wider flex items-center justify-between">
+                <span>FASCIA ORARIA</span>
+                {pricingMode === 'hourly' && (
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-normal font-mono">
+                    ({estimatedHoursPerSession}h stimate)
+                  </span>
+                )}
+              </label>
               <input
                 type="text"
                 value={timeSlot}
@@ -464,9 +485,11 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
             </div>
           </div>
 
-          {/* Title & Description */}
+          {/* Title */}
           <div className="space-y-[7px]">
-            <label className="font-semibold text-slate-700 dark:text-slate-300 block">Titolo Intervento *</label>
+            <label className="font-bold text-slate-800 dark:text-slate-200 block text-xs uppercase tracking-wider">
+              TITOLO INTERVENTO *
+            </label>
             <input
               type="text"
               required
@@ -477,27 +500,23 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
             />
           </div>
 
+          {/* Rich Note Box per Descrizione Intervento (identico a Note Operative cliente) */}
           <div className="space-y-[7px]">
-            <label className="font-semibold text-slate-700 dark:text-slate-300 block">Descrizione Intervento</label>
-            <textarea
-              rows={2}
+            <RichNoteBox
+              label="DESCRIZIONE INTERVENTO"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Dettagli lavorazione..."
-              className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs text-slate-900 dark:text-slate-100"
+              onChange={setDescription}
+              placeholder="es. Dettagli lavorazione, specifiche intervento, attrezzatura e istruzioni..."
             />
           </div>
 
           {/* Tipologia Intervento: Singolo vs Periodico */}
           <div className="p-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-[7px] space-y-2">
             <div className="flex items-center justify-between">
-              <label className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1.5">
+              <label className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1.5 uppercase tracking-wider">
                 <Repeat className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Tipologia Intervento & Fatturazione</span>
+                <span>TIPOLOGIA INTERVENTO</span>
               </label>
-              <span className="text-[10px] text-slate-500 font-mono">
-                {interventionType === 'generale' ? 'Lavoro Continuativo / Periodico' : 'Intervento Singolo'}
-              </span>
             </div>
 
             <div className="grid grid-cols-2 gap-1.5">
@@ -514,7 +533,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                 }`}
               >
                 <CalendarIcon className="w-3.5 h-3.5 text-slate-400" />
-                <span>Intervento Singolo</span>
+                <span>Singolo</span>
               </button>
 
               <button
@@ -531,7 +550,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                 }`}
               >
                 <Repeat className="w-3.5 h-3.5" />
-                <span>Intervento Periodico</span>
+                <span>Periodico</span>
               </button>
             </div>
 
@@ -795,13 +814,144 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
 
           {/* Financial & Payment Section */}
           <div className="p-2.5 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-[7px] space-y-2.5">
-            <span className="font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wider block text-[11px] flex items-center gap-[7px]">
-              <Euro className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
-              Importo Lavoro & Gestione Pagamento
+            <span className="font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wider block text-[11px] flex items-center justify-between">
+              <span className="flex items-center gap-[7px]">
+                <Euro className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+                <span>Importo Lavoro & Gestione Pagamento</span>
+              </span>
             </span>
 
+            {/* Tariffazione (Scegli tra Giornata, Oraria, A Corpo) */}
+            <div className="space-y-1.5 p-2 bg-white dark:bg-slate-900 rounded-[7px] border border-slate-200 dark:border-slate-700 shadow-2xs">
+              <label className="font-bold text-slate-800 dark:text-slate-200 block text-xs uppercase tracking-wider">
+                Tariffazione
+              </label>
+
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { id: 'per_session', label: 'Giornata' },
+                  { id: 'hourly', label: 'Oraria' },
+                  { id: 'fixed', label: 'A Corpo' },
+                ].map((mode) => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => {
+                      const m = mode.id as 'hourly' | 'per_session' | 'fixed';
+                      setPricingMode(m);
+                      if (m === 'per_session') {
+                        const count = interventionType === 'generale' ? plannedDates.length : (sessionsCount || 1);
+                        setPrice((ratePerSession || 120) * count);
+                      } else if (m === 'hourly') {
+                        const count = interventionType === 'generale' ? plannedDates.length : (sessionsCount || 1);
+                        setPrice((hourlyRate || 30) * (estimatedHoursPerSession || 4) * count);
+                      }
+                    }}
+                    className={`py-1.5 px-2 rounded-[6px] text-xs font-bold border transition-all cursor-pointer text-center ${
+                      pricingMode === mode.id
+                        ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs ring-1 ring-emerald-500'
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-emerald-500'
+                    }`}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Dettagli specifici per la tariffazione scelta */}
+              {pricingMode === 'per_session' && (
+                <div className="pt-1.5 grid grid-cols-2 gap-2 text-xs">
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                      Tariffa Giornaliera (€/gg) *
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">€</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={ratePerSession}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setRatePerSession(val);
+                          const count = interventionType === 'generale' ? plannedDates.length : (sessionsCount || 1);
+                          setPrice(val * count);
+                        }}
+                        className="w-full p-1.5 pl-6 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[6px] text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400 focus:outline-emerald-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                      N. Giornate / Uscite
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={interventionType === 'generale' ? plannedDates.length : sessionsCount}
+                      disabled={interventionType === 'generale'}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10) || 1;
+                        setSessionsCount(val);
+                        setPrice((ratePerSession || 120) * val);
+                      }}
+                      className="w-full p-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[6px] text-xs font-mono font-bold text-slate-900 dark:text-slate-100 disabled:opacity-70 focus:outline-emerald-600"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {pricingMode === 'hourly' && (
+                <div className="pt-1.5 grid grid-cols-2 gap-2 text-xs">
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                      Tariffa Oraria (€/h) *
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">€</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        value={hourlyRate}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setHourlyRate(val);
+                          const count = interventionType === 'generale' ? plannedDates.length : (sessionsCount || 1);
+                          setPrice(val * (estimatedHoursPerSession || 4) * count);
+                        }}
+                        className="w-full p-1.5 pl-6 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[6px] text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400 focus:outline-emerald-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                      Ore Stimate (h)
+                    </label>
+                    <input
+                      type="number"
+                      min="0.5"
+                      step="0.5"
+                      value={estimatedHoursPerSession}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 1;
+                        setEstimatedHoursPerSession(val);
+                        const count = interventionType === 'generale' ? plannedDates.length : (sessionsCount || 1);
+                        setPrice((hourlyRate || 30) * val * count);
+                      }}
+                      className="w-full p-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[6px] text-xs font-mono font-bold text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Prezzo e Incassato Finora */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <label className="font-semibold text-slate-700 dark:text-slate-300 block text-xs">
                   Prezzo Totale Intervento (€) *
@@ -912,12 +1062,12 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
               </div>
             </div>
 
-            {/* Sezione Acconti & Pagamenti Ricevuti (quando il lavoro è in essere) */}
-            <div className="pt-2.5 mt-2.5 border-t border-emerald-200/80 dark:border-emerald-800/80 space-y-2">
+            {/* Sezione Acconti Ricevuti (quando il lavoro è in essere) */}
+            <div className="pt-2.5 mt-2.5 border-t border-dashed border-emerald-300 dark:border-emerald-800/80 space-y-2">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="font-bold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wide block">
-                    Acconti & Versamenti Ricevuti ({installments.length})
+                    Acconti Ricevuti ({installments.length})
                   </span>
                   <span className="text-[11px] text-slate-600 dark:text-slate-400">
                     Rimanente da incassare:{' '}
@@ -937,7 +1087,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                   className="p-1.5 px-3 bg-emerald-800 hover:bg-emerald-700 text-white rounded-[7px] text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>{isAddingInstallment ? 'Annulla' : 'Aggiungi Acconto'}</span>
+                  <span>{isAddingInstallment ? 'Annulla' : 'Acconto'}</span>
                 </button>
               </div>
 
@@ -1196,13 +1346,15 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
             </div>
           </div>
 
-          {/* Status */}
-          <div className="pt-[7px] border-t border-slate-200 dark:border-slate-700 space-y-[7px]">
-            <label className="font-semibold text-slate-700 dark:text-slate-300 block">Stato Lavoro</label>
+          {/* Status - Rinomina in AGGIORNA LAVORAZIONE e senza righe sopra/sotto */}
+          <div className="space-y-[7px]">
+            <label className="font-bold text-slate-800 dark:text-slate-200 block text-xs uppercase tracking-wider">
+              AGGIORNA LAVORAZIONE
+            </label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as JobStatus)}
-              className="w-full p-[7px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs font-bold text-slate-900 dark:text-slate-100"
+              className="w-full p-[7px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
             >
               <option value="scheduled">Programmato</option>
               <option value="in_progress">In Corso</option>
@@ -1211,8 +1363,8 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
             </select>
           </div>
 
-          {/* Action Footer */}
-          <div className="pt-[7px] border-t border-slate-200 dark:border-slate-700 flex items-center justify-end gap-[7px]">
+          {/* Action Footer senza divisore sopra */}
+          <div className="pt-2 flex items-center justify-end gap-[7px]">
             <button
               type="button"
               onClick={onClose}

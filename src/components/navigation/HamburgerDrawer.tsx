@@ -23,8 +23,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface HamburgerDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  activeTab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather';
-  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather') => void;
+  activeTab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather';
+  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather') => void;
   onOpenAccount: () => void;
   onOpenSettings: () => void;
   onOpenTeamModal: () => void;
@@ -44,7 +44,7 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
 
   if (!currentUser) return null;
 
-  const handleNavClick = (tab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments') => {
+  const handleNavClick = (tab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather') => {
     onSelectTab(tab);
     onClose();
   };
@@ -140,7 +140,7 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
                   }`}
                 >
                   <LayoutDashboard className="w-4 h-4 text-emerald-500" />
-                  <span>Dashboard & Riepiloghi</span>
+                  <span>HOME</span>
                 </button>
 
                 <button
@@ -168,6 +168,18 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
                 </button>
 
                 <button
+                  onClick={() => handleNavClick('workers')}
+                  className={`w-full p-[7px] px-3 rounded-[7px] flex items-center gap-[7px] transition-colors ${
+                    activeTab === 'workers'
+                      ? 'bg-emerald-950 text-white dark:bg-emerald-800'
+                      : 'bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'
+                  }`}
+                >
+                  <HardHat className="w-4 h-4 text-amber-500" />
+                  <span>Operai & Presenze</span>
+                </button>
+
+                <button
                   onClick={() => handleNavClick('clients')}
                   className={`w-full p-[7px] px-3 rounded-[7px] flex items-center gap-[7px] transition-colors ${
                     activeTab === 'clients'
@@ -176,7 +188,7 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
                   }`}
                 >
                   <Users className="w-4 h-4 text-indigo-500" />
-                  <span>Giardini & Schede Clienti</span>
+                  <span>Clienti & Schede Giardini</span>
                 </button>
 
                 {currentUser.role === 'admin' && (

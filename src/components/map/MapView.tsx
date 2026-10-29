@@ -68,8 +68,9 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
       const map = L.map(mapContainerRef.current, {
         center: [45.65, 9.32],
         zoom: 12,
-        zoomControl: true,
+        zoomControl: false,
       });
+      L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
       const initialLayer = createTileLayer(mapLayer);
       initialLayer.addTo(map);

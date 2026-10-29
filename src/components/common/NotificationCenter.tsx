@@ -167,48 +167,48 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
             />
 
             <motion.div
-              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              initial={{ opacity: 0, y: -10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              exit={{ opacity: 0, y: -10, scale: 0.98 }}
               transition={{ duration: 0.18, ease: 'easeOut' }}
               className={`${
                 placement === 'sidebar-up'
-                  ? 'absolute left-0 bottom-full mb-2 w-80 sm:w-88'
-                  : 'absolute right-0 mt-2 w-80 sm:w-96'
-              } z-[900] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] shadow-2xl overflow-hidden text-slate-900 dark:text-slate-100 p-[7px] space-y-[7px]`}
+                  ? 'absolute left-0 bottom-full mb-2 w-[calc(100vw-20px)] max-w-sm sm:w-88'
+                  : 'fixed left-2 right-2 top-14 sm:absolute sm:top-auto sm:left-auto sm:right-0 sm:mt-2 sm:w-[380px] max-w-md'
+              } z-[900] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] shadow-2xl overflow-hidden text-slate-900 dark:text-slate-100 p-[3px] space-y-[3px]`}
             >
               {/* Dropdown Header */}
-              <div className="bg-slate-900 text-white dark:bg-slate-950 p-[7px] px-3 rounded-[7px] flex items-center justify-between">
-                <div className="flex items-center gap-[7px]">
-                  <Bell className="w-4 h-4 text-amber-400" />
+              <div className="bg-slate-900 text-white dark:bg-slate-950 p-[3px] px-2 rounded-[7px] flex items-center justify-between">
+                <div className="flex items-center gap-[3px]">
+                  <Bell className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                   <span className="text-xs font-bold tracking-wide">Notifiche Operative</span>
                   {unreadCount > 0 && (
-                    <span className="px-1.5 py-0.5 rounded-[7px] bg-amber-500/20 text-amber-300 font-bold text-[10px]">
+                    <span className="px-1.5 py-0.5 rounded-[5px] bg-amber-500/20 text-amber-300 font-bold text-[10px]">
                       {unreadCount} nuove
                     </span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-[7px]">
+                <div className="flex items-center gap-[3px]">
                   {activeNotifications.length > 0 && (
                     <button
                       onClick={handleMarkAllRead}
-                      className="text-[10px] text-slate-300 hover:text-white font-medium underline transition-colors"
+                      className="text-[10px] text-slate-300 hover:text-white font-medium underline transition-colors cursor-pointer"
                     >
                       Segna lette
                     </button>
                   )}
                   <button
                     onClick={() => setIsOpen(false)}
-                    className="p-1 rounded-[7px] text-slate-400 hover:text-white transition-colors"
+                    className="p-1 rounded-[5px] text-slate-400 hover:text-white transition-colors cursor-pointer"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
-              {/* Notifications List */}
-              <div className="max-h-80 overflow-y-auto space-y-[7px]">
+              {/* Notifications List with gap-[3px] */}
+              <div className="max-h-[75vh] sm:max-h-80 overflow-y-auto space-y-[3px]">
                 {activeNotifications.length === 0 ? (
                   <div className="p-6 text-center text-xs text-slate-400 dark:text-slate-500 space-y-1">
                     <Check className="w-6 h-6 mx-auto text-emerald-500 opacity-60" />
@@ -220,34 +220,29 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
                     <div
                       key={notif.id}
                       onClick={() => handleNotificationClick(notif)}
-                      className={`p-2 rounded-[7px] border transition-all cursor-pointer flex items-center justify-between gap-2 relative group ${
+                      className={`p-[3px] px-2 rounded-[7px] border transition-all cursor-pointer flex items-center justify-between gap-[3px] relative group ${
                         notif.read
                           ? 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 opacity-75'
                           : 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/50'
                       }`}
                     >
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <div className="p-1.5 bg-white dark:bg-slate-800 rounded-[5px] shadow-2xs shrink-0">
-                          {getIcon(notif.type)}
+                      {/* Client Name & Full Details (No left icon, full non-truncated text) */}
+                      <div className="min-w-0 flex-1 space-y-[2px]">
+                        <div className="flex flex-wrap items-baseline gap-[3px]">
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 whitespace-normal break-words leading-tight">
+                            {notif.title}
+                          </h4>
+                          <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 shrink-0">
+                            · {notif.timestamp}
+                          </span>
                         </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
-                              {notif.title}
-                            </h4>
-                            <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 shrink-0">
-                              · {notif.timestamp}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-600 dark:text-slate-300 truncate">
-                            {notif.message}
-                          </p>
-                        </div>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300 whitespace-normal break-words leading-tight">
+                          {notif.message}
+                        </p>
                       </div>
 
                       {/* Right actions: Quick Complete button + Dismiss */}
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-[3px] shrink-0 ml-1">
                         {notif.type === 'job_expired' && notif.jobId && (
                           <button
                             onClick={(e) => {
@@ -258,20 +253,20 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
                               }
                               setDismissedIds((prev) => [...prev, notif.id]);
                             }}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-700 hover:bg-emerald-600 text-white dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-[5px] font-bold text-[10px] transition-colors cursor-pointer shadow-2xs"
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-700 hover:bg-emerald-600 text-white dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-[5px] font-bold text-[10px] transition-colors cursor-pointer shadow-2xs shrink-0"
                             title="Segna subito ultimato"
                           >
-                            <CheckCircle2 className="w-3 h-3" />
+                            <CheckCircle2 className="w-3.5 h-3.5" />
                             <span>Ultimato</span>
                           </button>
                         )}
 
                         <button
                           onClick={(e) => handleDismiss(notif.id, e)}
-                          className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-600 transition-opacity"
+                          className="opacity-70 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-600 transition-opacity cursor-pointer shrink-0"
                           title="Rimuovi"
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
