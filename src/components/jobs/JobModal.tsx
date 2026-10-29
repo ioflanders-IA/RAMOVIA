@@ -283,7 +283,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
       assignedWorkerName: selectedWorker.isSelf
         ? (currentUser?.displayName || 'Titolare')
         : selectedWorker.displayName,
-      date: plannedDates[0] || date,
+      date: interventionType === 'generale' ? (plannedDates[0] || date) : (date || plannedDates[0] || new Date().toISOString().split('T')[0]),
       timeSlot,
       status,
       title,
@@ -393,7 +393,11 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                 type="date"
                 required
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDate(val);
+                  setPlannedDates([val]);
+                }}
                 className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs font-mono text-slate-900 dark:text-slate-100"
               />
             </div>

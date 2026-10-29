@@ -94,6 +94,81 @@ export const PaymentsView: React.FC = () => {
   // Confirmation modal to reset/delete payments for a job
   const [jobToResetPayments, setJobToResetPayments] = useState<Job | null>(null);
 
+  // Long-press state for revealing icon-only actions (modifica & azzera) in bottom-right
+  const [longPressedPaymentJobId, setLongPressedPaymentJobId] = useState<string | null>(null);
+
+  // Long-press state for revealing icon-only actions on installments
+  const [longPressedInstallmentId, setLongPressedInstallmentId] = useState<string | null>(null);
+
+  const createInstallmentLongPress = (instId: string) => {
+    let pressTimer: NodeJS.Timeout | null = null;
+
+    const start = () => {
+      pressTimer = setTimeout(() => {
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+        setLongPressedInstallmentId((prev) => (prev === instId ? null : instId));
+      }, 500);
+    };
+
+    const clear = () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    };
+
+    return {
+      onMouseDown: () => start(),
+      onMouseUp: () => clear(),
+      onMouseLeave: () => clear(),
+      onTouchStart: () => start(),
+      onTouchEnd: () => clear(),
+      onTouchMove: () => clear(),
+      onContextMenu: (e: React.MouseEvent) => {
+        e.preventDefault();
+        setLongPressedInstallmentId((prev) => (prev === instId ? null : instId));
+      },
+    };
+  };
+
+  const createPaymentCardLongPress = (jobId: string) => {
+    let pressTimer: NodeJS.Timeout | null = null;
+    let didLong = false;
+
+    const start = () => {
+      didLong = false;
+      pressTimer = setTimeout(() => {
+        didLong = true;
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+        setLongPressedPaymentJobId((prev) => (prev === jobId ? null : jobId));
+      }, 500);
+    };
+
+    const clear = () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    };
+
+    return {
+      onMouseDown: () => start(),
+      onMouseUp: () => clear(),
+      onMouseLeave: () => clear(),
+      onTouchStart: () => start(),
+      onTouchEnd: () => clear(),
+      onTouchMove: () => clear(),
+      onContextMenu: (e: React.MouseEvent) => {
+        e.preventDefault();
+        setLongPressedPaymentJobId((prev) => (prev === jobId ? null : jobId));
+      },
+    };
+  };
+
   // 1. Calculate Revenue from Jobs
   const totalJobRevenue = jobs.reduce((sum, j) => sum + (j.price || 0), 0);
   const totalJobCollected = jobs.reduce((sum, j) => {
@@ -626,41 +701,41 @@ export const PaymentsView: React.FC = () => {
 
       {/* TAB 2: JOB COLLECTIONS & REVENUE */}
       {activeSubTab === 'incassi' && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800 gap-1.5">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[3px] shadow-xs space-y-[3px]">
+          <div className="flex items-center justify-between px-1.5 pt-1 pb-1">
             <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider">
-              Registro Incassi Lavori ({jobs.length} interventi)
+              Registro Incassi Lavori
             </h3>
           </div>
 
-          {/* Filtri Stato Incasso sullo STESSO RIGO */}
-          <div className="grid grid-cols-4 gap-1.5 text-xs font-bold">
+          {/* Filtri Stato Incasso sullo STESSO RIGO (gap a 3px) */}
+          <div className="grid grid-cols-4 gap-[3px] text-xs font-bold">
             <button
               type="button"
               onClick={() => setStatusFilter('all')}
-              className={`py-1.5 px-2 rounded-[6px] border text-center transition-colors cursor-pointer truncate ${
+              className={`py-1.5 px-2 rounded-[5px] border text-center transition-colors cursor-pointer truncate ${
                 statusFilter === 'all'
                   ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border-slate-900'
                   : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
               }`}
             >
-              Tutti ({jobs.length})
+              Tutti
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter('unpaid')}
-              className={`py-1.5 px-1.5 rounded-[6px] border text-center transition-colors cursor-pointer truncate ${
+              className={`py-1.5 px-1.5 rounded-[5px] border text-center transition-colors cursor-pointer truncate ${
                 statusFilter === 'unpaid'
                   ? 'bg-rose-700 text-white border-rose-800 shadow-2xs'
                   : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-900/50 hover:bg-rose-100'
               }`}
             >
-              Da Incassare
+              Da Incass...
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter('partial')}
-              className={`py-1.5 px-1.5 rounded-[6px] border text-center transition-colors cursor-pointer truncate ${
+              className={`py-1.5 px-1.5 rounded-[5px] border text-center transition-colors cursor-pointer truncate ${
                 statusFilter === 'partial'
                   ? 'bg-amber-600 text-white border-amber-700 shadow-2xs'
                   : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50 hover:bg-amber-100'
@@ -671,7 +746,7 @@ export const PaymentsView: React.FC = () => {
             <button
               type="button"
               onClick={() => setStatusFilter('paid')}
-              className={`py-1.5 px-1.5 rounded-[6px] border text-center transition-colors cursor-pointer truncate ${
+              className={`py-1.5 px-1.5 rounded-[5px] border text-center transition-colors cursor-pointer truncate ${
                 statusFilter === 'paid'
                   ? 'bg-emerald-700 text-white border-emerald-800 shadow-2xs'
                   : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100'
@@ -681,7 +756,7 @@ export const PaymentsView: React.FC = () => {
             </button>
           </div>
 
-          <div className="space-y-[7px] max-h-[500px] overflow-y-auto">
+          <div className="space-y-[3px] max-h-[500px] overflow-y-auto">
             {jobs.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-400">
                 Nessun cantiere o intervento ancora registrato.
@@ -743,44 +818,47 @@ export const PaymentsView: React.FC = () => {
                     : 'unpaid';
                 const method = job.paymentMethod || 'bonifico';
 
+                const isLongPressed = longPressedPaymentJobId === job.id;
+                const pressHandlers = createPaymentCardLongPress(job.id);
+
                 return (
                   <div
                     key={job.id}
-                    className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] space-y-2.5 text-xs hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-2xs"
+                    {...pressHandlers}
+                    className={`p-[3px] bg-white dark:bg-slate-900 border rounded-[7px] space-y-[3px] text-xs transition-all shadow-2xs select-none ${
+                      isLongPressed
+                        ? 'border-emerald-500 ring-2 ring-emerald-500/20 dark:ring-emerald-500/30'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                    }`}
                   >
-                    {/* Header: Cliente, Titolo, Data, Stato */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/80">
+                    {/* Header: Cliente, Titolo, Data (sulla destra) & Badge Stato */}
+                    <div className="flex items-start justify-between gap-1.5 px-1.5 pt-1 pb-1 border-b border-slate-100 dark:border-slate-800/80">
                       <div className="space-y-0.5 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">
                             {job.clientName}
                           </span>
-                          <span className="font-mono text-[10px] bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 shrink-0">
-                            {job.date}
-                          </span>
-                          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                            · {job.title}
-                          </span>
                           {job.interventionType === 'generale' && (
-                            <span className="font-mono text-[10px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-800 shrink-0">
-                              Periodico {job.pricingMode === 'hourly' && job.hourlyRate ? `· €${job.hourlyRate}/h` : ''} {job.frequency ? `· ${job.frequency}` : ''} · Saldo fine mese
+                            <span className="font-mono text-[9px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.2 rounded border border-emerald-300 dark:border-emerald-800 shrink-0">
+                              Periodico
                             </span>
                           )}
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
-                          <span>
-                            Modalità: <strong className="text-slate-700 dark:text-slate-300">{getMethodLabel(method)}</strong>
-                          </span>
-                          {job.clientAddress && (
-                            <span className="hidden sm:inline text-slate-400">· {job.clientAddress}</span>
-                          )}
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                          {job.title}
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          Modalità: <strong className="text-slate-700 dark:text-slate-300">{getMethodLabel(method)}</strong>
                         </div>
                       </div>
 
-                      {/* Status Badge */}
-                      <div className="shrink-0 flex items-center gap-1.5">
+                      {/* Right: Data e Badge Stato */}
+                      <div className="shrink-0 flex flex-col items-end gap-1">
+                        <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded shrink-0">
+                          {job.date}
+                        </span>
                         <span
-                          className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase px-2.5 py-1 rounded-[6px] tracking-wider border ${
+                          className={`inline-flex items-center gap-1 text-[9px] font-bold uppercase px-2 py-0.5 rounded-[5px] tracking-wider border ${
                             status === 'paid'
                               ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                               : status === 'partial'
@@ -802,118 +880,162 @@ export const PaymentsView: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Financial KPI Strip: Prezzo | Incassato | Rimanente */}
-                    <div className="grid grid-cols-3 gap-2 text-center sm:text-left">
-                      <div className="bg-slate-50 dark:bg-slate-800/40 p-2 rounded-[6px] border border-slate-200/70 dark:border-slate-800 shadow-2xs">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                          Prezzo Totale
-                        </div>
-                        <div className="text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-slate-100 mt-0.5">
+                    {/* Financial Breakdown: Testo normale senza bordi o sfondi (testo a sx e importi a dx) */}
+                    <div className="space-y-[3px] text-xs px-1.5 py-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 dark:text-slate-400 font-medium">Prezzo Totale:</span>
+                        <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
                           € {price.toFixed(2)}
-                        </div>
+                        </span>
                       </div>
 
-                      <div className="bg-emerald-50/50 dark:bg-emerald-950/20 p-2 rounded-[6px] border border-emerald-100 dark:border-emerald-900/30 shadow-2xs">
-                        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                      <div className="flex items-center justify-between">
+                        <span className="text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-1">
                           <span>Incassato</span>
                           {installments.length > 0 && (
-                            <span className="text-[9px] font-semibold opacity-80">({installments.length} vers.)</span>
+                            <span className="text-[10px] font-normal opacity-80">({installments.length})</span>
                           )}
-                        </div>
-                        <div className="text-xs sm:text-sm font-mono font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">
+                          <span>:</span>
+                        </span>
+                        <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">
                           € {paid.toFixed(2)}
-                        </div>
+                        </span>
                       </div>
 
-                      <div
-                        className={`p-2 rounded-[6px] border shadow-2xs ${
-                          remaining === 0
-                            ? 'bg-slate-50 dark:bg-slate-800/40 border-slate-200/70 dark:border-slate-800'
-                            : 'bg-amber-50/60 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/30'
-                        }`}
-                      >
-                        <div
-                          className={`text-[10px] font-bold uppercase tracking-wider ${
-                            remaining === 0 ? 'text-slate-400' : 'text-amber-600 dark:text-amber-400'
-                          }`}
-                        >
-                          Rimanente da Saldare
-                        </div>
-                        <div
-                          className={`text-xs sm:text-sm font-mono font-bold mt-0.5 ${
-                            remaining === 0
-                              ? 'text-slate-400'
-                              : 'text-amber-700 dark:text-amber-400'
-                          }`}
-                        >
+                      <div className="flex items-center justify-between">
+                        <span className={`font-medium ${remaining === 0 ? 'text-slate-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                          Rimanente da Saldare:
+                        </span>
+                        <span className={`font-mono font-bold ${remaining === 0 ? 'text-slate-400' : 'text-amber-700 dark:text-amber-400'}`}>
                           € {remaining.toFixed(2)}
-                        </div>
+                        </span>
                       </div>
                     </div>
 
-                    {/* Acconti e Versamenti Registrati con Azioni di Modifica ed Eliminazione */}
+                    {/* Acconti e Versamenti Registrati */}
                     {installments.length > 0 && (
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-1.5">
-                        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                          <span>Dettaglio Acconti Registrati ({installments.length})</span>
+                      <div className="pt-1 border-t border-slate-100 dark:border-slate-800/80 px-1 space-y-[3px]">
+                        <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          <span>Acconti ({installments.length})</span>
                           <span className="font-mono text-emerald-600 dark:text-emerald-400">
-                            Totale Acconti: € {installmentsSum.toFixed(2)}
+                            Totale: € {installmentsSum.toFixed(2)}
                           </span>
                         </div>
 
-                        <div className="space-y-1">
-                          {installments.map((inst, idx) => (
-                            <div
-                              key={inst.id}
-                              className="flex items-center justify-between p-1.5 px-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-[6px] border border-slate-200/80 dark:border-slate-700/80 text-xs hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
-                            >
-                              <div className="flex items-center gap-2 min-w-0 flex-wrap sm:flex-nowrap">
-                                <span className="font-bold text-slate-800 dark:text-slate-200 shrink-0">
-                                  Acconto #{idx + 1}
-                                </span>
-                                <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400 shrink-0">
-                                  {inst.date}
-                                </span>
-                                <span className="px-1.5 py-0.2 rounded text-[9px] uppercase font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 shrink-0">
-                                  {getMethodLabel(inst.paymentMethod)}
-                                </span>
-                                {inst.notes && (
-                                  <span className="text-[11px] text-slate-500 italic truncate max-w-[140px] sm:max-w-xs" title={inst.notes}>
-                                    "{inst.notes}"
+                        <div className="space-y-[3px]">
+                          {installments.map((inst, idx) => {
+                            const isInstLongPressed = longPressedInstallmentId === inst.id;
+                            const instLongPress = createInstallmentLongPress(inst.id);
+                            return (
+                              <div
+                                key={inst.id}
+                                {...instLongPress}
+                                className={`flex items-center justify-between py-1 px-1 text-xs select-none cursor-pointer transition-colors rounded ${
+                                  isInstLongPressed ? 'bg-slate-100/90 dark:bg-slate-800/60' : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/30'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="font-bold text-slate-700 dark:text-slate-300 shrink-0 text-xs">
+                                    #{idx + 1}
                                   </span>
-                                )}
-                              </div>
+                                  <span className="font-mono text-[11px] text-slate-500 shrink-0">
+                                    {inst.date}
+                                  </span>
+                                  <span className="text-[10px] uppercase font-semibold text-slate-600 dark:text-slate-300 shrink-0">
+                                    {getMethodLabel(inst.paymentMethod)}
+                                  </span>
+                                  {inst.notes && (
+                                    <span className="text-[10px] text-slate-400 italic truncate max-w-[120px] sm:max-w-xs" title={inst.notes}>
+                                      "{inst.notes}"
+                                    </span>
+                                  )}
+                                </div>
 
-                              <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                                <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 mr-1">
-                                  € {inst.amount.toFixed(2)}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEditInstallment(job, inst)}
-                                  className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded hover:bg-slate-200/50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                                  title="Modifica questo acconto"
-                                >
-                                  <Edit2 className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setInstallmentToDelete({ job, installment: inst })}
-                                  className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors cursor-pointer"
-                                  title="Elimina questo acconto"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                                  <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 text-xs">
+                                    € {inst.amount.toFixed(2)}
+                                  </span>
+                                  {isInstLongPressed && (
+                                    <div className="flex items-center gap-0.5 ml-1 animate-in fade-in duration-150">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenEditInstallment(job, inst)}
+                                        className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer bg-transparent border-0"
+                                        title="Modifica questo acconto"
+                                      >
+                                        <Edit2 className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setInstallmentToDelete({ job, installment: inst })}
+                                        className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer bg-transparent border-0"
+                                        title="Elimina questo acconto"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}
 
-                    {/* Actions Toolbar */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                      <div className="flex flex-wrap items-center gap-1.5">
+                    {/* Actions Toolbar: Left = Modifica & Azzera icon-only upon long press; Right = Saldato & + Acconto (inverted) */}
+                    <div className="flex items-center justify-between gap-2 px-1 pt-1 border-t border-slate-100 dark:border-slate-800 min-h-[34px]">
+                      {/* Left: Modifica & Azzera (icon-only, no background, no border, only after long-press) */}
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        {isLongPressed && (
+                          <div className="flex items-center gap-1 animate-in fade-in zoom-in-90 duration-150">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditPayment(job)}
+                              className="p-1.5 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer bg-transparent border-0"
+                              title="Modifica pagamento cantiere"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+
+                            {(paid > 0 || installments.length > 0) && (
+                              <button
+                                type="button"
+                                onClick={() => setJobToResetPayments(job)}
+                                className="p-1.5 text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 transition-colors cursor-pointer bg-transparent border-0"
+                                title="Azzera incassi cantiere"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right: [Saldato] then [+ Acconto] furthest right */}
+                      <div className="flex items-center gap-1.5 ml-auto" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleJobPaid(job)}
+                          className={`p-1 px-2.5 rounded-[5px] font-bold text-[11px] shadow-xs cursor-pointer flex items-center gap-1 transition-colors ${
+                            status === 'paid'
+                              ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 dark:bg-amber-950/60 dark:hover:bg-amber-950 dark:text-amber-200 border border-amber-300 dark:border-amber-800'
+                              : 'bg-emerald-700 hover:bg-emerald-600 text-white'
+                          }`}
+                        >
+                          {status === 'paid' ? (
+                            <>
+                              <RotateCcw className="w-3 h-3" />
+                              <span>Riapri (Non Saldato)</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Saldato</span>
+                            </>
+                          )}
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => {
@@ -923,57 +1045,11 @@ export const PaymentsView: React.FC = () => {
                             setAccontoMethod(job.paymentMethod || 'bonifico');
                             setAccontoNotes('');
                           }}
-                          className="p-1.5 px-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-[7px] font-bold text-[11px] shadow-xs cursor-pointer flex items-center gap-1 transition-colors"
+                          className="p-1 px-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-[5px] font-bold text-[11px] shadow-xs cursor-pointer flex items-center gap-1 transition-colors"
                         >
-                          <Plus className="w-3.5 h-3.5" />
+                          <Plus className="w-3 h-3" />
                           <span>Acconto</span>
                         </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleToggleJobPaid(job)}
-                          className={`p-1.5 px-2.5 rounded-[7px] font-bold text-[11px] shadow-xs cursor-pointer flex items-center gap-1 transition-colors ${
-                            status === 'paid'
-                              ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 dark:bg-amber-950/60 dark:hover:bg-amber-950 dark:text-amber-200 border border-amber-300 dark:border-amber-800'
-                              : 'bg-emerald-700 hover:bg-emerald-600 text-white'
-                          }`}
-                        >
-                          {status === 'paid' ? (
-                            <>
-                              <RotateCcw className="w-3.5 h-3.5" />
-                              <span>Riapri (Non Saldato)</span>
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>Segna Saldato</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditPayment(job)}
-                          className="p-1.5 px-2.5 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px] font-semibold text-[11px] text-slate-700 dark:text-slate-300 flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
-                          title="Modifica prezzo, modalità di pagamento o stato"
-                        >
-                          <Edit2 className="w-3 h-3 text-slate-500" />
-                          <span>Modifica</span>
-                        </button>
-
-                        {(paid > 0 || installments.length > 0) && (
-                          <button
-                            type="button"
-                            onClick={() => setJobToResetPayments(job)}
-                            className="p-1.5 px-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-950/70 border border-rose-200 dark:border-rose-900/50 rounded-[7px] font-semibold text-[11px] text-rose-700 dark:text-rose-400 flex items-center gap-1 transition-colors cursor-pointer"
-                            title="Azzera gli incassi e gli acconti registrati per questo cantiere"
-                          >
-                            <Trash2 className="w-3 h-3 text-rose-600 dark:text-rose-400" />
-                            <span>Azzera</span>
-                          </button>
-                        )}
                       </div>
                     </div>
                   </div>

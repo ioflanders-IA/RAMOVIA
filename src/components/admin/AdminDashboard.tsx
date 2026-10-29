@@ -121,75 +121,75 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
         </div>
       </div>
 
-      {/* KPI STAT CARDS with 7px spacing */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-[7px]">
+      {/* KPI STAT CARDS: 4 cards all on the same row */}
+      <div className="grid grid-cols-4 gap-[7px]">
         
-        {/* Cantieri Oggi */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
+        {/* 1. Cantieri Oggi */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs flex flex-col justify-between space-y-1">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Cantieri Oggi</span>
-            <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Cantieri Oggi</span>
+            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
           </div>
-          <div className="text-2xl font-bold font-mono text-slate-900 dark:text-slate-100">
+          <div className="text-xl sm:text-2xl font-bold font-mono text-slate-900 dark:text-slate-100 leading-tight">
             {todayJobs.length}
           </div>
-          <div className="flex items-center gap-[7px] text-xs text-slate-600 dark:text-slate-300">
-            <span className="text-emerald-700 dark:text-emerald-400 font-semibold">{completedToday.length} completati</span>
-            <span>·</span>
+          <div className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-300 truncate">
+            <span className="text-emerald-700 dark:text-emerald-400 font-semibold">{completedToday.length} fatti</span>
+            <span className="mx-1">·</span>
             <span className="text-sky-700 dark:text-sky-400 font-semibold">{inProgressToday.length} in corso</span>
           </div>
         </div>
 
-        {/* Squadre sul Campo */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
+        {/* 2. Squadre Attive */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs flex flex-col justify-between space-y-1">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Squadre Attive</span>
-            <Users className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Squadre Attive</span>
+            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
           </div>
-          <div className="text-2xl font-bold font-mono text-slate-900 dark:text-slate-100">
+          <div className="text-xl sm:text-2xl font-bold font-mono text-slate-900 dark:text-slate-100 leading-tight">
             {users.filter((u) => u.role === 'worker' && u.active).length}
           </div>
-          <div className="text-xs text-slate-500 dark:text-slate-400">
+          <div className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
             Operatori sul campo
           </div>
         </div>
 
-        {/* Ore Lavorate Rendicontate */}
+        {/* 3. Ore Rendicontate */}
         <div
           onClick={() => onNavigateTab('reports')}
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs cursor-pointer hover:border-emerald-300 transition-colors space-y-[7px]"
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs cursor-pointer hover:border-emerald-300 transition-colors flex flex-col justify-between space-y-1"
         >
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Ore Rendicontate</span>
-            <Timer className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Ore Rendicontate</span>
+            <Timer className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
           </div>
-          <div className="text-2xl font-bold font-mono text-emerald-800 dark:text-emerald-400">
+          <div className="text-xl sm:text-2xl font-bold font-mono text-emerald-800 dark:text-emerald-400 leading-tight">
             {totalReportedHours.toFixed(1)} h
           </div>
-          <div className="text-xs text-slate-500 dark:text-slate-400">
-            Totale da rapportini archiviati
+          <div className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
+            Totale da rapportini
           </div>
         </div>
 
-        {/* Rapportini da Validare */}
+        {/* 4. Rapportini da Validare */}
         <div
           onClick={() => onNavigateTab('reports')}
-          className={`border rounded-[7px] p-[7px] shadow-xs cursor-pointer transition-colors space-y-[7px] ${
+          className={`border rounded-[7px] p-[7px] shadow-xs cursor-pointer transition-colors flex flex-col justify-between space-y-1 ${
             pendingApprovalReports.length > 0
               ? 'bg-amber-50/70 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800'
               : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
           }`}
         >
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Rapportini da Validare</span>
-            <FileCheck2 className={`w-4 h-4 ${pendingApprovalReports.length > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-slate-400'}`} />
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Rapportini da Validare</span>
+            <FileCheck2 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${pendingApprovalReports.length > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-slate-400'} shrink-0`} />
           </div>
-          <div className={`text-2xl font-bold font-mono ${pendingApprovalReports.length > 0 ? 'text-amber-900 dark:text-amber-300' : 'text-slate-900 dark:text-slate-100'}`}>
+          <div className={`text-xl sm:text-2xl font-bold font-mono ${pendingApprovalReports.length > 0 ? 'text-amber-900 dark:text-amber-300' : 'text-slate-900 dark:text-slate-100'} leading-tight`}>
             {pendingApprovalReports.length}
           </div>
-          <div className="text-xs text-amber-800 dark:text-amber-400 font-semibold flex items-center justify-between">
-            <span>Inviati dagli operai</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+          <div className="text-[10px] sm:text-xs text-amber-800 dark:text-amber-400 font-semibold flex items-center justify-between truncate">
+            <span className="truncate">Inviati dagli operai</span>
+            <ArrowRight className="w-3 h-3 shrink-0 ml-1" />
           </div>
         </div>
       </div>
@@ -296,55 +296,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
       )}
 
       {/* MAIN OPERATIONAL SECTION: Today's Jobs & Squad Operations */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-[7px]">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-[3px]">
         
         {/* Today's Jobs List (Expanded to 2 cols for clarity) */}
-        <div className="lg:col-span-2 space-y-[7px]">
+        <div className="lg:col-span-2 space-y-[3px]">
           
-          {/* Banner Notifica: Orario Intervento Scaduto */}
-          {expiredJobsToday.length > 0 && (
-            <div className="bg-amber-50/95 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 rounded-[7px] p-[7px] space-y-[7px] shadow-xs">
-              <div className="flex items-center justify-between gap-[7px]">
-                <div className="flex items-center gap-[7px]">
-                  <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 animate-pulse" />
-                  <span className="text-xs font-bold text-amber-950 dark:text-amber-200">
-                    Orario intervento terminato ({expiredJobsToday.length}) · Segna lavoro completato
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-[7px]">
-                {expiredJobsToday.map((expJob) => (
-                  <div
-                    key={expJob.id}
-                    className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/80 rounded-[7px] p-[7px] flex items-center justify-between gap-[7px]"
-                  >
-                    <div className="min-w-0">
-                      <div className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
-                        {expJob.clientName}
-                      </div>
-                      <div className="text-[11px] text-slate-600 dark:text-slate-400 truncate">
-                        {expJob.title} · <span className="font-mono font-semibold">{expJob.timeSlot}</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => updateJob({ ...expJob, status: 'completed' })}
-                      className="flex items-center gap-1 p-[7px] py-1 bg-transparent hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-600 dark:border-emerald-500 rounded-[7px] font-bold text-[10px] shrink-0 transition-colors cursor-pointer"
-                      title="Segna subito questo lavoro come ultimato"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                      <span>Segna Ultimato</span>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-            <div className="flex items-center justify-between pb-[7px] border-b border-slate-100 dark:border-slate-800">
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-[7px]">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[3px] shadow-xs space-y-[3px]">
+            <div className="flex items-center justify-between px-1.5 pt-1 pb-1">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-                <span>Interventi di Oggi ({todayJobs.length})</span>
+                <span>Interventi di Oggi</span>
               </span>
               <button
                 onClick={() => onNavigateTab('calendar')}
@@ -355,15 +317,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
               </button>
             </div>
 
-            <div className="space-y-[7px]">
+            <div className="space-y-[3px]">
               {todayJobs.length === 0 ? (
-                <div className="p-[7px] py-8 text-center space-y-[7px]">
+                <div className="p-3 py-8 text-center space-y-2">
                   <p className="text-xs text-slate-400 dark:text-slate-500">
                     Nessun intervento programmato per oggi.
                   </p>
                   <button
                     onClick={() => setIsCreatingJob(true)}
-                    className="inline-flex items-center gap-[7px] p-[7px] px-3 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-[7px] shadow-xs transition-colors"
+                    className="inline-flex items-center gap-1.5 p-2 px-3 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-[6px] shadow-xs transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Pianifica un lavoro per oggi</span>
@@ -379,7 +341,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                     <div
                       key={job.id}
                       onClick={() => setSelectedJobForModal(job)}
-                      className={`p-[7px] border rounded-[7px] hover:border-emerald-400 dark:hover:border-emerald-600 cursor-pointer transition-all space-y-[7px] ${
+                      className={`p-2.5 sm:p-3 border rounded-[6px] hover:border-emerald-400 dark:hover:border-emerald-600 cursor-pointer transition-all space-y-1.5 ${
                         isCompleted
                           ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800/80 shadow-2xs'
                           : isInProgress
