@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { Job, PolygonPoint, Client } from '../../types';
+import { Job, PolygonPoint, Client, WeatherData } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { MapPin, Search, Layers, Compass } from 'lucide-react';
 import { formatLocalDate } from '../../utils/dateUtils';
 import { getClientColor, getContrastTextColor } from '../../utils/clientColors';
+import { fetchWeatherForClients } from '../../services/weatherService';
+import { getWeatherSvg } from '../../utils/weatherIcons';
 
 interface MapViewProps {
   onSelectJob?: (job: Job) => void;
@@ -27,6 +29,16 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
   const [workerFilter, setWorkerFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
+
+  // Weather Map for clients
+  const [weatherMap, setWeatherMap] = useState<Record<string, WeatherData>>({});
+
+  useEffect(() => {
+    if (clients.length === 0) return;
+    fetchWeatherForClients(clients)
+      .then((map) => setWeatherMap(map))
+      .catch((err) => console.warn('Meteo cantieri fetch error:', err));
+  }, [clients]);
 
   const todayStr = formatLocalDate(new Date());
 
@@ -179,7 +191,7 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
       }
     });
 
-    // 2. Render Markers for ALL Saved Clients
+    // 2. Render Markers for ALL Saved Clients as Segnaposti with Weather Icon
     clients.forEach((client) => {
       // Find if this client has an active job matching current filters
       const matchingJob = activeJobs.find(
@@ -188,26 +200,25 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
 
       const clientColor = getClientColor(client);
       const textColor = getContrastTextColor(clientColor);
-      let statusBadgeLabel = 'Cantiere Registrato';
-      let statusIcon = '📍';
+      const clientWeather = weatherMap[client.id];
+      const weatherSvg = getWeatherSvg(clientWeather, textColor, 17);
 
+      let statusBadgeLabel = 'Cantiere Registrato';
       if (matchingJob) {
         if (matchingJob.status === 'scheduled') {
-          statusBadgeLabel = '⚡ In Programma';
-          statusIcon = '⚡';
+          statusBadgeLabel = 'In Programma';
         } else if (matchingJob.status === 'in_progress') {
-          statusBadgeLabel = '🌀 In Corso';
-          statusIcon = '🌀';
+          statusBadgeLabel = 'In Corso';
         } else if (matchingJob.status === 'completed') {
-          statusBadgeLabel = '✅ Completato';
-          statusIcon = '✅';
+          statusBadgeLabel = 'Completato';
         }
       }
 
       const isSelected = matchingJob && selectedJobId === matchingJob.id;
 
+      // Segnaposto Pin con solo icona meteo vettoriale (no nomi, no emoticon)
       const customIcon = L.divIcon({
-        className: 'custom-pin-marker',
+        className: 'custom-weather-pin',
         html: `
           <div style="
             position: relative;
@@ -216,29 +227,29 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
             flex-direction: column;
             align-items: center;
             cursor: pointer;
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.38));
+            transition: transform 0.15s ease-out;
           ">
             <div style="
+              width: 32px;
+              height: 32px;
+              border-radius: 50%;
               background-color: ${clientColor};
               color: ${textColor};
-              padding: 4px 8px;
-              border-radius: 6px;
-              font-size: 11px;
-              font-weight: 700;
-              box-shadow: 0 4px 12px rgba(0,0,0,0.35);
-              border: ${isSelected ? '2px solid #ffffff' : '1.5px solid rgba(255,255,255,0.6)'};
               display: flex;
               align-items: center;
-              gap: 4px;
-              white-space: nowrap;
+              justify-content: center;
+              border: ${isSelected ? '2.5px solid #ffffff' : '2px solid rgba(255,255,255,0.95)'};
+              box-shadow: ${isSelected ? `0 0 0 3px ${clientColor}, 0 4px 10px rgba(0,0,0,0.35)` : '0 2px 4px rgba(0,0,0,0.2)'};
             ">
-              <span>${statusIcon} ${client.name.replace('Residenza ', '').replace('Condominio ', '').replace('Villa ', 'V. ')}</span>
+              ${weatherSvg}
             </div>
             <div style="
               width: 0; 
               height: 0; 
               border-left: 6px solid transparent;
               border-right: 6px solid transparent;
-              border-top: 8px solid ${clientColor};
+              border-top: 7px solid ${clientColor};
               margin-top: -1px;
             "></div>
           </div>
@@ -248,6 +259,12 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
       });
 
       const marker = L.marker([client.lat || 45.65, client.lng || 9.32], { icon: customIcon });
+
+      // Tooltip su hover con il nome del cantiere e meteo sintetico
+      marker.bindTooltip(
+        `<b>${client.name}</b>${clientWeather ? ` · ${clientWeather.temp}°C (${clientWeather.condition})` : ''}`,
+        { direction: 'top', offset: [0, -36] }
+      );
 
       const popupHtml = `
         <div style="min-width: 230px; font-family: inherit; font-size: 13px; color: #0f172a;">
@@ -267,7 +284,18 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
             <span style="font-size: 11px; color: ${clientColor}; font-weight: 700;">${client.gardenNotes?.squareMeters || '0'} mq</span>
           </div>
           <h4 style="margin: 0 0 2px 0; font-size: 14px; font-weight: 700; color: #0f172a;">${client.name}</h4>
-          <p style="margin: 0 0 8px 0; font-size: 11px; color: #475569;">${client.address}</p>
+          <p style="margin: 0 0 6px 0; font-size: 11px; color: #475569;">${client.address}</p>
+
+          <!-- Weather info card in popup with SVG icon -->
+          <div style="display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 6px; background: #f8fafc; border: 1px solid #e2e8f0; margin-bottom: 8px; font-size: 11px;">
+            <div style="color: ${clientColor}; display: flex; align-items: center;">
+              ${getWeatherSvg(clientWeather, clientColor, 16)}
+            </div>
+            <div style="flex: 1; color: #334155; line-height: 1.3;">
+              <strong>${clientWeather ? `${clientWeather.temp}°C` : '19°C'}</strong> · ${clientWeather?.condition || 'Cielo sereno'}
+              ${clientWeather?.rainAlert ? `<br/><span style="color: #dc2626; font-weight: 700;">Allerta Pioggia (${clientWeather.precipitationProbability}%)</span>` : ''}
+            </div>
+          </div>
           
           ${
             matchingJob
@@ -327,7 +355,7 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
     if (bounds.length > 0) {
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
     }
-  }, [clients, activeJobs, selectedJobId, onSelectJob]);
+  }, [clients, activeJobs, selectedJobId, onSelectJob, weatherMap]);
 
   return (
     <div className="flex flex-col h-full w-full space-y-2">

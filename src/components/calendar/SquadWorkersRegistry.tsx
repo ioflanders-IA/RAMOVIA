@@ -783,25 +783,25 @@ export const SquadWorkersRegistry: React.FC = () => {
                           st.days.map((d) => (
                             <div
                               key={d.id}
-                              className="p-1.5 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-1"
+                              className="p-1.5 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2"
                             >
-                              <div className="min-w-0">
-                                <div className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                              <div className="min-w-0 flex-1">
+                                <div className="font-mono font-bold text-slate-800 dark:text-slate-200 truncate">
                                   {d.date} ({d.dayType === 'full' ? '1 gg' : d.dayType === 'half' ? '0.5 gg' : `${d.hours}h`})
                                 </div>
                                 {d.cantiereName && (
-                                  <div className="text-[10px] text-slate-500 truncate">
+                                  <div className="text-[10px] text-slate-500 truncate" title={d.cantiereName}>
                                     {d.cantiereName}
                                   </div>
                                 )}
                               </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                              <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                                <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
                                   € {d.amount.toFixed(2)}
                                 </span>
                                 <button
                                   onClick={() => deleteWorkedDay(d.id)}
-                                  className="p-1 text-slate-400 hover:text-rose-600 rounded"
+                                  className="p-1 text-slate-400 hover:text-rose-600 rounded shrink-0 cursor-pointer"
                                   title="Elimina giornata"
                                 >
                                   <Trash2 className="w-3 h-3" />
@@ -1193,11 +1193,11 @@ export const SquadWorkersRegistry: React.FC = () => {
                           return (
                             <div
                               key={d.id}
-                              className="flex items-center justify-between p-[3px] px-2 bg-slate-50/70 dark:bg-slate-950/50 border border-slate-200/70 dark:border-slate-800/60 rounded-[4px] text-[11px]"
+                              className="flex items-center justify-between gap-2 p-[3px] px-2 bg-slate-50/70 dark:bg-slate-950/50 border border-slate-200/70 dark:border-slate-800/60 rounded-[4px] text-[11px]"
                             >
-                              <div className="flex items-center gap-2 min-w-0">
+                              <div className="flex items-center gap-1.5 min-w-0 flex-1">
                                 <span
-                                  className={`font-mono font-semibold shrink-0 ${
+                                  className={`font-mono font-semibold shrink-0 text-[10px] ${
                                     isWeekend
                                       ? 'text-amber-800 dark:text-amber-300 font-bold'
                                       : 'text-slate-700 dark:text-slate-300'
@@ -1206,16 +1206,19 @@ export const SquadWorkersRegistry: React.FC = () => {
                                   {d.date.substring(5)}
                                   {isWeekend ? ' (WE)' : ''}
                                 </span>
-                                <span className="text-slate-600 dark:text-slate-400 truncate">
+                                <span
+                                  className="text-slate-600 dark:text-slate-400 truncate min-w-0 flex-1 text-[11px]"
+                                  title={d.cantiereName || 'Lavoro ordinario'}
+                                >
                                   {d.cantiereName || 'Lavoro ordinario'}
                                 </span>
-                                <span className="text-[9px] text-slate-500 dark:text-slate-500 shrink-0">
+                                <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0 whitespace-nowrap">
                                   {d.dayType === 'full' ? '1gg' : d.dayType === 'half' ? '0.5gg' : `${d.hours}h`}
                                 </span>
                               </div>
 
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className="font-mono font-bold text-slate-900 dark:text-slate-200">
+                              <div className="flex items-center gap-2 shrink-0 ml-1">
+                                <span className="font-mono font-bold text-slate-900 dark:text-slate-200 whitespace-nowrap text-right">
                                   € {(d.amount || 0).toFixed(2)}
                                 </span>
 
@@ -1223,7 +1226,7 @@ export const SquadWorkersRegistry: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => updateWorkedDay({ ...d, paid: !d.paid })}
-                                  className={`px-1.5 py-0.5 text-[9px] font-bold rounded-[3px] border cursor-pointer transition-colors ${
+                                  className={`px-1.5 py-0.5 text-[9px] font-bold rounded-[3px] border cursor-pointer transition-colors shrink-0 whitespace-nowrap ${
                                     d.paid
                                       ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800'
                                       : 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800'
