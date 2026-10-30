@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { X, Trash2, Package, Euro, User, UserCheck, Plus, Check, Repeat, Clock, AlertCircle, Calendar as CalendarIcon, Users } from 'lucide-react';
 import { formatLocalDate, parseLocalDate, formatItalianDate } from '../../utils/dateUtils';
 import { RichNoteBox } from '../common/RichNoteBox';
+import { getClientColor } from '../../utils/clientColors';
 
 interface JobModalProps {
   job?: Job | null;
@@ -371,19 +372,39 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
           
           {/* Client Selection */}
           <div className="space-y-[7px]">
-            <label className="font-semibold text-slate-700 dark:text-slate-300 block">Committente / Cantiere *</label>
-            <select
-              required
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
-            >
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} — {c.address} ({c.gardenNotes.squareMeters} mq)
-                </option>
-              ))}
-            </select>
+            {(() => {
+              const selectedClient = clients.find((c) => c.id === clientId);
+              const selectedColor = selectedClient ? getClientColor(selectedClient) : undefined;
+
+              return (
+                <>
+                  <div className="flex items-center justify-between">
+                    <label className="font-semibold text-slate-700 dark:text-slate-300 block">
+                      Committente / Cantiere *
+                    </label>
+                    {selectedClient && selectedColor && (
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-[4px] bg-slate-800/80 border border-slate-700 text-[10px] font-bold">
+                        <span className="w-2 h-2 rounded-full shadow-2xs" style={{ backgroundColor: selectedColor }} />
+                        <span style={{ color: selectedColor }}>{selectedClient.name}</span>
+                      </div>
+                    )}
+                  </div>
+                  <select
+                    required
+                    value={clientId}
+                    onChange={(e) => setClientId(e.target.value)}
+                    style={selectedColor ? { borderLeftColor: selectedColor, borderLeftWidth: '3.5px' } : undefined}
+                    className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
+                  >
+                    {clients.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} — {c.address} ({c.gardenNotes.squareMeters} mq)
+                      </option>
+                    ))}
+                  </select>
+                </>
+              );
+            })()}
           </div>
 
           {/* Operai Assegnati (supporto esecutori multipli / squadra) */}

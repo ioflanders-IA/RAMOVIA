@@ -28,11 +28,12 @@ import {
   X,
   CheckCircle2,
   Check,
-  PlusCircle,
   Building2,
   Receipt,
   RotateCcw,
+  Palette,
 } from 'lucide-react';
+import { getClientColor, CLIENT_COLOR_OPTIONS } from '../../utils/clientColors';
 
 const getCostCategoryInfo = (category: JobCostCategory | string) => {
   switch (category) {
@@ -312,15 +313,21 @@ export const ClientsView: React.FC = () => {
               );
               const completedCount = relatedJobs.filter((j) => j.status === 'completed').length;
 
+              const clientColor = getClientColor(client);
+
               return (
                 <div
                   key={client.id}
                   onClick={() => setSelectedClientId(client.id)}
+                  style={{ borderLeftColor: clientColor, borderLeftWidth: '3.5px' }}
                   className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[3px] shadow-xs hover:border-emerald-500 dark:hover:border-emerald-600 cursor-pointer transition-all space-y-[3px] group"
                 >
                   <div className="flex items-start justify-between gap-[3px]">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-8 h-8 rounded-[5px] bg-emerald-800 text-white font-bold flex items-center justify-center text-xs shrink-0">
+                      <div
+                        className="w-8 h-8 rounded-[5px] text-white font-bold flex items-center justify-center text-xs shrink-0 shadow-2xs"
+                        style={{ backgroundColor: clientColor }}
+                      >
                         {client.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
@@ -483,13 +490,21 @@ export const ClientsView: React.FC = () => {
               <span>Rubrica Clienti</span>
             </button>
 
-            <div>
-              <h1 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <span>{activeClient.name}</span>
-                <span className="text-[10px] font-semibold text-slate-500 font-normal">
-                  ({allGardens.length} {allGardens.length === 1 ? 'giardino' : 'giardini'})
-                </span>
-              </h1>
+            <div className="flex items-center gap-2">
+              <div
+                className="w-7 h-7 rounded-[5px] text-white font-bold flex items-center justify-center text-xs shrink-0 shadow-2xs"
+                style={{ backgroundColor: getClientColor(activeClient) }}
+              >
+                {activeClient.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h1 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <span>{activeClient.name}</span>
+                  <span className="text-[10px] font-semibold text-slate-500 font-normal">
+                    ({allGardens.length} {allGardens.length === 1 ? 'giardino' : 'giardini'})
+                  </span>
+                </h1>
+              </div>
             </div>
           </div>
 

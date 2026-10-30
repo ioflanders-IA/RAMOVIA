@@ -58,6 +58,7 @@ export interface Client {
   vatOrTaxCode?: string;
   createdAt: string;
   cantieri?: CantiereSite[];
+  color?: string; // Hex color code e.g. '#059669' for map pins, calendar cards & avatar
 }
 
 export interface MaterialRequirement {

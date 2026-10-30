@@ -4,6 +4,7 @@ import { Job, PolygonPoint, Client } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { MapPin, Search, Layers, Compass } from 'lucide-react';
 import { formatLocalDate } from '../../utils/dateUtils';
+import { getClientColor, getContrastTextColor } from '../../utils/clientColors';
 
 interface MapViewProps {
   onSelectJob?: (job: Job) => void;
@@ -159,12 +160,13 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
 
     // 1. Render Polygons for all Clients with polygon data
     clients.forEach((client) => {
+      const clientColor = getClientColor(client);
       if (client.gardenNotes?.polygonPoints && client.gardenNotes.polygonPoints.length >= 3) {
         const latLngs = client.gardenNotes.polygonPoints.map((p: PolygonPoint) => [p.lat, p.lng] as [number, number]);
         const poly = L.polygon(latLngs, {
-          color: '#10b981',
-          fillColor: '#10b981',
-          fillOpacity: 0.3,
+          color: clientColor,
+          fillColor: clientColor,
+          fillOpacity: 0.35,
           weight: 2,
         });
 
@@ -184,19 +186,21 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
         (j) => j.clientId === client.id || j.clientName.toLowerCase() === client.name.toLowerCase()
       );
 
-      let colorBg = '#059669'; // Default Saved Client Cantiere = Emerald Green
+      const clientColor = getClientColor(client);
+      const textColor = getContrastTextColor(clientColor);
       let statusBadgeLabel = 'Cantiere Registrato';
+      let statusIcon = '📍';
 
       if (matchingJob) {
         if (matchingJob.status === 'scheduled') {
-          colorBg = '#ea580c'; // Scheduled = Orange
           statusBadgeLabel = '⚡ In Programma';
+          statusIcon = '⚡';
         } else if (matchingJob.status === 'in_progress') {
-          colorBg = '#0284c7'; // In Progress = Cyan/Blue
           statusBadgeLabel = '🌀 In Corso';
+          statusIcon = '🌀';
         } else if (matchingJob.status === 'completed') {
-          colorBg = '#16a34a'; // Completed = Green
           statusBadgeLabel = '✅ Completato';
+          statusIcon = '✅';
         }
       }
 
@@ -214,27 +218,27 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
             cursor: pointer;
           ">
             <div style="
-              background-color: ${colorBg};
-              color: white;
+              background-color: ${clientColor};
+              color: ${textColor};
               padding: 4px 8px;
               border-radius: 6px;
               font-size: 11px;
               font-weight: 700;
               box-shadow: 0 4px 12px rgba(0,0,0,0.35);
-              border: ${isSelected ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.4)'};
+              border: ${isSelected ? '2px solid #ffffff' : '1.5px solid rgba(255,255,255,0.6)'};
               display: flex;
               align-items: center;
               gap: 4px;
               white-space: nowrap;
             ">
-              <span>📍 ${client.name.replace('Residenza ', '').replace('Condominio ', '').replace('Villa ', 'V. ')}</span>
+              <span>${statusIcon} ${client.name.replace('Residenza ', '').replace('Condominio ', '').replace('Villa ', 'V. ')}</span>
             </div>
             <div style="
               width: 0; 
               height: 0; 
               border-left: 6px solid transparent;
               border-right: 6px solid transparent;
-              border-top: 8px solid ${colorBg};
+              border-top: 8px solid ${clientColor};
               margin-top: -1px;
             "></div>
           </div>
@@ -254,12 +258,13 @@ export const MapView: React.FC<MapViewProps> = ({ onSelectJob, selectedJobId }) 
               border-radius: 4px; 
               font-size: 10px; 
               font-weight: 700; 
-              background: ${colorBg}18; 
-              color: ${colorBg};
+              background: ${clientColor}22; 
+              color: ${clientColor};
+              border: 1px solid ${clientColor}44;
             ">
               ${statusBadgeLabel.toUpperCase()}
             </span>
-            <span style="font-size: 11px; color: #059669; font-weight: 700;">${client.gardenNotes?.squareMeters || '0'} mq</span>
+            <span style="font-size: 11px; color: ${clientColor}; font-weight: 700;">${client.gardenNotes?.squareMeters || '0'} mq</span>
           </div>
           <h4 style="margin: 0 0 2px 0; font-size: 14px; font-weight: 700; color: #0f172a;">${client.name}</h4>
           <p style="margin: 0 0 8px 0; font-size: 11px; color: #475569;">${client.address}</p>

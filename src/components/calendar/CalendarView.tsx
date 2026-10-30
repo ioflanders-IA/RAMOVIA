@@ -4,6 +4,7 @@ import { Job } from '../../types';
 import { JobModal } from '../jobs/JobModal';
 import { SquadWorkersRegistry } from './SquadWorkersRegistry';
 import { formatLocalDate, parseLocalDate, formatItalianDate } from '../../utils/dateUtils';
+import { getClientColor } from '../../utils/clientColors';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -75,7 +76,18 @@ const ITALIAN_MONTHS = [
 ];
 
 export const CalendarView: React.FC = () => {
-  const { jobs, users, addJob, updateJob, deleteJob, currentUser, workedDays } = useApp();
+  const { jobs, users, addJob, updateJob, deleteJob, currentUser, workedDays, clients } = useApp();
+
+  const getClientForJob = useCallback((job: Job) => {
+    return clients.find(
+      (c) => (job.clientId && c.id === job.clientId) || c.name.toLowerCase() === job.clientName.toLowerCase()
+    );
+  }, [clients]);
+
+  const getJobClientColor = useCallback((job: Job) => {
+    const client = getClientForJob(job);
+    return getClientColor(client || { name: job.clientName });
+  }, [getClientForJob]);
 
   const [activeTab, setActiveTab] = useState<'calendar' | 'workers'>('calendar');
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('month');
@@ -752,11 +764,13 @@ export const CalendarView: React.FC = () => {
                             const badge = getStatusBadge(job.status);
                             const isDeleteActive = activeDeleteJobId === job.id;
                             const pressProps = createLongPressCardProps(job);
+                            const clientColor = getJobClientColor(job);
 
                             return (
                               <div
                                 key={job.id}
                                 {...pressProps}
+                                style={{ borderLeftColor: clientColor, borderLeftWidth: '4px' }}
                                 className={`p-1.5 rounded-[5px] border text-xs cursor-pointer transition-all space-y-[3px] select-none relative ${
                                   isDeleteActive
                                     ? 'border-rose-400 bg-rose-50 dark:bg-rose-950/60 ring-2 ring-rose-500/30 shadow-md'
@@ -792,8 +806,9 @@ export const CalendarView: React.FC = () => {
                                   )}
                                 </div>
 
-                                <div className="font-bold text-slate-900 dark:text-slate-100 truncate">
-                                  {job.clientName}
+                                <div className="font-bold text-slate-900 dark:text-slate-100 truncate flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full shrink-0 shadow-2xs" style={{ backgroundColor: clientColor }} />
+                                  <span className="truncate">{job.clientName}</span>
                                 </div>
                                 <div className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-1">
                                   {job.title}
@@ -900,20 +915,28 @@ export const CalendarView: React.FC = () => {
                             const badge = getStatusBadge(job.status);
                             const isDeleteActive = activeDeleteJobId === job.id;
                             const pressProps = createLongPressCardProps(job);
+                            const clientColor = getJobClientColor(job);
 
                             return (
                               <div
                                 key={job.id}
                                 {...pressProps}
-                                className={`p-0.5 px-1 rounded-[3px] border text-[9px] sm:text-[10px] cursor-pointer truncate flex items-center justify-between gap-0.5 select-none transition-all ${
+                                style={{ borderLeftColor: clientColor, borderLeftWidth: '3.5px' }}
+                                className={`p-0.5 px-1 rounded-[3px] border text-[9px] sm:text-[10px] cursor-pointer truncate flex items-center justify-between gap-0.5 select-none transition-all h-[13px] md:h-auto min-h-[13px] md:min-h-0 ${
                                   isDeleteActive
                                     ? 'bg-rose-100 dark:bg-rose-950 text-rose-900 dark:text-rose-200 border-rose-400'
                                     : badge.bg
                                 }`}
                                 title={`${job.clientName} - ${job.title} (${job.timeSlot}) · Tieni premuto per eliminare`}
                               >
-                                <div className="flex items-center truncate min-w-0">
-                                  <span className="font-semibold truncate">{job.clientName}</span>
+                                <div className="flex items-center gap-1 truncate min-w-0 w-full">
+                                  <span
+                                    className="w-1.5 h-1.5 rounded-full shrink-0 shadow-2xs"
+                                    style={{ backgroundColor: clientColor }}
+                                  />
+                                  <span className="font-semibold truncate hidden md:inline">
+                                    {job.clientName}
+                                  </span>
                                 </div>
 
                                 {isDeleteActive && (
@@ -939,9 +962,10 @@ export const CalendarView: React.FC = () => {
                                 setCurrentDate(cell.date);
                                 setCalendarMode('day');
                               }}
-                              className="text-[8px] sm:text-[9px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline block text-center w-full"
+                              className="text-[8px] sm:text-[9px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline block text-center w-full truncate"
                             >
-                              +{dayJobs.length - 3} altri
+                              +{dayJobs.length - 3}
+                              <span className="hidden sm:inline"> altri</span>
                             </button>
                           )}
                         </div>
@@ -998,12 +1022,14 @@ export const CalendarView: React.FC = () => {
                         const badge = getStatusBadge(job.status);
                         const isDeleteActive = activeDeleteJobId === job.id;
                         const pressProps = createLongPressCardProps(job);
+                        const clientColor = getJobClientColor(job);
 
                         return (
                           <div
                             key={job.id}
                             {...pressProps}
                             onClick={() => setSelectedJobForEdit(job)}
+                            style={{ borderLeftColor: clientColor, borderLeftWidth: '4px' }}
                             className={`p-2 sm:p-2.5 rounded-[5px] border flex items-center justify-between gap-2 cursor-pointer transition-all select-none relative ${
                               isDeleteActive
                                 ? 'border-rose-500 bg-rose-50 dark:bg-rose-950/60 ring-2 ring-rose-500/30'
@@ -1016,8 +1042,9 @@ export const CalendarView: React.FC = () => {
                               </span>
 
                               <div className="min-w-0">
-                                <div className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
-                                  {job.clientName}
+                                <div className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full shrink-0 shadow-2xs" style={{ backgroundColor: clientColor }} />
+                                  <span className="truncate">{job.clientName}</span>
                                 </div>
                                 <div className="text-[11px] text-slate-600 dark:text-slate-300 truncate">
                                   {job.title}
@@ -1224,6 +1251,7 @@ export const CalendarView: React.FC = () => {
                         const badge = getStatusBadge(job.status);
                         const isDeleteActive = activeDeleteJobId === job.id;
                         const pressProps = createLongPressCardProps(job);
+                        const clientColor = getJobClientColor(job);
 
                         const displayDate = new Date(job.date).toLocaleDateString('it-IT', {
                           day: 'numeric',
@@ -1235,6 +1263,7 @@ export const CalendarView: React.FC = () => {
                           <div
                             key={job.id}
                             {...pressProps}
+                            style={{ borderLeftColor: clientColor, borderLeftWidth: '4px' }}
                             className={`p-1.5 sm:p-2 rounded-[5px] border flex items-center justify-between gap-[3px] cursor-pointer transition-all select-none relative ${
                               isDeleteActive
                                 ? 'border-rose-500 bg-rose-50 dark:bg-rose-950/60 ring-2 ring-rose-500/30 shadow-md'
@@ -1247,8 +1276,9 @@ export const CalendarView: React.FC = () => {
                               </div>
 
                               <div className="min-w-0">
-                                <div className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
-                                  {job.clientName}
+                                <div className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full shrink-0 shadow-2xs" style={{ backgroundColor: clientColor }} />
+                                  <span className="truncate">{job.clientName}</span>
                                 </div>
                                 <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                                   {job.title} · <span className="font-mono">{job.timeSlot}</span>
@@ -1366,11 +1396,13 @@ export const CalendarView: React.FC = () => {
                         const badge = getStatusBadge(job.status);
                         const isDeleteActive = activeDeleteJobId === job.id;
                         const pressProps = createLongPressCardProps(job);
+                        const clientColor = getJobClientColor(job);
 
                         return (
                           <div
                             key={job.id}
                             {...pressProps}
+                            style={{ borderLeftColor: clientColor, borderLeftWidth: '4px' }}
                             className={`p-2.5 rounded-[5px] border transition-all cursor-pointer shadow-2xs space-y-1.5 select-none relative ${
                               isDeleteActive
                                 ? 'border-rose-500 bg-rose-50 dark:bg-rose-950/60 ring-2 ring-rose-500/30'
@@ -1389,8 +1421,9 @@ export const CalendarView: React.FC = () => {
                                     {badge.label}
                                   </span>
                                 </div>
-                                <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 mt-1">
-                                  {job.clientName}
+                                <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 mt-1 flex items-center gap-1.5">
+                                  <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs" style={{ backgroundColor: clientColor }} />
+                                  <span>{job.clientName}</span>
                                 </h4>
                                 <p className="text-xs text-slate-600 dark:text-slate-400">{job.title}</p>
                               </div>

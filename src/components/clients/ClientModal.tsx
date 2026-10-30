@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Client, PolygonPoint, PaymentMethod } from '../../types';
-import { X, Check, MapPin } from 'lucide-react';
+import { X, Check, MapPin, Palette } from 'lucide-react';
 import { ClientMapPicker } from './ClientMapPicker';
 import { RichNoteBox } from '../common/RichNoteBox';
+import { CLIENT_COLOR_OPTIONS, getClientColor } from '../../utils/clientColors';
 
 interface ClientModalProps {
   client?: Client | null;
@@ -17,6 +18,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
   const [address, setAddress] = useState(client?.address || '');
   const [preferredPaymentMethod, setPreferredPaymentMethod] = useState<PaymentMethod>(client?.preferredPaymentMethod || 'bonifico');
   const [vatOrTaxCode, setVatOrTaxCode] = useState(client?.vatOrTaxCode || '');
+  const [color, setColor] = useState<string>(() => client?.color || getClientColor(client));
   const [lat, setLat] = useState<number>(client?.lat || 45.65);
   const [lng, setLng] = useState<number>(client?.lng || 9.32);
 
@@ -55,6 +57,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
       address: address.trim(),
       preferredPaymentMethod: preferredPaymentMethod || 'bonifico',
       vatOrTaxCode: vatOrTaxCode.trim(),
+      color: color.trim() || undefined,
       lat: Number(lat) || 45.65,
       lng: Number(lng) || 9.32,
       gardenNotes: {
@@ -109,6 +112,67 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
                 placeholder="es. Condominio Le Rose / Villa Visconti"
                 className="w-full p-[7px] bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-[7px] focus:outline-emerald-600 text-xs text-slate-900 dark:text-slate-100"
               />
+            </div>
+
+            {/* Color Palette Selector */}
+            <div className="space-y-[7px] bg-white dark:bg-slate-900 p-[7px] rounded-[7px] border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center justify-between">
+                <label className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-xs">
+                  <Palette className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Colore Identificativo (Mappa & Calendario)</span>
+                </label>
+
+                {/* Live Preview Badge */}
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-[5px] bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  <span className="text-[10px] text-slate-500 font-medium">Anteprima:</span>
+                  <div
+                    className="w-5 h-5 rounded-[4px] text-white font-bold text-[10px] flex items-center justify-center shadow-2xs"
+                    style={{ backgroundColor: color }}
+                  >
+                    {(name || 'C').charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-[10px] font-bold truncate max-w-[100px]" style={{ color }}>
+                    {name || 'Cliente'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Swatches Grid */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {CLIENT_COLOR_OPTIONS.map((opt) => {
+                  const isSelected = color.toLowerCase() === opt.hex.toLowerCase();
+                  return (
+                    <button
+                      key={opt.hex}
+                      type="button"
+                      onClick={() => setColor(opt.hex)}
+                      title={`${opt.name} (${opt.hex})`}
+                      className={`w-6 h-6 rounded-[5px] transition-all flex items-center justify-center cursor-pointer relative ${
+                        isSelected
+                          ? 'ring-2 ring-offset-2 ring-emerald-500 dark:ring-offset-slate-900 scale-110 shadow-xs'
+                          : 'hover:scale-105 opacity-90 hover:opacity-100'
+                      }`}
+                      style={{ backgroundColor: opt.hex }}
+                    >
+                      {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                    </button>
+                  );
+                })}
+
+                {/* Custom Color Input */}
+                <label
+                  title="Scegli colore personalizzato"
+                  className="h-6 px-2 rounded-[5px] border border-slate-300 dark:border-slate-600 flex items-center gap-1 cursor-pointer bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-[10px] font-semibold text-slate-700 dark:text-slate-300 transition-colors"
+                >
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="w-3.5 h-3.5 rounded cursor-pointer border-0 bg-transparent p-0"
+                  />
+                  <span>Altro</span>
+                </label>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-[7px]">

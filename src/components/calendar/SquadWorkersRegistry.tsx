@@ -85,7 +85,7 @@ export const SquadWorkersRegistry: React.FC = () => {
 
   // Riepilogo SubView & Filter States
   const [subView, setSubView] = useState<'registry' | 'summary'>('registry');
-  const [summaryFilter, setSummaryFilter] = useState<'weekend' | 'all' | string>('weekend');
+  const [summaryFilter, setSummaryFilter] = useState<'weekend' | 'all' | string>('all');
   const [quickPayWorkerId, setQuickPayWorkerId] = useState<string | null>(null);
   const [quickPayMethod, setQuickPayMethod] = useState<PaymentMethod>('contanti');
   const [quickPaySuccessMsg, setQuickPaySuccessMsg] = useState<string | null>(null);
@@ -522,7 +522,7 @@ export const SquadWorkersRegistry: React.FC = () => {
             setDayType('full');
             setShowAddDayModal(true);
           }}
-          className="flex items-center justify-center gap-1 p-[3px] py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[6px] font-bold text-[11px] sm:text-xs shadow-xs transition-colors cursor-pointer w-full min-w-0"
+          className="flex items-center justify-center gap-1 p-[3px] py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[6px] font-bold text-[11px] sm:text-xs shadow-xs transition-colors cursor-pointer w-full min-w-0"
         >
           <Plus className="w-3.5 h-3.5 shrink-0" />
           <span className="truncate">Inserisci Giornata</span>
@@ -530,7 +530,7 @@ export const SquadWorkersRegistry: React.FC = () => {
 
         <button
           onClick={() => setShowAddWorkerModal(true)}
-          className="flex items-center justify-center gap-1 p-[3px] py-2 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white dark:border-slate-700 rounded-[6px] font-bold text-[11px] sm:text-xs shadow-xs transition-colors cursor-pointer w-full min-w-0"
+          className="flex items-center justify-center gap-1 p-[3px] py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white dark:border-slate-700 rounded-[6px] font-bold text-[11px] sm:text-xs shadow-xs transition-colors cursor-pointer w-full min-w-0"
         >
           <Users className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
           <span className="truncate">Nuovo Operaio</span>
@@ -538,7 +538,7 @@ export const SquadWorkersRegistry: React.FC = () => {
 
         <button
           onClick={() => setSubView(subView === 'summary' ? 'registry' : 'summary')}
-          className={`flex items-center justify-center gap-1 p-[3px] py-2 rounded-[6px] font-bold text-[11px] sm:text-xs shadow-xs transition-colors cursor-pointer w-full min-w-0 ${
+          className={`flex items-center justify-center gap-1 p-[3px] py-1 rounded-[6px] font-bold text-[11px] sm:text-xs shadow-xs transition-colors cursor-pointer w-full min-w-0 ${
             subView === 'summary'
               ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-xs'
               : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 dark:text-amber-300 dark:border-amber-700/60'
@@ -952,8 +952,8 @@ export const SquadWorkersRegistry: React.FC = () => {
                 <span>Torna a Operai</span>
               </button>
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
-                <BarChart3 className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                <span className="uppercase tracking-tight">Riepilogo Compensi & Saldi</span>
+                <BarChart3 className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span className="uppercase tracking-tight">Riepilogo Saldi</span>
               </div>
             </div>
 
@@ -961,12 +961,24 @@ export const SquadWorkersRegistry: React.FC = () => {
               <button
                 type="button"
                 onClick={handlePayAllSummaryWorkers}
-                className="text-[11px] font-bold text-amber-700 dark:text-amber-300 hover:underline cursor-pointer flex items-center gap-1"
+                className="text-right cursor-pointer flex items-center gap-1 group"
                 title="Salda tutti gli operai del periodo selezionato"
               >
-                <span>Salda Tutti (€ {summaryTotalPending.toFixed(2)})</span>
-                <ArrowRight className="w-3 h-3" />
+                <div className="flex flex-col items-end leading-tight">
+                  <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300 group-hover:underline">
+                    Salda Tutti
+                  </span>
+                  <span className="text-[11px] font-mono font-bold text-amber-600 dark:text-amber-400">
+                    € {summaryTotalPending.toFixed(2)}
+                  </span>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
               </button>
+            ) : totalDueAllWorkers > 0 ? (
+              <div className="text-right leading-tight">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">Nessun saldo in questo filtro</span>
+                <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 font-mono">Totale Mese: € {totalDueAllWorkers.toFixed(2)}</span>
+              </div>
             ) : (
               <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
                 <Check className="w-3.5 h-3.5" />
@@ -990,20 +1002,6 @@ export const SquadWorkersRegistry: React.FC = () => {
                 <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>Andamento Pagamenti Settimanali</span>
               </div>
-              <div className="flex items-center gap-2.5 text-[9px] font-semibold">
-                <span className="flex items-center gap-1 text-sky-700 dark:text-sky-400">
-                  <span className="w-2 h-2 rounded-[2px] bg-sky-500 inline-block" />
-                  Maturato
-                </span>
-                <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
-                  <span className="w-2 h-2 rounded-[2px] bg-emerald-500 inline-block" />
-                  Liquidato
-                </span>
-                <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
-                  <span className="w-2 h-2 rounded-[2px] bg-amber-500 inline-block" />
-                  Da Saldare
-                </span>
-              </div>
             </div>
 
             {/* Bar Chart Container */}
@@ -1015,14 +1013,15 @@ export const SquadWorkersRegistry: React.FC = () => {
 
               return (
                 <div className="space-y-[3px]">
-                  <div className="grid grid-cols-5 gap-[3px] h-20 items-end pt-2 px-1">
+                  <div className="grid grid-cols-5 gap-[3px] pt-1.5 pb-2 px-1">
                     {paymentTrendData.map((wk) => {
-                      const earnedHeightPct = Math.min(100, Math.max(6, (wk.earned / maxVal) * 100));
-                      const paidHeightPct = Math.min(100, Math.max(4, (wk.paid / maxVal) * 100));
+                      const earnedHeightPct = Math.min(100, Math.max(8, (wk.earned / maxVal) * 100));
+                      const paidHeightPct = Math.min(100, Math.max(6, (wk.paid / maxVal) * 100));
 
                       return (
-                        <div key={wk.id} className="flex flex-col items-center justify-end h-full group">
-                          <div className="w-full flex items-end justify-center gap-1 h-14 bg-slate-100 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800/80 rounded-[4px] p-0.5 relative">
+                        <div key={wk.id} className="flex flex-col items-center justify-end group">
+                          {/* Bar Graphic Box */}
+                          <div className="w-full flex items-end justify-center gap-1 h-12 bg-slate-100 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800/80 rounded-[4px] p-0.5 relative">
                             {/* Bar: Maturato */}
                             <div
                               style={{ height: `${earnedHeightPct}%` }}
@@ -1036,11 +1035,21 @@ export const SquadWorkersRegistry: React.FC = () => {
                               className="w-2 sm:w-3 bg-emerald-500 hover:bg-emerald-400 rounded-t-[2px] transition-all"
                             />
                           </div>
-                          <div className="text-[9px] font-medium text-slate-600 dark:text-slate-400 mt-1 truncate max-w-full text-center">
+                          {/* Label Settimana */}
+                          <div className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 mt-1 truncate max-w-full text-center">
                             {wk.shortLabel}
                           </div>
-                          <div className="text-[8px] font-mono font-bold text-amber-700 dark:text-amber-300">
-                            {wk.pending > 0 ? `€${wk.pending.toFixed(0)}` : '✓'}
+                          {/* Valore / Stato sotto la Settimana */}
+                          <div className="mt-0.5 text-center">
+                            {wk.pending > 0 ? (
+                              <span className="text-[9px] sm:text-[10px] font-mono font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-1 py-0.2 rounded border border-amber-200 dark:border-amber-900/40 inline-block whitespace-nowrap shadow-2xs">
+                                € {wk.pending.toFixed(0)}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 inline-block">
+                                ✓
+                              </span>
+                            )}
                           </div>
                         </div>
                       );
@@ -1078,23 +1087,11 @@ export const SquadWorkersRegistry: React.FC = () => {
             <div className="flex items-center justify-between text-[10px] text-slate-600 dark:text-slate-400 px-1 font-semibold">
               <span>FILTRA PERIODO DI CALCOLO:</span>
               <span className="text-[9px] text-slate-500 dark:text-slate-400 font-normal">
-                {summaryFilter === 'weekend' ? 'Venerdì, Sabato e Domenica del mese' : summaryFilter === 'all' ? 'Tutto il mese' : 'Settimana specifica'}
+                {summaryFilter === 'all' ? 'Tutto il mese' : summaryFilter === 'weekend' ? 'Venerdì, Sabato e Domenica del mese' : 'Settimana specifica'}
               </span>
             </div>
 
             <div className="grid grid-cols-3 sm:grid-cols-7 gap-[3px]">
-              <button
-                type="button"
-                onClick={() => setSummaryFilter('weekend')}
-                className={`p-[3px] py-1.5 text-center text-xs font-bold rounded-[4px] cursor-pointer transition-colors col-span-2 sm:col-span-2 ${
-                  summaryFilter === 'weekend'
-                    ? 'bg-amber-600 text-white shadow-xs'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:border-slate-700'
-                }`}
-              >
-                <span>⭐ Fine Settimana (Ven-Dom)</span>
-              </button>
-
               <button
                 type="button"
                 onClick={() => setSummaryFilter('all')}
@@ -1105,6 +1102,18 @@ export const SquadWorkersRegistry: React.FC = () => {
                 }`}
               >
                 Mese Intero
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSummaryFilter('weekend')}
+                className={`p-[3px] py-1.5 text-center text-xs font-bold rounded-[4px] cursor-pointer transition-colors col-span-2 sm:col-span-2 ${
+                  summaryFilter === 'weekend'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:border-slate-700'
+                }`}
+              >
+                <span>⭐ Fine Settimana (Ven-Dom)</span>
               </button>
 
               {monthWeeks.map((wk) => (
