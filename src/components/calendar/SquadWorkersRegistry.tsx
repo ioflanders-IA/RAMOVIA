@@ -20,6 +20,13 @@ import {
   CreditCard,
   Building2,
   Sparkles,
+  BarChart3,
+  TrendingUp,
+  Check,
+  CheckSquare,
+  Square,
+  ArrowRight,
+  DollarSign,
 } from 'lucide-react';
 
 export const SquadWorkersRegistry: React.FC = () => {
@@ -76,6 +83,13 @@ export const SquadWorkersRegistry: React.FC = () => {
   const [payoutMethod, setPayoutMethod] = useState<PaymentMethod>('bonifico');
   const [payoutNotes, setPayoutNotes] = useState<string>('');
 
+  // Riepilogo SubView & Filter States
+  const [subView, setSubView] = useState<'registry' | 'summary'>('registry');
+  const [summaryFilter, setSummaryFilter] = useState<'weekend' | 'all' | string>('weekend');
+  const [quickPayWorkerId, setQuickPayWorkerId] = useState<string | null>(null);
+  const [quickPayMethod, setQuickPayMethod] = useState<PaymentMethod>('contanti');
+  const [quickPaySuccessMsg, setQuickPaySuccessMsg] = useState<string | null>(null);
+
   // Filter worked days for current selected month
   const monthWorkedDays = useMemo(() => {
     return workedDays.filter((wd) => wd.date.startsWith(selectedMonth));
@@ -101,7 +115,9 @@ export const SquadWorkersRegistry: React.FC = () => {
       const workerPayoutsThisMonth = payouts.filter(
         (p) => p.workerId === worker.uid && (p.period === selectedMonth || p.paymentDate?.startsWith(selectedMonth))
       );
-      const totalPaid = workerPayoutsThisMonth.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+      const totalPaidFromPayouts = workerPayoutsThisMonth.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+      const totalPaidFromDays = days.filter((d) => d.paid).reduce((sum, d) => sum + (d.amount || 0), 0);
+      const totalPaid = Math.max(totalPaidFromPayouts, totalPaidFromDays);
 
       const pendingToPay = Math.max(0, totalEarned - totalPaid);
 
@@ -132,6 +148,182 @@ export const SquadWorkersRegistry: React.FC = () => {
   const totalPaidAllWorkers = useMemo(() => {
     return workerStats.reduce((sum, s) => sum + s.totalPaid, 0);
   }, [workerStats]);
+
+  // Calcolo delle settimane e dei fine settimana del mese selezionato
+  const monthWeeks = useMemo(() => {
+    const [yearStr, monthStr] = selectedMonth.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    const weeks: Array<{
+      id: string;
+      weekNum: number;
+      label: string;
+      shortLabel: string;
+      startDate: string;
+      endDate: string;
+      weekendDates: string[]; // Venerdì, Sabato, Domenica
+      allDates: string[];
+    }> = [];
+
+    let currentStart = 1;
+    let weekNum = 1;
+
+    while (currentStart <= daysInMonth) {
+      const dObj = new Date(year, month - 1, currentStart);
+      const dayOfWeek = dObj.getDay(); // 0 = Sun, 1 = Mon ...
+      const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+      const currentEnd = Math.min(daysInMonth, currentStart + daysUntilSunday);
+
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const startStr = `${year}-${pad(month)}-${pad(currentStart)}`;
+      const endStr = `${year}-${pad(month)}-${pad(currentEnd)}`;
+
+      const allDates: string[] = [];
+      const weekendDates: string[] = [];
+      for (let day = currentStart; day <= currentEnd; day++) {
+        const curDate = new Date(year, month - 1, day);
+        const dow = curDate.getDay();
+        const dStr = `${year}-${pad(month)}-${pad(day)}`;
+        allDates.push(dStr);
+        if (dow === 5 || dow === 6 || dow === 0) { // Ven, Sab, Dom
+          weekendDates.push(dStr);
+        }
+      }
+
+      weeks.push({
+        id: `week_${weekNum}`,
+        weekNum,
+        label: `Settimana ${weekNum} (${currentStart} - ${currentEnd})`,
+        shortLabel: `Sett. ${weekNum}`,
+        startDate: startStr,
+        endDate: endStr,
+        weekendDates,
+        allDates,
+      });
+
+      currentStart = currentEnd + 1;
+      weekNum++;
+    }
+
+    return weeks;
+  }, [selectedMonth]);
+
+  // Mini grafico andamento pagamenti per le settimane del mese
+  const paymentTrendData = useMemo(() => {
+    return monthWeeks.map((wk) => {
+      const weekDays = monthWorkedDays.filter((d) => wk.allDates.includes(d.date));
+      const earned = weekDays.reduce((sum, d) => sum + (d.amount || 0), 0);
+
+      const weekPayouts = payouts.filter((p) => {
+        const pDate = p.paymentDate || p.createdAt?.split('T')[0];
+        return pDate && wk.allDates.includes(pDate);
+      });
+      const paidFromPayouts = weekPayouts.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+      const paidFromDays = weekDays.filter((d) => d.paid).reduce((sum, d) => sum + (d.amount || 0), 0);
+      const paid = Math.max(paidFromPayouts, paidFromDays);
+      const pending = Math.max(0, earned - paid);
+
+      return {
+        ...wk,
+        earned,
+        paid,
+        pending,
+        daysCount: weekDays.length,
+      };
+    });
+  }, [monthWeeks, monthWorkedDays, payouts]);
+
+  // Dati filtrati per la vista Riepilogo Compensi
+  const summaryFilteredDays = useMemo(() => {
+    if (summaryFilter === 'all') {
+      return monthWorkedDays;
+    }
+    if (summaryFilter === 'weekend') {
+      // Raccoglie tutti i giorni che cadono di venerdì, sabato o domenica nel mese
+      const allWeekendDates = new Set(monthWeeks.flatMap((w) => w.weekendDates));
+      return monthWorkedDays.filter((d) => allWeekendDates.has(d.date));
+    }
+    // Filtro per settimana specifica
+    const targetWeek = monthWeeks.find((w) => w.id === summaryFilter);
+    if (targetWeek) {
+      return monthWorkedDays.filter((d) => targetWeek.allDates.includes(d.date));
+    }
+    return monthWorkedDays;
+  }, [monthWorkedDays, summaryFilter, monthWeeks]);
+
+  // Riepilogo operai con lavoro svolto nel periodo selezionato
+  const summaryWorkerBreakdown = useMemo(() => {
+    return workers.map((worker) => {
+      const days = summaryFilteredDays.filter((d) => d.workerId === worker.uid);
+      const totalEarned = days.reduce((sum, d) => sum + (d.amount || 0), 0);
+      const totalPaid = days.filter((d) => d.paid).reduce((sum, d) => sum + (d.amount || 0), 0);
+      const pendingToPay = Math.max(0, totalEarned - totalPaid);
+
+      return {
+        worker,
+        days,
+        totalEarned,
+        totalPaid,
+        pendingToPay,
+        daysCount: days.length,
+      };
+    }).filter((item) => item.days.length > 0 || item.pendingToPay > 0);
+  }, [workers, summaryFilteredDays]);
+
+  const summaryTotalPending = useMemo(() => {
+    return summaryWorkerBreakdown.reduce((sum, item) => sum + item.pendingToPay, 0);
+  }, [summaryWorkerBreakdown]);
+
+  const summaryTotalEarned = useMemo(() => {
+    return summaryWorkerBreakdown.reduce((sum, item) => sum + item.totalEarned, 0);
+  }, [summaryWorkerBreakdown]);
+
+  const summaryTotalPaid = useMemo(() => {
+    return summaryWorkerBreakdown.reduce((sum, item) => sum + item.totalPaid, 0);
+  }, [summaryWorkerBreakdown]);
+
+  const handleQuickPayWorker = async (worker: User, amountToPay: number, targetDays: WorkedDay[], method: PaymentMethod = 'contanti') => {
+    if (amountToPay <= 0 && targetDays.length === 0) return;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // 1. Registra Payout
+    await recordWorkerPayout({
+      workerId: worker.uid,
+      workerName: worker.displayName,
+      period: selectedMonth,
+      totalHours: 0,
+      daysWorked: targetDays.length,
+      hourlyRate: worker.hourlyRate || 15,
+      totalAmount: Number(amountToPay),
+      paymentMethod: method,
+      paymentDate: todayStr,
+      status: 'paid',
+      notes: `Liquidato compenso ${summaryFilter === 'weekend' ? 'fine settimana' : 'periodo'} (${targetDays.length} giornate)`,
+    });
+
+    // 2. Segna le giornate come pagate
+    for (const d of targetDays) {
+      if (!d.paid) {
+        await updateWorkedDay({ ...d, paid: true });
+      }
+    }
+
+    setQuickPayWorkerId(null);
+    setQuickPaySuccessMsg(`Compenso di €${amountToPay.toFixed(2)} registrato come PAGATO per ${worker.displayName}!`);
+    setTimeout(() => setQuickPaySuccessMsg(null), 3500);
+  };
+
+  const handlePayAllSummaryWorkers = async () => {
+    if (summaryTotalPending <= 0) return;
+    for (const item of summaryWorkerBreakdown) {
+      if (item.pendingToPay > 0) {
+        await handleQuickPayWorker(item.worker, item.pendingToPay, item.days, 'contanti');
+      }
+    }
+  };
 
   // Format month name in Italian (e.g., "Ottobre 2026")
   const formattedMonthLabel = useMemo(() => {
@@ -280,137 +472,147 @@ export const SquadWorkersRegistry: React.FC = () => {
   };
 
   return (
-    <div className="space-y-[7px]">
+    <div className="space-y-[3px]">
       
-      {/* Month Selector Bar & Actions */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-[7px]">
-        {/* Month Navigation */}
-        <div className="flex items-center gap-[7px]">
-          <button
-            onClick={handlePrevMonth}
-            className="p-1.5 rounded-[7px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
-            title="Mese precedente"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
+      {/* Mese in alto allargato a tutta larghezza con i pulsantini laterali */}
+      <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] p-[3px] px-2 shadow-xs flex items-center justify-between">
+        <button
+          onClick={handlePrevMonth}
+          className="p-1 px-2.5 rounded-[5px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+          title="Mese precedente"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
 
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-            <span className="font-bold text-sm text-slate-900 dark:text-slate-100 font-mono">
-              {formattedMonthLabel}
-            </span>
-          </div>
-
-          <button
-            onClick={handleNextMonth}
-            className="p-1.5 rounded-[7px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
-            title="Mese successivo"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+          <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 font-mono tracking-tight">
+            {formattedMonthLabel}
+          </span>
           {selectedMonth !== new Date().toISOString().substring(0, 7) && (
             <button
               onClick={handleResetCurrentMonth}
               className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 underline ml-1 cursor-pointer"
             >
-              Mese attuale
+              Oggi
             </button>
           )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-[7px]">
-          <button
-            onClick={() => {
-              if (workers.length > 0) {
-                setDayWorkerId(workers[0].uid);
-                const rate = workers[0].dailyRate || 90;
-                setDayRate(rate);
-                setDayAmount(rate);
-              }
-              setDayDate(new Date().toISOString().split('T')[0]);
-              setDayType('full');
-              setShowAddDayModal(true);
-            }}
-            className="flex items-center gap-1.5 p-[7px] px-3 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] font-bold text-xs shadow-xs transition-colors cursor-pointer shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Inserisci Giornata Lavorata</span>
-          </button>
-
-          <button
-            onClick={() => setShowAddWorkerModal(true)}
-            className="flex items-center gap-1.5 p-[7px] px-3 bg-slate-800 hover:bg-slate-700 text-white rounded-[7px] font-bold text-xs shadow-xs transition-colors cursor-pointer shrink-0"
-          >
-            <Users className="w-4 h-4 text-emerald-400" />
-            <span>Nuovo Operaio Offline</span>
-          </button>
-        </div>
+        <button
+          onClick={handleNextMonth}
+          className="p-1 px-2.5 rounded-[5px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+          title="Mese successivo"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
       </div>
 
-      {/* KPI STATS: TOTALE DA DARE AGLI OPERAI */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-[7px]">
+      {/* Pulsanti Azione sulla stessa riga (3 pulsanti adattati allo schermo: Inserisci Giornata, Nuovo Operaio, Riepilogo) */}
+      <div className="grid grid-cols-3 gap-[3px] w-full">
+        <button
+          onClick={() => {
+            if (workers.length > 0) {
+              setDayWorkerId(workers[0].uid);
+              const rate = workers[0].dailyRate || 90;
+              setDayRate(rate);
+              setDayAmount(rate);
+            }
+            setDayDate(new Date().toISOString().split('T')[0]);
+            setDayType('full');
+            setShowAddDayModal(true);
+          }}
+          className="flex items-center justify-center gap-1 p-[3px] py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[6px] font-bold text-[11px] sm:text-xs shadow-xs transition-colors cursor-pointer w-full min-w-0"
+        >
+          <Plus className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">Inserisci Giornata</span>
+        </button>
+
+        <button
+          onClick={() => setShowAddWorkerModal(true)}
+          className="flex items-center justify-center gap-1 p-[3px] py-2 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white dark:border-slate-700 rounded-[6px] font-bold text-[11px] sm:text-xs shadow-xs transition-colors cursor-pointer w-full min-w-0"
+        >
+          <Users className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <span className="truncate">Nuovo Operaio</span>
+        </button>
+
+        <button
+          onClick={() => setSubView(subView === 'summary' ? 'registry' : 'summary')}
+          className={`flex items-center justify-center gap-1 p-[3px] py-2 rounded-[6px] font-bold text-[11px] sm:text-xs shadow-xs transition-colors cursor-pointer w-full min-w-0 ${
+            subView === 'summary'
+              ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-xs'
+              : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 dark:text-amber-300 dark:border-amber-700/60'
+          }`}
+          title="Mostra riepilogo compensi e saldi operai"
+        >
+          <BarChart3 className={`w-3.5 h-3.5 shrink-0 ${subView === 'summary' ? 'text-white' : 'text-amber-600 dark:text-amber-400'}`} />
+          <span className="truncate">Riepilogo</span>
+        </button>
+      </div>
+
+      {/* KPI STATS: 4 CARD DEI RIEPILOGHI SU UNA SOLA RIGA (GRAFICA STRETTA A 3PX) */}
+      <div className="grid grid-cols-4 gap-[3px] w-full">
         {/* BIG HIGHLIGHT: TOTALE DA DARE */}
-        <div className="bg-emerald-950 text-white border border-emerald-900 rounded-[7px] p-[7px] shadow-sm space-y-[7px]">
+        <div className="bg-emerald-950 text-white border border-emerald-900 rounded-[6px] p-[3px] px-1.5 shadow-2xs space-y-0.5 flex flex-col justify-between min-w-0">
           <div className="flex items-center justify-between text-emerald-300">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Totale da Dare agli Operai</span>
-            <Wallet className="w-4 h-4 text-amber-400" />
+            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tight truncate">Da Dare</span>
+            <Wallet className="w-3 h-3 text-amber-400 shrink-0" />
           </div>
-          <div className="text-2xl font-bold font-mono text-amber-300">
-            € {totalDueAllWorkers.toFixed(2)}
+          <div className="text-xs sm:text-base font-bold font-mono text-amber-300 truncate">
+            € {totalDueAllWorkers.toFixed(0)}
           </div>
-          <div className="text-[10px] text-emerald-200/80 flex items-center justify-between">
-            <span>Rimanenza a fine mese</span>
-            <span>{workers.length} operai</span>
+          <div className="text-[7px] sm:text-[8px] text-emerald-200/80 truncate">
+            {workers.length} operai
           </div>
         </div>
 
         {/* Totale Maturato nel Mese */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] p-[3px] px-1.5 shadow-2xs space-y-0.5 flex flex-col justify-between min-w-0">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Compenso Maturato</span>
-            <Euro className="w-4 h-4 text-emerald-600" />
+            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tight truncate">Maturato</span>
+            <Euro className="w-3 h-3 text-emerald-600 shrink-0" />
           </div>
-          <div className="text-2xl font-bold font-mono text-emerald-700 dark:text-emerald-400">
-            € {totalEarnedAllWorkers.toFixed(2)}
+          <div className="text-xs sm:text-base font-bold font-mono text-emerald-700 dark:text-emerald-400 truncate">
+            € {totalEarnedAllWorkers.toFixed(0)}
           </div>
-          <div className="text-[10px] text-slate-500 dark:text-slate-400">
-            Calcolato sulle giornate inserite
+          <div className="text-[7px] sm:text-[8px] text-slate-500 dark:text-slate-400 truncate">
+            Lavoro svolto
           </div>
         </div>
 
         {/* Giornate Lavorate Totali */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] p-[3px] px-1.5 shadow-2xs space-y-0.5 flex flex-col justify-between min-w-0">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Giornate Lavoro</span>
-            <Clock className="w-4 h-4 text-sky-600" />
+            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tight truncate">Giornate</span>
+            <Clock className="w-3 h-3 text-sky-600 shrink-0" />
           </div>
-          <div className="text-2xl font-bold font-mono text-sky-700 dark:text-sky-400">
+          <div className="text-xs sm:text-base font-bold font-mono text-sky-700 dark:text-sky-400 truncate">
             {totalDaysAllWorkers.toFixed(1)} gg
           </div>
-          <div className="text-[10px] text-slate-500 dark:text-slate-400">
-            Nel mese di {formattedMonthLabel}
+          <div className="text-[7px] sm:text-[8px] text-slate-500 dark:text-slate-400 truncate">
+            Nel mese
           </div>
         </div>
 
         {/* Già Pagati / Acconti */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] p-[3px] px-1.5 shadow-2xs space-y-0.5 flex flex-col justify-between min-w-0">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Già Liquidato</span>
-            <CreditCard className="w-4 h-4 text-emerald-600" />
+            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tight truncate">Liquidato</span>
+            <CreditCard className="w-3 h-3 text-emerald-600 shrink-0" />
           </div>
-          <div className="text-2xl font-bold font-mono text-slate-900 dark:text-slate-100">
-            € {totalPaidAllWorkers.toFixed(2)}
+          <div className="text-xs sm:text-base font-bold font-mono text-slate-900 dark:text-slate-100 truncate">
+            € {totalPaidAllWorkers.toFixed(0)}
           </div>
-          <div className="text-[10px] text-slate-500 dark:text-slate-400">
-            Acconti e saldi registrati
+          <div className="text-[7px] sm:text-[8px] text-slate-500 dark:text-slate-400 truncate">
+            Già pagati
           </div>
         </div>
       </div>
 
-      {/* SCHEDE OPERAI: RIEPILOGO TOTALE DA DARE AD OGNUNO */}
-      <div className="space-y-[7px]">
+      {subView === 'registry' ? (
+        <>
+          {/* SCHEDE OPERAI: RIEPILOGO TOTALE DA DARE AD OGNUNO */}
+          <div className="space-y-[7px]">
         <div className="flex items-center justify-between">
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
             <Users className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
@@ -733,7 +935,379 @@ export const SquadWorkersRegistry: React.FC = () => {
               ))}
           </div>
         )}
-      </div>
+        </div>
+        </>
+      ) : (
+        /* SCHERMATA RIEPILOGO COMPENSI E SALDI A PAGINA NORMALE */
+        <div className="space-y-[3px]">
+          {/* Header Barra Riepilogo */}
+          <div className="flex items-center justify-between p-[3px] px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] shadow-2xs">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSubView('registry')}
+                className="p-1 px-2 text-[11px] font-bold rounded-[4px] bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>Torna a Operai</span>
+              </button>
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
+                <BarChart3 className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span className="uppercase tracking-tight">Riepilogo Compensi & Saldi</span>
+              </div>
+            </div>
+
+            {summaryTotalPending > 0 ? (
+              <button
+                type="button"
+                onClick={handlePayAllSummaryWorkers}
+                className="text-[11px] font-bold text-amber-700 dark:text-amber-300 hover:underline cursor-pointer flex items-center gap-1"
+                title="Salda tutti gli operai del periodo selezionato"
+              >
+                <span>Salda Tutti (€ {summaryTotalPending.toFixed(2)})</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            ) : (
+              <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                <Check className="w-3.5 h-3.5" />
+                <span>Tutti saldati</span>
+              </span>
+            )}
+          </div>
+
+          {/* Toast Notifica Successo Pagamento */}
+          {quickPaySuccessMsg && (
+            <div className="bg-emerald-50 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 p-[3px] px-3 py-1.5 text-xs flex items-center gap-2 rounded-[6px] shadow-2xs animate-fadeIn">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="font-semibold">{quickPaySuccessMsg}</span>
+            </div>
+          )}
+
+          {/* MINI GRAFICO ANDAMENTO PAGAMENTI (TEMA CHIARO & SCURO) */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] p-[3px] px-2.5 py-2 space-y-[3px] shadow-2xs">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-slate-100">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Andamento Pagamenti Settimanali</span>
+              </div>
+              <div className="flex items-center gap-2.5 text-[9px] font-semibold">
+                <span className="flex items-center gap-1 text-sky-700 dark:text-sky-400">
+                  <span className="w-2 h-2 rounded-[2px] bg-sky-500 inline-block" />
+                  Maturato
+                </span>
+                <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+                  <span className="w-2 h-2 rounded-[2px] bg-emerald-500 inline-block" />
+                  Liquidato
+                </span>
+                <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
+                  <span className="w-2 h-2 rounded-[2px] bg-amber-500 inline-block" />
+                  Da Saldare
+                </span>
+              </div>
+            </div>
+
+            {/* Bar Chart Container */}
+            {(() => {
+              const maxVal = Math.max(
+                1,
+                ...paymentTrendData.map((d) => Math.max(d.earned, d.paid))
+              );
+
+              return (
+                <div className="space-y-[3px]">
+                  <div className="grid grid-cols-5 gap-[3px] h-20 items-end pt-2 px-1">
+                    {paymentTrendData.map((wk) => {
+                      const earnedHeightPct = Math.min(100, Math.max(6, (wk.earned / maxVal) * 100));
+                      const paidHeightPct = Math.min(100, Math.max(4, (wk.paid / maxVal) * 100));
+
+                      return (
+                        <div key={wk.id} className="flex flex-col items-center justify-end h-full group">
+                          <div className="w-full flex items-end justify-center gap-1 h-14 bg-slate-100 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800/80 rounded-[4px] p-0.5 relative">
+                            {/* Bar: Maturato */}
+                            <div
+                              style={{ height: `${earnedHeightPct}%` }}
+                              title={`Maturato: €${wk.earned.toFixed(0)}`}
+                              className="w-2 sm:w-3 bg-sky-500 hover:bg-sky-400 rounded-t-[2px] transition-all"
+                            />
+                            {/* Bar: Liquidato */}
+                            <div
+                              style={{ height: `${paidHeightPct}%` }}
+                              title={`Liquidato: €${wk.paid.toFixed(0)}`}
+                              className="w-2 sm:w-3 bg-emerald-500 hover:bg-emerald-400 rounded-t-[2px] transition-all"
+                            />
+                          </div>
+                          <div className="text-[9px] font-medium text-slate-600 dark:text-slate-400 mt-1 truncate max-w-full text-center">
+                            {wk.shortLabel}
+                          </div>
+                          <div className="text-[8px] font-mono font-bold text-amber-700 dark:text-amber-300">
+                            {wk.pending > 0 ? `€${wk.pending.toFixed(0)}` : '✓'}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Mini Summary Strip */}
+                  <div className="grid grid-cols-3 gap-[3px] text-center pt-1 border-t border-slate-200 dark:border-slate-800">
+                    <div className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 p-[3px] rounded-[4px]">
+                      <span className="text-[8px] text-slate-500 dark:text-slate-400 block uppercase font-semibold">Totale Lavoro</span>
+                      <span className="text-[11px] font-mono font-bold text-sky-700 dark:text-sky-300">
+                        € {summaryTotalEarned.toFixed(0)}
+                      </span>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 p-[3px] rounded-[4px]">
+                      <span className="text-[8px] text-slate-500 dark:text-slate-400 block uppercase font-semibold">Già Liquidato</span>
+                      <span className="text-[11px] font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                        € {summaryTotalPaid.toFixed(0)}
+                      </span>
+                    </div>
+                    <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 p-[3px] rounded-[4px]">
+                      <span className="text-[8px] text-amber-800 dark:text-amber-300 block uppercase font-bold">Da Saldare</span>
+                      <span className="text-[11px] font-mono font-bold text-amber-800 dark:text-amber-400">
+                        € {summaryTotalPending.toFixed(0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* FILTER BAR: SELETTORE PERIODO (FINE SETTIMANA / SETTIMANE / MESE) */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] p-[3px] space-y-[3px] shadow-2xs">
+            <div className="flex items-center justify-between text-[10px] text-slate-600 dark:text-slate-400 px-1 font-semibold">
+              <span>FILTRA PERIODO DI CALCOLO:</span>
+              <span className="text-[9px] text-slate-500 dark:text-slate-400 font-normal">
+                {summaryFilter === 'weekend' ? 'Venerdì, Sabato e Domenica del mese' : summaryFilter === 'all' ? 'Tutto il mese' : 'Settimana specifica'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 sm:grid-cols-7 gap-[3px]">
+              <button
+                type="button"
+                onClick={() => setSummaryFilter('weekend')}
+                className={`p-[3px] py-1.5 text-center text-xs font-bold rounded-[4px] cursor-pointer transition-colors col-span-2 sm:col-span-2 ${
+                  summaryFilter === 'weekend'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:border-slate-700'
+                }`}
+              >
+                <span>⭐ Fine Settimana (Ven-Dom)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSummaryFilter('all')}
+                className={`p-[3px] py-1.5 text-center text-xs font-bold rounded-[4px] cursor-pointer transition-colors ${
+                  summaryFilter === 'all'
+                    ? 'bg-emerald-700 text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:border-slate-700'
+                }`}
+              >
+                Mese Intero
+              </button>
+
+              {monthWeeks.map((wk) => (
+                <button
+                  key={wk.id}
+                  type="button"
+                  onClick={() => setSummaryFilter(wk.id)}
+                  className={`p-[3px] py-1 text-center text-[10px] font-bold rounded-[4px] cursor-pointer transition-colors ${
+                    summaryFilter === wk.id
+                      ? 'bg-sky-600 text-white shadow-xs'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-400 dark:border-slate-700'
+                  }`}
+                >
+                  {wk.shortLabel}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* LISTA RIEPILOGHI OPERAI */}
+          <div className="space-y-[3px]">
+            {summaryWorkerBreakdown.length === 0 ? (
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] p-6 text-center text-slate-500 dark:text-slate-400 text-xs shadow-2xs">
+                Nessuna attività o giornata registrata per il periodo selezionato.
+              </div>
+            ) : (
+              summaryWorkerBreakdown.map((item) => {
+                const isPayingThis = quickPayWorkerId === item.worker.uid;
+
+                return (
+                  <div
+                    key={item.worker.uid}
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-[6px] p-[3px] space-y-[3px] shadow-2xs transition-colors"
+                  >
+                    {/* Worker Header */}
+                    <div className="flex items-center justify-between p-[3px] px-2 bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800/80 rounded-[4px]">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-bold text-xs text-emerald-700 dark:text-emerald-400 shadow-2xs">
+                          {item.worker.displayName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="font-bold text-xs text-slate-900 dark:text-white">
+                            {item.worker.displayName}
+                          </div>
+                          <div className="text-[9px] text-slate-500 dark:text-slate-400">
+                            Tariffa: €{item.worker.dailyRate || 90}/gg · €{item.worker.hourlyRate || 15}/h
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        {item.pendingToPay > 0 ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[9px] uppercase tracking-wider text-amber-800 dark:text-amber-400 font-bold">
+                              Da Saldare:
+                            </span>
+                            <span className="text-xs font-mono font-bold text-amber-700 dark:text-amber-300">
+                              € {item.pendingToPay.toFixed(2)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[9px] bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 px-1.5 py-0.5 rounded-[3px] font-bold">
+                            <Check className="w-3 h-3" />
+                            SALDATO
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Worked Days Details */}
+                    {item.days.length > 0 && (
+                      <div className="space-y-[3px] p-[3px]">
+                        {item.days.map((d) => {
+                          const dDate = new Date(d.date);
+                          const isWeekend = dDate.getDay() === 0 || dDate.getDay() === 5 || dDate.getDay() === 6;
+
+                          return (
+                            <div
+                              key={d.id}
+                              className="flex items-center justify-between p-[3px] px-2 bg-slate-50/70 dark:bg-slate-950/50 border border-slate-200/70 dark:border-slate-800/60 rounded-[4px] text-[11px]"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span
+                                  className={`font-mono font-semibold shrink-0 ${
+                                    isWeekend
+                                      ? 'text-amber-800 dark:text-amber-300 font-bold'
+                                      : 'text-slate-700 dark:text-slate-300'
+                                  }`}
+                                >
+                                  {d.date.substring(5)}
+                                  {isWeekend ? ' (WE)' : ''}
+                                </span>
+                                <span className="text-slate-600 dark:text-slate-400 truncate">
+                                  {d.cantiereName || 'Lavoro ordinario'}
+                                </span>
+                                <span className="text-[9px] text-slate-500 dark:text-slate-500 shrink-0">
+                                  {d.dayType === 'full' ? '1gg' : d.dayType === 'half' ? '0.5gg' : `${d.hours}h`}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="font-mono font-bold text-slate-900 dark:text-slate-200">
+                                  € {(d.amount || 0).toFixed(2)}
+                                </span>
+
+                                {/* Clickable Day Paid Toggle */}
+                                <button
+                                  type="button"
+                                  onClick={() => updateWorkedDay({ ...d, paid: !d.paid })}
+                                  className={`px-1.5 py-0.5 text-[9px] font-bold rounded-[3px] border cursor-pointer transition-colors ${
+                                    d.paid
+                                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800'
+                                      : 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800'
+                                  }`}
+                                  title={d.paid ? 'Clicca per annullare pagamento' : 'Clicca per segnare pagato'}
+                                >
+                                  {d.paid ? '✓ Pagato' : 'Da Saldare'}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Quick Pay Action Bar */}
+                    {item.pendingToPay > 0 && (
+                      <div className="p-[3px] bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-[4px] flex items-center justify-between gap-1 flex-wrap">
+                        {isPayingThis ? (
+                          <div className="w-full flex items-center justify-between gap-[3px]">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] text-slate-600 dark:text-slate-400 font-semibold">Metodo:</span>
+                              <select
+                                value={quickPayMethod}
+                                onChange={(e) => setQuickPayMethod(e.target.value as PaymentMethod)}
+                                className="p-1 text-[10px] bg-white border border-slate-300 rounded-[3px] text-slate-900 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                              >
+                                <option value="contanti">Contanti</option>
+                                <option value="bonifico">Bonifico</option>
+                                <option value="pos">POS / Carta</option>
+                                <option value="assegno">Assegno</option>
+                              </select>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleQuickPayWorker(item.worker, item.pendingToPay, item.days, quickPayMethod)
+                                }
+                                className="p-[3px] px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[3px] font-bold text-xs cursor-pointer shadow-xs"
+                              >
+                                Conferma €{item.pendingToPay.toFixed(2)}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setQuickPayWorkerId(null)}
+                                className="p-[3px] px-1.5 py-1 text-[10px] text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
+                              >
+                                Annulla
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickPayWorkerId(item.worker.uid);
+                              setQuickPayMethod('contanti');
+                            }}
+                            className="w-full p-[3px] py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[4px] font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                          >
+                            <DollarSign className="w-3.5 h-3.5" />
+                            <span>Segna Pagato (€ {item.pendingToPay.toFixed(2)})</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Bottom Summary Footer Bar */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-[3px] px-3 py-2 flex items-center justify-between rounded-[6px] shadow-2xs">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold">
+                Totale Da Dare:
+              </span>
+              <span className="font-mono font-bold text-amber-700 dark:text-amber-300 text-sm">
+                € {summaryTotalPending.toFixed(2)}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSubView('registry')}
+              className="p-[3px] px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white rounded-[4px] font-semibold text-xs cursor-pointer transition-colors shadow-2xs"
+            >
+              Torna a Operai
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: NUOVO OPERAIO OFFLINE */}
       {showAddWorkerModal && (

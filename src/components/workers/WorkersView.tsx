@@ -3,7 +3,7 @@ import { SquadWorkersRegistry } from '../calendar/SquadWorkersRegistry';
 
 export const WorkersView: React.FC = () => {
   return (
-    <div className="space-y-[7px]">
+    <div className="space-y-[3px]">
       <SquadWorkersRegistry />
     </div>
   );
