@@ -59,6 +59,7 @@ export interface Client {
   createdAt: string;
   cantieri?: CantiereSite[];
   color?: string; // Hex color code e.g. '#059669' for map pins, calendar cards & avatar
+  active?: boolean; // If false, client is archived under "Clienti Passati"
 }
 
 export interface MaterialRequirement {
@@ -162,6 +163,8 @@ export interface InventoryItem {
   brandLogoUrl?: string;
   lastMaintenanceDate?: string;
   imageUrl?: string;
+  appliedJobHours?: Record<string, number>;
+  appliedJobQty?: Record<string, number>;
 }
 
 export interface MaterialUsed {

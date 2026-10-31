@@ -252,6 +252,52 @@ export const mapJobCostCategoryToExpense = (cat?: JobCostCategory): ExpenseCateg
   }
 };
 
+export function consolidateWorkedDays(days: WorkedDay[]): WorkedDay[] {
+  if (!Array.isArray(days) || days.length === 0) return [];
+
+  const map = new Map<string, WorkedDay>();
+
+  days.forEach((wd) => {
+    if (!wd || !wd.workerId || !wd.date) return;
+    const cleanDate = wd.date.split('T')[0];
+    const key = `${wd.workerId}_${cleanDate}`;
+
+    if (!map.has(key)) {
+      map.set(key, { ...wd, date: cleanDate });
+    } else {
+      const existing = map.get(key)!;
+
+      // Merge cantiere names uniquely
+      const existingCantieri = (existing.cantiereName || '').split(', ').filter(Boolean);
+      const newCantieri = (wd.cantiereName || '').split(', ').filter(Boolean);
+      const combinedCantieri = Array.from(new Set([...existingCantieri, ...newCantieri])).join(', ');
+
+      // Merge notes uniquely
+      const existingNotes = (existing.notes || '').split(' | ').filter(Boolean);
+      const newNotes = (wd.notes || '').split(' | ').filter(Boolean);
+      const combinedNotes = Array.from(new Set([...existingNotes, ...newNotes])).join(' | ');
+
+      const rate = wd.dailyRate || existing.dailyRate || 90;
+
+      // Daily rate counts 1 rate per date regardless of multiple interventions
+      const amount = wd.dayType === 'custom' && wd.hours && wd.hours > 0
+        ? Math.max(existing.amount || 0, wd.amount || 0)
+        : rate;
+
+      map.set(key, {
+        ...existing,
+        cantiereName: combinedCantieri || existing.cantiereName,
+        notes: combinedNotes || existing.notes,
+        dailyRate: rate,
+        amount: amount,
+        paid: existing.paid || wd.paid || false,
+      });
+    }
+  });
+
+  return Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date));
+}
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -347,25 +393,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [operationalExpenses, setOperationalExpenses] = useState<ExpenseRecord[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.EXPENSES);
-      const parsed = saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
       const pureExpenses = Array.isArray(parsed)
         ? parsed.filter((e: any) => !e.jobId && !e.jobCostId && !e.id?.startsWith('exp_job_'))
         : [];
-      return pureExpenses.length > 0 ? pureExpenses : INITIAL_EXPENSES;
+      
+      const uniqueDocs: ExpenseRecord[] = [];
+      const seenIds = new Set<string>();
+      const seenSigs = new Set<string>();
+      pureExpenses.forEach((e: ExpenseRecord) => {
+        if (!e) return;
+        const sig = `${e.title}_${e.amount}_${e.date}`.toLowerCase().trim();
+        if (!seenIds.has(e.id) && !seenSigs.has(sig)) {
+          seenIds.add(e.id);
+          seenSigs.add(sig);
+          uniqueDocs.push(e);
+        }
+      });
+      return uniqueDocs;
     } catch {
-      return INITIAL_EXPENSES;
+      return [];
     }
   });
 
-  // Combina in tempo reale le spese operative generali con ciascun costo singolo registrato nei cantieri
+  // Combina in tempo reale le spese operative generali con ciascun costo singolo registrato nei cantieri, deduplicando per ID e firma
   const expenses = useMemo<ExpenseRecord[]>(() => {
     const combined: ExpenseRecord[] = [];
     const seenIds = new Set<string>();
+    const seenSigs = new Set<string>();
 
     // 1. Spese generali
     operationalExpenses.forEach((exp) => {
-      if (!seenIds.has(exp.id)) {
+      if (!exp) return;
+      const sig = `${exp.title}_${exp.amount}_${exp.date}`.toLowerCase().trim();
+      if (!seenIds.has(exp.id) && !seenSigs.has(sig)) {
         seenIds.add(exp.id);
+        seenSigs.add(sig);
         combined.push(exp);
       }
     });
@@ -374,9 +438,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     jobs.forEach((job) => {
       if (job.costs && job.costs.length > 0) {
         job.costs.forEach((cost) => {
+          if (!cost) return;
           const costExpId = `exp_job_${job.id}_${cost.id}`;
-          if (!seenIds.has(costExpId) && !seenIds.has(cost.id)) {
+          const sig = `${cost.name}_${cost.amount}_${job.date || ''}`.toLowerCase().trim();
+          if (!seenIds.has(costExpId) && !seenIds.has(cost.id) && !seenSigs.has(sig)) {
             seenIds.add(costExpId);
+            seenSigs.add(sig);
             combined.push({
               id: costExpId,
               title: cost.name,
@@ -414,20 +481,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.WORKED_DAYS);
       const parsed: WorkedDay[] = saved ? JSON.parse(saved) : [];
-      // Deduplica presenze nello stesso giorno per lo stesso operaio
-      const uniqueMap = new Map<string, WorkedDay>();
-      parsed.forEach((wd) => {
-        const key = `${wd.workerId}_${wd.date}`;
-        if (!uniqueMap.has(key)) {
-          uniqueMap.set(key, { ...wd });
-        } else {
-          const existing = uniqueMap.get(key)!;
-          if (wd.notes && !existing.notes?.includes(wd.notes)) {
-            existing.notes = `${existing.notes || ''} | ${wd.notes}`;
-          }
-        }
-      });
-      return Array.from(uniqueMap.values());
+      return consolidateWorkedDays(parsed);
     } catch {
       return [];
     }
@@ -626,21 +680,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       (err) => console.warn('reports snapshot error:', err)
     );
 
-    // EXPENSES LISTENER (Solo spese operative generali)
+    // EXPENSES LISTENER (Solo spese operative generali con deduplicazione automatica)
     const unsubExpenses = onSnapshot(
       collection(db, 'expenses'),
       (snap) => {
-        if (!snap.empty) {
-          const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as ExpenseRecord));
-          const pureDocs = docs.filter((e) => !e.jobId && !e.jobCostId && !e.id?.startsWith('exp_job_'));
-          if (pureDocs.length > 0) {
-            setOperationalExpenses(pureDocs);
-            try {
-              localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(pureDocs));
-            } catch (e) {
-              console.warn(e);
-            }
+        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as ExpenseRecord));
+        const pureDocs = docs.filter((e) => !e.jobId && !e.jobCostId && !e.id?.startsWith('exp_job_'));
+        
+        const uniqueDocs: ExpenseRecord[] = [];
+        const seenIds = new Set<string>();
+        const seenSigs = new Set<string>();
+
+        pureDocs.forEach((e) => {
+          if (!e) return;
+          const sig = `${e.title}_${e.amount}_${e.date}`.toLowerCase().trim();
+          if (!seenIds.has(e.id) && !seenSigs.has(sig)) {
+            seenIds.add(e.id);
+            seenSigs.add(sig);
+            uniqueDocs.push(e);
           }
+        });
+
+        setOperationalExpenses(uniqueDocs);
+        try {
+          localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(uniqueDocs));
+        } catch (e) {
+          console.warn(e);
         }
       },
       (err) => console.warn('expenses snapshot error:', err)
@@ -661,14 +726,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       (err) => console.warn('payouts snapshot error:', err)
     );
 
-    // WORKED DAYS LISTENER
+    // WORKED DAYS LISTENER (Con consolidamento automatico 1 presenza al giorno per operaio)
     const unsubWorkedDays = onSnapshot(
       collection(db, 'worked_days'),
       (snap) => {
         const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as WorkedDay));
-        setWorkedDays(docs);
+        const consolidated = consolidateWorkedDays(docs);
+        setWorkedDays(consolidated);
         try {
-          localStorage.setItem(STORAGE_KEYS.WORKED_DAYS, JSON.stringify(docs));
+          localStorage.setItem(STORAGE_KEYS.WORKED_DAYS, JSON.stringify(consolidated));
         } catch (e) {
           console.warn(e);
         }
@@ -1319,7 +1385,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Helper: Sincronizza ore di utilizzo attrezzature e consumo materiali in Magazzino
-  const syncJobToInventory = (updatedJob: Job, prevJob?: Job) => {
+  const syncJobToInventory = (updatedJob: Job, _prevJob?: Job) => {
     setInventory((prevInv) => {
       let changed = false;
       const nextInv = prevInv.map((item) => {
@@ -1330,22 +1396,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const req = updatedJob.equipmentRequired?.find(
             (r) => r.itemId === item.id || (r.name && item.name && r.name.trim().toLowerCase() === item.name.trim().toLowerCase())
           );
-          const prevReq = prevJob?.equipmentRequired?.find(
-            (r) => r.itemId === item.id || (r.name && item.name && r.name.trim().toLowerCase() === item.name.trim().toLowerCase())
-          );
 
-          const newHours = updatedJob.status === 'completed' ? (Number(req?.hoursUsed) || 0) : 0;
-          const oldHours = (prevJob?.status === 'completed' && prevJob.equipmentHoursApplied) ? (Number(prevReq?.hoursUsed) || 0) : 0;
-          const deltaHours = newHours - oldHours;
+          const targetHours = updatedJob.status === 'completed' ? (Number(req?.hoursUsed) || 0) : 0;
+          const currentApplied = item.appliedJobHours?.[updatedJob.id] || 0;
+          const deltaHours = targetHours - currentApplied;
 
           if (deltaHours !== 0) {
             const calculatedHours = Math.max(0, (item.currentUsageHours || 0) + deltaHours);
+            const nextAppliedHours = { ...(item.appliedJobHours || {}), [updatedJob.id]: targetHours };
             updatedItem.currentUsageHours = calculatedHours;
+            updatedItem.appliedJobHours = nextAppliedHours;
             changed = true;
             if (db) {
-              updateDoc(doc(db, 'inventory', item.id), { currentUsageHours: calculatedHours }).catch((err) =>
-                console.warn('Firestore equipment hours update error:', err)
-              );
+              updateDoc(doc(db, 'inventory', item.id), {
+                currentUsageHours: calculatedHours,
+                appliedJobHours: nextAppliedHours,
+              }).catch((err) => console.warn('Firestore equipment hours update error:', err));
             }
           }
         }
@@ -1355,22 +1421,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const reqMat = updatedJob.materialsRequired?.find(
             (m) => m.itemId === item.id || (m.name && item.name && m.name.trim().toLowerCase() === item.name.trim().toLowerCase())
           );
-          const prevMat = prevJob?.materialsRequired?.find(
-            (m) => m.itemId === item.id || (m.name && item.name && m.name.trim().toLowerCase() === item.name.trim().toLowerCase())
-          );
 
-          const newQtyDeducted = updatedJob.status === 'completed' ? (Number(reqMat?.qtyNeeded) || 0) : 0;
-          const oldQtyDeducted = (prevJob?.status === 'completed' && prevJob.materialsDeducted) ? (Number(prevMat?.qtyNeeded) || 0) : 0;
-          const deltaQty = newQtyDeducted - oldQtyDeducted;
+          const targetQty = updatedJob.status === 'completed' ? (Number(reqMat?.qtyNeeded) || 0) : 0;
+          const currentApplied = item.appliedJobQty?.[updatedJob.id] || 0;
+          const deltaQty = targetQty - currentApplied;
 
           if (deltaQty !== 0) {
             const calculatedQty = Math.max(0, (item.quantity || 0) - deltaQty);
+            const nextAppliedQty = { ...(item.appliedJobQty || {}), [updatedJob.id]: targetQty };
             updatedItem.quantity = calculatedQty;
+            updatedItem.appliedJobQty = nextAppliedQty;
             changed = true;
             if (db) {
-              updateDoc(doc(db, 'inventory', item.id), { quantity: calculatedQty }).catch((err) =>
-                console.warn('Firestore material quantity update error:', err)
-              );
+              updateDoc(doc(db, 'inventory', item.id), {
+                quantity: calculatedQty,
+                appliedJobQty: nextAppliedQty,
+              }).catch((err) => console.warn('Firestore material quantity update error:', err));
             }
           }
         }
@@ -1485,6 +1551,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteJob = async (id: string) => {
+    const jobToDelete = jobs.find((j) => j.id === id);
+    if (jobToDelete) {
+      syncJobToInventory({ ...jobToDelete, status: 'cancelled' }, jobToDelete);
+    }
     setJobs((prev) => {
       const next = prev.filter((j) => j.id !== id);
       try {

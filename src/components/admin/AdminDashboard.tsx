@@ -1,11 +1,16 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { fetchWeatherForClients } from '../../services/weatherService';
+import { fetchWeatherForClients, fetchWeatherForLocation } from '../../services/weatherService';
 import { Job, WorkReport, WeatherData } from '../../types';
 import { JobModal } from '../jobs/JobModal';
 import { WorkReportModal } from '../report/WorkReportModal';
 import { ExpenseModal } from '../payments/ExpenseModal';
 import { isJobTimeExpired, isJobCurrentlyInProgress } from '../../utils/jobTimeUtils';
+import {
+  WeatherVectorIcon,
+  ExpenseWalletVectorIcon,
+  PruningShearsVectorIcon,
+} from '../common/HeaderVectorIcons';
 import {
   Calendar,
   Clock,
@@ -49,6 +54,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
 
   // Weather state across cantieri for alert detection
   const [weatherMap, setWeatherMap] = useState<Record<string, WeatherData>>({});
+  // GPS Location synchronized weather
+  const [userGpsWeather, setUserGpsWeather] = useState<WeatherData | null>(null);
+
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const data = await fetchWeatherForLocation(
+              position.coords.latitude,
+              position.coords.longitude
+            );
+            setUserGpsWeather(data);
+          } catch (err) {
+            console.warn('GPS weather fetch error:', err);
+          }
+        },
+        (err) => {
+          console.warn('GPS location permission declined/unavailable:', err.message);
+        },
+        { timeout: 8000, enableHighAccuracy: false }
+      );
+    }
+  }, []);
 
   const loadWeatherData = useCallback((forceRefresh = false) => {
     if (clients.length === 0) return;
@@ -64,6 +93,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
   useEffect(() => {
     loadWeatherData();
   }, [loadWeatherData]);
+
+  // Weather object to display (prefer user GPS, fallback to first client)
+  const displayWeather = userGpsWeather || (clients.length > 0 ? weatherMap[clients[0].id] : null);
 
   // Identify cantieri with active weather alert
   const alertClients = clients.filter((c) => weatherMap[c.id]?.rainAlert);
@@ -113,117 +145,128 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
   return (
     <div className="space-y-[7px]">
       
-      {/* Top Banner with Weather Button, Add Expense, and New Job Action */}
-      <div className="flex items-center justify-between sm:justify-end gap-[7px]">
-        <div className="flex items-center gap-[7px] w-full sm:w-auto justify-between sm:justify-end">
-          {/* Tasto Meteo solo icona */}
-          <button
-            onClick={() => onNavigateTab('weather')}
-            className={`relative flex items-center justify-center p-[7px] px-2.5 sm:px-3 border rounded-[7px] shadow-xs transition-colors shrink-0 cursor-pointer ${
-              alertClients.length > 0
-                ? 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900 dark:bg-amber-950 dark:border-amber-800 dark:text-amber-200'
-                : 'bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200'
-            }`}
-            title={`Meteo Cantieri${alertClients.length > 0 ? ` (${alertClients.length} allerte)` : ''}`}
-            aria-label="Meteo Cantieri"
-          >
-            <CloudSun className={`w-4 h-4 ${alertClients.length > 0 ? 'text-amber-600' : 'text-emerald-700 dark:text-emerald-400'}`} />
-            {alertClients.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse" />
-            )}
-          </button>
+      {/* Top Banner with Weather Button (Left), and Add Expense + New Job Actions grouped closely (Right) - SENZA LINEA */}
+      <div className="flex items-center justify-between pb-1">
+        
+        {/* Tasto Meteo Sincronizzato con Posizione (Ingrandito +15%, Niente bordo, Niente sfondo) */}
+        <button
+          type="button"
+          onClick={() => onNavigateTab('weather')}
+          className="relative flex items-center gap-2 p-1 bg-transparent border-0 shadow-none hover:opacity-85 transition-opacity shrink-0 cursor-pointer text-slate-800 dark:text-slate-100 font-bold text-sm"
+          title={
+            displayWeather
+              ? `Meteo Sincronizzato Posizione: ${displayWeather.condition}, ${displayWeather.temp}°C`
+              : 'Meteo Sincronizzato Posizione'
+          }
+          aria-label="Meteo Posizione"
+        >
+          <WeatherVectorIcon data={displayWeather} className="w-8 h-8" />
+          {displayWeather && (
+            <span className="font-mono font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100">
+              {displayWeather.temp}°C
+            </span>
+          )}
+          {alertClients.length > 0 && (
+            <span className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse shrink-0" title={`${alertClients.length} allerte cantieri`} />
+          )}
+        </button>
 
-          {/* Tasto Aggiungi Spesa come presente in Spese */}
+        {/* Tasti Azione Raggruppati a Destra (Spesa + Nuovo Intervento vicini) */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Tasto Spesa (Icona tutta rossa, Ingrandita +15%, Icon-only, Niente bordo, Niente sfondo) */}
           <button
+            type="button"
             onClick={() => setIsCreatingExpense(true)}
-            className="flex items-center gap-1.5 p-[7px] px-3 bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-800 dark:border-slate-700 text-xs font-bold rounded-[7px] shadow-xs transition-colors shrink-0 cursor-pointer"
+            className="flex items-center p-1 bg-transparent border-0 shadow-none hover:opacity-85 transition-opacity shrink-0 cursor-pointer"
             title="Aggiungi Nuova Spesa"
             aria-label="Aggiungi Spesa"
           >
-            <Plus className="w-4 h-4 text-emerald-400" />
-            <span>Spesa</span>
+            <ExpenseWalletVectorIcon className="w-8 h-8" />
           </button>
 
-          {/* Tasto Nuovo Intervento */}
+          {/* Tasto Nuovo Intervento (Operaio con lente e foglia, Ingrandita +15%, Icon-only, Niente bordo, Niente sfondo) */}
           <button
+            type="button"
             onClick={() => setIsCreatingJob(true)}
-            className="flex items-center gap-1.5 p-[7px] px-3 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-[7px] shadow-xs transition-colors shrink-0 cursor-pointer"
+            className="flex items-center p-1 bg-transparent border-0 shadow-none hover:opacity-85 transition-opacity shrink-0 cursor-pointer"
+            title="Pianifica Nuovo Intervento"
+            aria-label="Nuovo Intervento"
           >
-            <Plus className="w-4 h-4" />
-            <span>Nuovo Intervento</span>
+            <PruningShearsVectorIcon className="w-8 h-8" />
           </button>
         </div>
+
       </div>
 
-      {/* KPI STAT CARDS: 4 cards all on the same row */}
-      <div className="grid grid-cols-4 gap-[7px]">
+      {/* KPI STAT CARDS: 4 cards with high-contrast, non-truncated text */}
+      <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
         
         {/* 1. Cantieri Oggi */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs flex flex-col justify-between space-y-1">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Cantieri Oggi</span>
-            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
+        <div className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1">
+          <div className="flex items-center justify-between text-slate-300 dark:text-slate-300">
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Cantieri</span>
+            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
           </div>
-          <div className="text-xl sm:text-2xl font-bold font-mono text-slate-900 dark:text-slate-100 leading-tight">
+          <div className="text-xl sm:text-2xl font-black font-mono text-white leading-tight">
             {todayJobs.length}
           </div>
-          <div className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-300 truncate">
-            <span className="text-emerald-700 dark:text-emerald-400 font-semibold">{completedToday.length} fatti</span>
-            <span className="mx-1">·</span>
-            <span className="text-sky-700 dark:text-sky-400 font-semibold">{inProgressToday.length} in corso</span>
+          <div className="text-[10px] sm:text-[11px] text-slate-300 dark:text-slate-300 font-medium leading-none">
+            <span className="text-emerald-400 font-bold">{completedToday.length} fatti</span>
+            <span className="mx-1 text-slate-500">·</span>
+            <span className="text-sky-400 font-bold">{inProgressToday.length} in corso</span>
           </div>
         </div>
 
         {/* 2. Squadre Attive */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs flex flex-col justify-between space-y-1">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Squadre Attive</span>
-            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
+        <div className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1">
+          <div className="flex items-center justify-between text-slate-300 dark:text-slate-300">
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Squadra</span>
+            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
           </div>
-          <div className="text-xl sm:text-2xl font-bold font-mono text-slate-900 dark:text-slate-100 leading-tight">
+          <div className="text-xl sm:text-2xl font-black font-mono text-white leading-tight">
             {activeWorkersToday}
           </div>
-          <div className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
-            Operatori sul campo
+          <div className="text-[10px] sm:text-[11px] text-slate-300 dark:text-slate-300 font-medium leading-none">
+            Sul campo oggi
           </div>
         </div>
 
         {/* 3. Ore Rendicontate */}
         <div
           onClick={() => onNavigateTab('reports')}
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs cursor-pointer hover:border-emerald-300 transition-colors flex flex-col justify-between space-y-1"
+          className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs cursor-pointer hover:border-emerald-500/60 transition-colors flex flex-col justify-between space-y-1"
         >
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Ore Rendicontate</span>
-            <Timer className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
+          <div className="flex items-center justify-between text-slate-300 dark:text-slate-300">
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Ore Report</span>
+            <Timer className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
           </div>
-          <div className="text-xl sm:text-2xl font-bold font-mono text-emerald-800 dark:text-emerald-400 leading-tight">
-            {totalReportedHours.toFixed(1)} h
+          <div className="text-xl sm:text-2xl font-black font-mono text-emerald-400 leading-tight">
+            {totalReportedHours.toFixed(1)}<span className="text-sm ml-0.5 font-normal">h</span>
           </div>
-          <div className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
-            Totale da rapportini
+          <div className="text-[10px] sm:text-[11px] text-slate-300 dark:text-slate-300 font-medium leading-none">
+            Totale lavorato
           </div>
         </div>
 
         {/* 4. Rapportini da Validare */}
         <div
           onClick={() => onNavigateTab('reports')}
-          className={`border rounded-[7px] p-[7px] shadow-xs cursor-pointer transition-colors flex flex-col justify-between space-y-1 ${
+          className={`border rounded-lg p-2 shadow-xs cursor-pointer transition-colors flex flex-col justify-between space-y-1 ${
             pendingApprovalReports.length > 0
-              ? 'bg-amber-50/70 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800'
-              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+              ? 'bg-amber-950/70 border-amber-600/80 text-amber-200'
+              : 'bg-slate-900/90 dark:bg-slate-900 border-slate-800 text-slate-100'
           }`}
         >
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Rapportini da Validare</span>
-            <FileCheck2 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${pendingApprovalReports.length > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-slate-400'} shrink-0`} />
+          <div className="flex items-center justify-between text-slate-300 dark:text-slate-300">
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Rapportini</span>
+            <FileCheck2 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${pendingApprovalReports.length > 0 ? 'text-amber-400' : 'text-slate-400'} shrink-0`} />
           </div>
-          <div className={`text-xl sm:text-2xl font-bold font-mono ${pendingApprovalReports.length > 0 ? 'text-amber-900 dark:text-amber-300' : 'text-slate-900 dark:text-slate-100'} leading-tight`}>
+          <div className={`text-xl sm:text-2xl font-black font-mono leading-tight ${pendingApprovalReports.length > 0 ? 'text-amber-300' : 'text-white'}`}>
             {pendingApprovalReports.length}
           </div>
-          <div className="text-[10px] sm:text-xs text-amber-800 dark:text-amber-400 font-semibold flex items-center justify-between truncate">
-            <span className="truncate">Inviati dagli operai</span>
-            <ArrowRight className="w-3 h-3 shrink-0 ml-1" />
+          <div className={`text-[10px] sm:text-[11px] font-semibold flex items-center justify-between leading-none ${pendingApprovalReports.length > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+            <span>{pendingApprovalReports.length > 0 ? 'Da validare' : 'Inviati oggi'}</span>
+            <ArrowRight className="w-3 h-3 shrink-0 ml-0.5" />
           </div>
         </div>
       </div>
@@ -377,14 +420,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                   <div
                     key={job.id}
                     onClick={() => setSelectedJobForModal(job)}
-                    className={`p-2.5 sm:p-3 border rounded-[6px] hover:border-emerald-400 dark:hover:border-emerald-600 cursor-pointer transition-all space-y-1.5 ${
+                    className={`p-2.5 sm:p-3 border border-dashed rounded-[6px] hover:border-emerald-400 dark:hover:border-emerald-500 cursor-pointer transition-all space-y-1.5 ${
                       isCompleted
-                        ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800/80 shadow-2xs'
+                        ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-500 dark:border-emerald-600 shadow-2xs'
                         : isInProgress
-                        ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-400 dark:border-emerald-700/80 shadow-2xs'
+                        ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-500 dark:border-emerald-500 shadow-2xs'
                         : isExpired
-                        ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800/70'
-                        : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800'
+                        ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-400 dark:border-amber-700/70'
+                        : 'bg-slate-50 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -418,8 +461,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                       </div>
                     )}
 
-                    {/* Bottom row with worker assignment & quick completion button */}
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between pt-[7px] border-t border-slate-200/60 dark:border-slate-700/60 gap-2">
+                    {/* Bottom row with worker assignment & quick completion button - LINEA TRATTEGGIATA */}
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between pt-[7px] border-t border-dashed border-slate-200 dark:border-slate-700/80 gap-2">
                       <span className="truncate">Assegnato a: <strong>{job.assignedWorkerName}</strong></span>
                       
                       <div className="flex items-center gap-1.5 shrink-0">
@@ -524,10 +567,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                   <div
                     key={job.id}
                     onClick={() => setSelectedJobForModal(job)}
-                    className={`p-2.5 sm:p-3 border rounded-[6px] hover:border-emerald-400 dark:hover:border-emerald-600 cursor-pointer transition-all space-y-1.5 ${
+                    className={`p-2.5 sm:p-3 border border-dashed rounded-[6px] hover:border-emerald-400 dark:hover:border-emerald-500 cursor-pointer transition-all space-y-1.5 ${
                       isCompleted
-                        ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800/80 shadow-2xs'
-                        : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800'
+                        ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-500 dark:border-emerald-600 shadow-2xs'
+                        : 'bg-slate-50 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -555,8 +598,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                       </div>
                     )}
 
-                    {/* Bottom row with worker assignment */}
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between pt-[7px] border-t border-slate-200/60 dark:border-slate-700/60 gap-2">
+                    {/* Bottom row with worker assignment - LINEA TRATTEGGIATA */}
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between pt-[7px] border-t border-dashed border-slate-200 dark:border-slate-700/80 gap-2">
                       <span className="truncate">Assegnato a: <strong>{job.assignedWorkerName}</strong></span>
                       
                       <div className="flex items-center gap-1.5 shrink-0">

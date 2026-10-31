@@ -12,6 +12,7 @@ interface ClientModalProps {
 }
 
 export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSave }) => {
+  const [active, setActive] = useState<boolean>(client?.active ?? true);
   const [name, setName] = useState(client?.name || '');
   const [phone, setPhone] = useState(client?.phone || '');
   const [email, setEmail] = useState(client?.email || '');
@@ -58,6 +59,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
       preferredPaymentMethod: preferredPaymentMethod || 'bonifico',
       vatOrTaxCode: vatOrTaxCode.trim(),
       color: color.trim() || undefined,
+      active: Boolean(active),
       lat: Number(lat) || 45.65,
       lng: Number(lng) || 9.32,
       gardenNotes: {
@@ -94,6 +96,30 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
         {/* Modal Form Body */}
         <form onSubmit={handleSubmit} className="p-[7px] overflow-y-auto space-y-[7px] text-xs text-slate-700 dark:text-slate-300">
           
+          {/* Active / Inactive Status Toggle Button */}
+          <div className="flex items-center justify-between p-2.5 bg-slate-100 dark:bg-slate-800/80 rounded-[7px] border border-slate-200 dark:border-slate-700">
+            <div>
+              <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">Stato Cliente</span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                {active
+                  ? 'Cliente Attivo in rubrica, mappa e selezioni interventi'
+                  : 'Nascosto dalla rubrica principale e archiviato in "Clienti Passati"'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActive(!active)}
+              className={`px-3 py-1.5 rounded-[7px] font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+                active
+                  ? 'bg-emerald-700 hover:bg-emerald-600 text-white'
+                  : 'bg-rose-700 hover:bg-rose-600 text-white'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${active ? 'bg-emerald-300' : 'bg-rose-300'}`} />
+              <span>{active ? 'Attivo' : 'Non Attivo (Cliente Passato)'}</span>
+            </button>
+          </div>
+
           {/* Section 1: Anagrafica Base */}
           <div className="space-y-[7px] bg-slate-50 dark:bg-slate-800/50 p-[7px] rounded-[7px] border border-slate-200 dark:border-slate-700/60">
             <h3 className="font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider text-[11px] flex items-center gap-1.5">

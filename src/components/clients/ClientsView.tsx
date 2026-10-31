@@ -260,6 +260,130 @@ export const ClientsView: React.FC = () => {
     }
   };
 
+  // State for collapsible Clienti Passati section
+  const [showPassedClients, setShowPassedClients] = useState(false);
+
+  // Helper to format address into 2 lines: Street on Line 1, City and rest on Line 2
+  const formatAddressTwoLines = (rawAddress: string) => {
+    if (!rawAddress) return { line1: '', line2: null };
+    const parts = rawAddress.split(',').map((p) => p.trim()).filter(Boolean);
+    if (parts.length <= 1) {
+      return { line1: rawAddress, line2: null };
+    }
+    const line1 = parts[0];
+    const line2 = parts.slice(1).join(', ');
+    return { line1, line2 };
+  };
+
+  // Separate active and passed (inactive) clients
+  const activeClients = useMemo(() => {
+    return filteredClients.filter((c) => c.active !== false);
+  }, [filteredClients]);
+
+  const passedClients = useMemo(() => {
+    return filteredClients.filter((c) => c.active === false);
+  }, [filteredClients]);
+
+  const renderClientCard = (client: Client) => {
+    const gardensCount = 1 + (client.cantieri?.length || 0);
+    const relatedJobs = jobs.filter(
+      (j) => j.clientId === client.id || j.clientName === client.name
+    );
+    const completedCount = relatedJobs.filter((j) => j.status === 'completed').length;
+    const clientColor = getClientColor(client);
+    const { line1, line2 } = formatAddressTwoLines(client.address);
+
+    return (
+      <div
+        key={client.id}
+        onClick={() => setSelectedClientId(client.id)}
+        style={{ borderLeftColor: clientColor, borderLeftWidth: '3.5px' }}
+        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-2 shadow-xs hover:border-emerald-500 dark:hover:border-emerald-600 cursor-pointer transition-all space-y-[3px] group"
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
+              {client.name}
+            </h3>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-start gap-1 pt-0.5 leading-snug">
+              <MapPin className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
+              <div className="flex flex-col min-w-0">
+                <span className="whitespace-normal break-words font-medium">{line1}</span>
+                {line2 && (
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-normal break-words">
+                    {line2}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-0.5 shrink-0">
+            {currentUser?.role === 'admin' && (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingClient(client);
+                  }}
+                  className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+                  title="Modifica Anagrafica"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setClientToDelete(client);
+                  }}
+                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded transition-colors cursor-pointer"
+                  title="Elimina Cliente"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
+            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </div>
+
+        {/* Badges strip: ONLY numbers next to icons, right aligned next to phone number */}
+        <div className="flex items-center justify-end text-xs pt-[3px] border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-1.5 ml-auto">
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 font-bold text-[10.5px] border border-emerald-200 dark:border-emerald-800"
+              title={`${gardensCount} giardini`}
+            >
+              <Sprout className="w-3 h-3 text-emerald-600" />
+              <span>{gardensCount}</span>
+            </span>
+
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[10.5px]"
+              title={`${relatedJobs.length} lavori (${completedCount} ultimati)`}
+            >
+              <Calendar className="w-3 h-3 text-slate-500" />
+              <span>{relatedJobs.length}</span>
+            </span>
+
+            {client.phone && (
+              <a
+                href={`tel:${client.phone}`}
+                onClick={(e) => e.stopPropagation()}
+                className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1 ml-1 font-bold"
+              >
+                <Phone className="w-3 h-3" />
+                <span>{client.phone}</span>
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // ==========================================
   // VIEW 1: CONTACTS DIRECTORY LIST (RUBRICA)
   // ==========================================
@@ -290,7 +414,7 @@ export const ClientsView: React.FC = () => {
         </div>
 
         {/* Contacts Directory List */}
-        {filteredClients.length === 0 ? (
+        {activeClients.length === 0 && passedClients.length === 0 ? (
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-8 text-center text-slate-500 text-xs space-y-[3px]">
             <Users className="w-8 h-8 text-slate-400 mx-auto" />
             <p className="font-semibold text-slate-700 dark:text-slate-300">Nessun cliente trovato</p>
@@ -305,91 +429,34 @@ export const ClientsView: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-[3px]">
-            {filteredClients.map((client) => {
-              const gardensCount = 1 + (client.cantieri?.length || 0);
-              const relatedJobs = jobs.filter(
-                (j) => j.clientId === client.id || j.clientName === client.name
-              );
-              const completedCount = relatedJobs.filter((j) => j.status === 'completed').length;
+          <div className="space-y-2">
+            {/* Active Clients Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-[3px]">
+              {activeClients.map((client) => renderClientCard(client))}
+            </div>
 
-              const clientColor = getClientColor(client);
-
-              return (
-                <div
-                  key={client.id}
-                  onClick={() => setSelectedClientId(client.id)}
-                  style={{ borderLeftColor: clientColor, borderLeftWidth: '3.5px' }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-2 shadow-xs hover:border-emerald-500 dark:hover:border-emerald-600 cursor-pointer transition-all space-y-[3px] group"
+            {/* Collapsible Section: Clienti Passati (closed by default) */}
+            {passedClients.length > 0 && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPassedClients(!showPassedClients)}
+                  className="w-full p-2 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-[7px] border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer transition-colors shadow-2xs"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
-                        {client.name}
-                      </h3>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-start gap-1 pt-0.5 leading-snug">
-                        <MapPin className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
-                        <span className="whitespace-normal break-words">{client.address}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-0.5 shrink-0">
-                      {currentUser?.role === 'admin' && (
-                        <>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingClient(client);
-                            }}
-                            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
-                            title="Modifica Anagrafica"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setClientToDelete(client);
-                            }}
-                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded transition-colors cursor-pointer"
-                            title="Elimina Cliente"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </>
-                      )}
-                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-slate-400" />
+                    <span>Clienti Passati ({passedClients.length})</span>
                   </div>
+                  <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${showPassedClients ? 'rotate-90' : ''}`} />
+                </button>
 
-                  {/* Badges strip: Giardini & Interventi */}
-                  <div className="flex items-center justify-between text-xs pt-[3px] border-t border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-1.5">
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold text-[10px] border border-emerald-200 dark:border-emerald-800">
-                        <Sprout className="w-3 h-3 text-emerald-600" />
-                        <span>{gardensCount} {gardensCount === 1 ? 'Giardino' : 'Giardini'}</span>
-                      </span>
-
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-[10px]">
-                        <Calendar className="w-3 h-3 text-slate-500" />
-                        <span>{relatedJobs.length} Lavori ({completedCount} ultimati)</span>
-                      </span>
-                    </div>
-
-                    {client.phone && (
-                      <a
-                        href={`tel:${client.phone}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
-                      >
-                        <Phone className="w-3 h-3" />
-                        <span>{client.phone}</span>
-                      </a>
-                    )}
+                {showPassedClients && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-[3px] pt-[3px] opacity-75">
+                    {passedClients.map((client) => renderClientCard(client))}
                   </div>
-                </div>
-              );
-            })}
+                )}
+              </div>
+            )}
           </div>
         )}
 

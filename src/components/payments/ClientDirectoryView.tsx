@@ -111,27 +111,58 @@ export const ClientDirectoryView: React.FC<ClientDirectoryViewProps> = ({
     return map;
   }, [clients, jobs]);
 
-  // Filtered clients list
-  const filteredClients = useMemo(() => {
+  const [showPassedClients, setShowPassedClients] = useState(false);
+
+  // Helper to format address into 2 lines: Street on Line 1, City and rest on Line 2
+  const formatAddressTwoLines = (rawAddress: string) => {
+    if (!rawAddress) return { line1: '', line2: null };
+    const parts = rawAddress.split(',').map((p) => p.trim()).filter(Boolean);
+    if (parts.length <= 1) {
+      return { line1: rawAddress, line2: null };
+    }
+    const line1 = parts[0];
+    const line2 = parts.slice(1).join(', ');
+    return { line1, line2 };
+  };
+
+  // Filtered clients list (active vs passed)
+  const activeClients = useMemo(() => {
     return clients.filter((c) => {
+      if (c.active === false) return false;
       const metrics = clientMetrics[c.id];
       if (filterPendingOnly && (!metrics || metrics.totalPending <= 0)) {
         return false;
       }
-
       if (!searchTerm.trim()) return true;
       const term = searchTerm.toLowerCase();
-
-      const matchName = c.name.toLowerCase().includes(term);
-      const matchPhone = c.phone.toLowerCase().includes(term);
-      const matchEmail = c.email.toLowerCase().includes(term);
-      const matchAddress = c.address.toLowerCase().includes(term);
-      const matchVat = c.vatOrTaxCode?.toLowerCase().includes(term);
-      const matchCantieri = c.cantieri?.some(
-        (site) => site.name.toLowerCase().includes(term) || site.address.toLowerCase().includes(term)
+      return (
+        c.name.toLowerCase().includes(term) ||
+        c.phone.toLowerCase().includes(term) ||
+        c.email.toLowerCase().includes(term) ||
+        c.address.toLowerCase().includes(term) ||
+        c.vatOrTaxCode?.toLowerCase().includes(term) ||
+        c.cantieri?.some((site) => site.name.toLowerCase().includes(term) || site.address.toLowerCase().includes(term))
       );
+    });
+  }, [clients, searchTerm, filterPendingOnly, clientMetrics]);
 
-      return matchName || matchPhone || matchEmail || matchAddress || matchVat || matchCantieri;
+  const passedClients = useMemo(() => {
+    return clients.filter((c) => {
+      if (c.active !== false) return false;
+      const metrics = clientMetrics[c.id];
+      if (filterPendingOnly && (!metrics || metrics.totalPending <= 0)) {
+        return false;
+      }
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.toLowerCase();
+      return (
+        c.name.toLowerCase().includes(term) ||
+        c.phone.toLowerCase().includes(term) ||
+        c.email.toLowerCase().includes(term) ||
+        c.address.toLowerCase().includes(term) ||
+        c.vatOrTaxCode?.toLowerCase().includes(term) ||
+        c.cantieri?.some((site) => site.name.toLowerCase().includes(term) || site.address.toLowerCase().includes(term))
+      );
     });
   }, [clients, searchTerm, filterPendingOnly, clientMetrics]);
 
@@ -259,13 +290,13 @@ export const ClientDirectoryView: React.FC<ClientDirectoryViewProps> = ({
       </div>
 
       {/* Clients Directory List */}
-      {filteredClients.length === 0 ? (
+      {activeClients.length === 0 && passedClients.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] py-12 text-center text-xs text-slate-500 shadow-xs">
           Nessun cliente trovato con i criteri impostati.
         </div>
       ) : (
         <div className="space-y-[7px]">
-          {filteredClients.map((client) => {
+          {activeClients.map((client: Client) => {
             const metrics = clientMetrics[client.id] || {
               totalRevenue: 0,
               totalCollected: 0,
@@ -278,6 +309,7 @@ export const ClientDirectoryView: React.FC<ClientDirectoryViewProps> = ({
             const isExpanded = selectedClientId === client.id;
             const extraCantieri = client.cantieri || [];
             const totalCantieriCount = 1 + extraCantieri.length; // Main address + additional cantieri
+            const { line1, line2 } = formatAddressTwoLines(client.address);
 
             return (
               <div
@@ -320,7 +352,10 @@ export const ClientDirectoryView: React.FC<ClientDirectoryViewProps> = ({
                         )}
                         <span className="flex items-start gap-1 leading-snug">
                           <MapPin className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
-                          <span className="whitespace-normal break-words">{client.address}</span>
+                          <span className="flex flex-col">
+                            <span className="font-medium">{line1}</span>
+                            {line2 && <span className="text-[10px] text-slate-400">{line2}</span>}
+                          </span>
                         </span>
                       </div>
                     </div>
@@ -438,7 +473,7 @@ export const ClientDirectoryView: React.FC<ClientDirectoryViewProps> = ({
                         </div>
 
                         {/* Additional Cantieri */}
-                        {extraCantieri.map((site) => (
+                        {extraCantieri.map((site: CantiereSite) => (
                           <div
                             key={site.id}
                             className="p-[7px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-[7px] space-y-1"

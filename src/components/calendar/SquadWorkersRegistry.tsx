@@ -1,6 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useApp, consolidateWorkedDays } from '../../context/AppContext';
 import { User, WorkedDay, DayType, PaymentMethod } from '../../types';
+import {
+  InsertDayVectorIcon,
+  NewWorkerVectorIcon,
+  WorkerSummaryVectorIcon,
+} from '../common/HeaderVectorIcons';
 import {
   Users,
   Plus,
@@ -90,9 +95,10 @@ export const SquadWorkersRegistry: React.FC = () => {
   const [quickPayMethod, setQuickPayMethod] = useState<PaymentMethod>('contanti');
   const [quickPaySuccessMsg, setQuickPaySuccessMsg] = useState<string | null>(null);
 
-  // Filter worked days for current selected month
+  // Filter worked days for current selected month with 1 day per date consolidation
   const monthWorkedDays = useMemo(() => {
-    return workedDays.filter((wd) => wd.date.startsWith(selectedMonth));
+    const raw = workedDays.filter((wd) => wd.date && wd.date.startsWith(selectedMonth));
+    return consolidateWorkedDays(raw);
   }, [workedDays, selectedMonth]);
 
   // List of workers
@@ -473,9 +479,10 @@ export const SquadWorkersRegistry: React.FC = () => {
 
   return (
     <div className="space-y-[3px]">
-      {/* Pulsanti Azione sulla stessa riga (3 pulsanti adattati allo schermo: Inserisci Giornata, Nuovo Operaio, Riepilogo) */}
-      <div className="grid grid-cols-3 gap-[3px] w-full">
+      {/* Header Action Buttons Grouped on the Right (Icon-only vector style) */}
+      <div className="flex items-center justify-end gap-2.5 sm:gap-3 w-full pb-1">
         <button
+          type="button"
           onClick={() => {
             if (workers.length > 0) {
               setDayWorkerId(workers[0].uid);
@@ -487,112 +494,112 @@ export const SquadWorkersRegistry: React.FC = () => {
             setDayType('full');
             setShowAddDayModal(true);
           }}
-          className="flex items-center justify-center gap-1 p-[3px] py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[6px] font-bold text-[11px] sm:text-xs shadow-xs transition-colors cursor-pointer w-full min-w-0"
+          className="flex items-center p-1 bg-transparent border-0 shadow-none hover:opacity-85 transition-opacity shrink-0 cursor-pointer"
+          title="Inserisci Giornata Lavorata"
+          aria-label="Inserisci Giornata"
         >
-          <Plus className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">Inserisci Giornata</span>
+          <InsertDayVectorIcon className="w-8 h-8" />
         </button>
 
         <button
+          type="button"
           onClick={() => setShowAddWorkerModal(true)}
-          className="flex items-center justify-center gap-1 p-[3px] py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white dark:border-slate-700 rounded-[6px] font-bold text-[11px] sm:text-xs shadow-xs transition-colors cursor-pointer w-full min-w-0"
+          className="flex items-center p-1 bg-transparent border-0 shadow-none hover:opacity-85 transition-opacity shrink-0 cursor-pointer"
+          title="Nuovo Operaio"
+          aria-label="Nuovo Operaio"
         >
-          <Users className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-          <span className="truncate">Nuovo Operaio</span>
+          <NewWorkerVectorIcon className="w-8 h-8" />
         </button>
 
         <button
+          type="button"
           onClick={() => setSubView(subView === 'summary' ? 'registry' : 'summary')}
-          className={`flex items-center justify-center gap-1 p-[3px] py-1 rounded-[6px] font-bold text-[11px] sm:text-xs shadow-xs transition-colors cursor-pointer w-full min-w-0 ${
-            subView === 'summary'
-              ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-xs'
-              : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 dark:text-amber-300 dark:border-amber-700/60'
-          }`}
+          className="flex items-center p-1 bg-transparent border-0 shadow-none hover:opacity-85 transition-opacity shrink-0 cursor-pointer"
           title="Mostra riepilogo compensi e saldi operai"
+          aria-label="Riepilogo Compensi"
         >
-          <BarChart3 className={`w-3.5 h-3.5 shrink-0 ${subView === 'summary' ? 'text-white' : 'text-amber-600 dark:text-amber-400'}`} />
-          <span className="truncate">Riepilogo</span>
+          <WorkerSummaryVectorIcon className="w-8 h-8" />
         </button>
       </div>
 
-      {/* KPI STATS: 4 CARD DEI RIEPILOGHI SU UNA SOLA RIGA (GRAFICA STRETTA A 3PX) */}
-      <div className="grid grid-cols-4 gap-[3px] w-full">
-        {/* BIG HIGHLIGHT: TOTALE DA DARE */}
-        <div className="bg-emerald-950 text-white border border-emerald-900 rounded-[6px] p-[3px] px-1.5 shadow-2xs space-y-0.5 flex flex-col justify-between min-w-0">
-          <div className="flex items-center justify-between text-emerald-300">
-            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tight truncate">Da Dare</span>
-            <Wallet className="w-3 h-3 text-amber-400 shrink-0" />
+      {/* KPI STAT CARDS: 4 cards with high-contrast, non-truncated text matching home */}
+      <div className="grid grid-cols-4 gap-1.5 sm:gap-2 w-full">
+        {/* 1. DA DARE */}
+        <div className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1">
+          <div className="flex items-center justify-between text-slate-300 dark:text-slate-300">
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Da Dare</span>
+            <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
           </div>
-          <div className="text-xs sm:text-base font-bold font-mono text-amber-300 truncate">
+          <div className="text-xl sm:text-2xl font-black font-mono text-amber-400 leading-tight">
             € {totalDueAllWorkers.toFixed(0)}
           </div>
-          <div className="text-[7px] sm:text-[8px] text-emerald-200/80 truncate">
+          <div className="text-[10px] sm:text-[11px] text-slate-300 dark:text-slate-300 font-medium leading-none">
             {workers.length} operai
           </div>
         </div>
 
-        {/* Totale Maturato nel Mese */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] p-[3px] px-1.5 shadow-2xs space-y-0.5 flex flex-col justify-between min-w-0">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tight truncate">Maturato</span>
-            <Euro className="w-3 h-3 text-emerald-600 shrink-0" />
+        {/* 2. MATURATO */}
+        <div className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1">
+          <div className="flex items-center justify-between text-slate-300 dark:text-slate-300">
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Maturato</span>
+            <Euro className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
           </div>
-          <div className="text-xs sm:text-base font-bold font-mono text-emerald-700 dark:text-emerald-400 truncate">
+          <div className="text-xl sm:text-2xl font-black font-mono text-emerald-400 leading-tight">
             € {totalEarnedAllWorkers.toFixed(0)}
           </div>
-          <div className="text-[7px] sm:text-[8px] text-slate-500 dark:text-slate-400 truncate">
+          <div className="text-[10px] sm:text-[11px] text-slate-300 dark:text-slate-300 font-medium leading-none">
             Lavoro svolto
           </div>
         </div>
 
-        {/* Giornate Lavorate Totali */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] p-[3px] px-1.5 shadow-2xs space-y-0.5 flex flex-col justify-between min-w-0">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tight truncate">Giornate</span>
-            <Clock className="w-3 h-3 text-sky-600 shrink-0" />
+        {/* 3. GIORNATE */}
+        <div className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1">
+          <div className="flex items-center justify-between text-slate-300 dark:text-slate-300">
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Giornate</span>
+            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-400 shrink-0" />
           </div>
-          <div className="text-xs sm:text-base font-bold font-mono text-sky-700 dark:text-sky-400 truncate">
-            {totalDaysAllWorkers.toFixed(1)} gg
+          <div className="text-xl sm:text-2xl font-black font-mono text-sky-400 leading-tight">
+            {totalDaysAllWorkers.toFixed(1)} <span className="text-xs font-normal">gg</span>
           </div>
-          <div className="text-[7px] sm:text-[8px] text-slate-500 dark:text-slate-400 truncate">
+          <div className="text-[10px] sm:text-[11px] text-slate-300 dark:text-slate-300 font-medium leading-none">
             Nel mese
           </div>
         </div>
 
-        {/* Già Pagati / Acconti */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] p-[3px] px-1.5 shadow-2xs space-y-0.5 flex flex-col justify-between min-w-0">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tight truncate">Liquidato</span>
-            <CreditCard className="w-3 h-3 text-emerald-600 shrink-0" />
+        {/* 4. LIQUIDATO */}
+        <div className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1">
+          <div className="flex items-center justify-between text-slate-300 dark:text-slate-300">
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Liquidato</span>
+            <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
           </div>
-          <div className="text-xs sm:text-base font-bold font-mono text-slate-900 dark:text-slate-100 truncate">
+          <div className="text-xl sm:text-2xl font-black font-mono text-white leading-tight">
             € {totalPaidAllWorkers.toFixed(0)}
           </div>
-          <div className="text-[7px] sm:text-[8px] text-slate-500 dark:text-slate-400 truncate">
+          <div className="text-[10px] sm:text-[11px] text-slate-300 dark:text-slate-300 font-medium leading-none">
             Già pagati
           </div>
         </div>
       </div>
 
-      {/* Mese posizionato SOTTO i riepiloghi, allargato a tutta larghezza con i pulsantini laterali */}
-      <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] p-[3px] px-2 shadow-xs flex items-center justify-between">
+      {/* Mese: Gap a 6px sopra e sotto (my-[6px]), senza sfondi o bordi al centro, bordi verdi solo sulle freccette */}
+      <div className="w-full bg-transparent border-0 my-[6px] px-1 flex items-center justify-between">
         <button
+          type="button"
           onClick={handlePrevMonth}
-          className="p-1 px-2.5 rounded-[5px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+          className="p-1 px-3 rounded-lg border border-emerald-600/70 dark:border-emerald-500/70 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer shrink-0"
           title="Mese precedente"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
         </button>
 
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-          <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 font-mono tracking-tight">
-            {formattedMonthLabel}
-          </span>
+        <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100 font-bold font-mono text-sm sm:text-base">
+          <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <span>{formattedMonthLabel}</span>
           {selectedMonth !== new Date().toISOString().substring(0, 7) && (
             <button
+              type="button"
               onClick={handleResetCurrentMonth}
-              className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 underline ml-1 cursor-pointer"
+              className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 underline ml-1 cursor-pointer"
             >
               Oggi
             </button>
@@ -600,11 +607,12 @@ export const SquadWorkersRegistry: React.FC = () => {
         </div>
 
         <button
+          type="button"
           onClick={handleNextMonth}
-          className="p-1 px-2.5 rounded-[5px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+          className="p-1 px-3 rounded-lg border border-emerald-600/70 dark:border-emerald-500/70 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer shrink-0"
           title="Mese successivo"
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
         </button>
       </div>
 

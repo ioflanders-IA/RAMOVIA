@@ -439,11 +439,13 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                     style={selectedColor ? { borderLeftColor: selectedColor, borderLeftWidth: '3.5px' } : undefined}
                     className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
                   >
-                    {clients.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} — {c.address} ({c.gardenNotes.squareMeters} mq)
-                      </option>
-                    ))}
+                    {clients
+                      .filter((c) => c.active !== false || c.id === clientId)
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} — {c.address} ({c.gardenNotes.squareMeters} mq)
+                        </option>
+                      ))}
                   </select>
                 </>
               );

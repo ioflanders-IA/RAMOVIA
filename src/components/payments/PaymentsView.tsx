@@ -33,6 +33,7 @@ import {
 import { ClientDirectoryView } from './ClientDirectoryView';
 import { ExpenseModal } from './ExpenseModal';
 import { getClientColor } from '../../utils/clientColors';
+import { ExpenseWalletVectorIcon } from '../common/HeaderVectorIcons';
 
 export const PaymentsView: React.FC = () => {
   const {
@@ -104,6 +105,12 @@ export const PaymentsView: React.FC = () => {
   // Confirmation modal to safely delete a single expense
   const [expenseToDelete, setExpenseToDelete] = useState<ExpenseRecord | null>(null);
 
+  // Edit modal state for single expense
+  const [expenseToEdit, setExpenseToEdit] = useState<ExpenseRecord | null>(null);
+
+  // Long-press state for operational expense cards
+  const [longPressedExpenseId, setLongPressedExpenseId] = useState<string | null>(null);
+
   // Chart interactivity states
   const [selectedCategoryKey, setSelectedCategoryKey] = useState<string | null>(null);
   const [hoveredMonthKey, setHoveredMonthKey] = useState<string | null>(null);
@@ -113,6 +120,77 @@ export const PaymentsView: React.FC = () => {
 
   // Long-press state for revealing icon-only actions on installments
   const [longPressedInstallmentId, setLongPressedInstallmentId] = useState<string | null>(null);
+
+  const createExpenseLongPressProps = (expId: string) => {
+    let pressTimer: NodeJS.Timeout | null = null;
+
+    const start = () => {
+      pressTimer = setTimeout(() => {
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+        setLongPressedExpenseId((prev) => (prev === expId ? null : expId));
+      }, 500);
+    };
+
+    const clear = () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    };
+
+    return {
+      onMouseDown: () => start(),
+      onMouseUp: () => clear(),
+      onMouseLeave: () => clear(),
+      onTouchStart: () => start(),
+      onTouchEnd: () => clear(),
+      onTouchMove: () => clear(),
+      onContextMenu: (e: React.MouseEvent) => {
+        e.preventDefault();
+        setLongPressedExpenseId((prev) => (prev === expId ? null : expId));
+      },
+    };
+  };
+
+  const parseExpenseDetails = (exp: ExpenseRecord) => {
+    let rawTitle = exp.title || '';
+    let extractedClientName = exp.clientName || '';
+
+    // Extract bracketed client name e.g. "Smaltimento [Alberto]" -> title "Smaltimento", client "Alberto"
+    const match = rawTitle.match(/^(.*?)\[(.*?)\](.*)$/);
+    if (match) {
+      rawTitle = (match[1] + match[3]).trim();
+      if (!extractedClientName) {
+        extractedClientName = match[2].trim();
+      }
+    }
+
+    if (!extractedClientName && exp.recipientOrVendor) {
+      const matchVendor = clients.find(
+        (c) => c.name.toLowerCase().trim() === exp.recipientOrVendor?.toLowerCase().trim()
+      );
+      if (matchVendor) {
+        extractedClientName = matchVendor.name;
+      }
+    }
+
+    const matchedClient = clients.find(
+      (c) =>
+        (exp.clientId && c.id === exp.clientId) ||
+        (extractedClientName && c.name.toLowerCase().trim() === extractedClientName.toLowerCase().trim())
+    );
+
+    const clientColor = matchedClient ? getClientColor(matchedClient) : null;
+
+    return {
+      cleanTitle: rawTitle || exp.title,
+      clientName: matchedClient ? matchedClient.name : extractedClientName,
+      clientColor,
+      matchedClient,
+    };
+  };
 
   const createInstallmentLongPress = (instId: string) => {
     let pressTimer: NodeJS.Timeout | null = null;
@@ -242,31 +320,34 @@ export const PaymentsView: React.FC = () => {
     '#a7f3d0', // emerald-200
   ];
 
-  // 1. Spese raggruppate per categoria (con quote percentuali e palette monocromatica)
+  // 1. Spese raggruppate per categoria (include tutte le categorie senza forzare il ripiego su generale)
   const expensesByCategory = useMemo(() => {
     const map = new Map<string, { category: string; label: string; amount: number; count: number }>();
 
-    const categoryLabels: Record<string, string> = {
+    const knownLabels: Record<string, string> = {
       carburante: 'Carburante',
-      materiale: 'Materiale / Consumabili',
-      attrezzatura: 'Attrezzatura & Noleggio',
-      manutenzione: 'Manutenzione',
+      manutenzione: 'Manutenzione Attrezzature',
+      materiale: 'Materiali Cantiere',
+      attrezzatura: 'Nuova Attrezzatura',
+      smaltimento: 'Smaltimento / Discarica',
+      generale: 'Spese Generali',
       stipendio: 'Manodopera / Stipendi',
-      generale: 'Spese Generali / Altro',
     };
 
     expenses.forEach((e) => {
-      const rawCat = (e.category || 'generale').toLowerCase();
-      const catKey = categoryLabels[rawCat] ? rawCat : 'generale';
-      const existing = map.get(catKey) || {
-        category: catKey,
-        label: categoryLabels[catKey] || catKey,
+      const rawCat = (e.category || 'Spese Generali').trim();
+      const lowerCat = rawCat.toLowerCase();
+      const displayLabel = knownLabels[lowerCat] || rawCat;
+
+      const existing = map.get(displayLabel) || {
+        category: displayLabel,
+        label: displayLabel,
         amount: 0,
         count: 0,
       };
       existing.amount += Number(e.amount) || 0;
       existing.count += 1;
-      map.set(catKey, existing);
+      map.set(displayLabel, existing);
     });
 
     const list = Array.from(map.values()).sort((a, b) => b.amount - a.amount);
@@ -1104,148 +1185,337 @@ export const PaymentsView: React.FC = () => {
         />
       )}
 
-      {/* TAB 3: OPERATIONAL EXPENSES */}
+      {/* TAB 3: OPERATIONAL EXPENSES - SENZA SFONDO SCHEDA, TITOLO PULITO, ICONA ROSSA VETTORIALE */}
       {activeSubTab === 'spese' && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-          <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-            <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider">
-              Registro Spese Operative ({expenses.length})
+        <div className="space-y-[7px]">
+          <div className="flex items-center justify-between pb-1">
+            <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 uppercase tracking-wider">
+              REGISTRO SPESE
             </h3>
             <button
+              type="button"
               onClick={() => setShowExpenseModal(true)}
-              className="p-[7px] px-2.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] font-bold text-xs shadow-xs cursor-pointer flex items-center gap-1"
+              className="flex items-center p-1 bg-transparent border-0 shadow-none hover:opacity-85 transition-opacity shrink-0 cursor-pointer"
+              title="Aggiungi Nuova Spesa"
+              aria-label="Aggiungi Spesa"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Aggiungi Spesa</span>
+              <ExpenseWalletVectorIcon className="w-8 h-8" />
             </button>
           </div>
 
-          <div className="space-y-[7px] max-h-[500px] overflow-y-auto">
+          <div className="space-y-[7px] max-h-[520px] overflow-y-auto">
             {expenses.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-400">
                 Nessuna spesa registrata. Clicca su "Aggiungi Spesa" per registrarne una.
               </div>
             ) : (
-              expenses.map((exp) => (
-                <div
-                  key={exp.id}
-                  className="p-[7px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-[7px] flex items-center justify-between gap-[7px] text-xs"
-                >
-                  <div className="space-y-0.5 flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900 dark:text-slate-100 truncate">
-                        {exp.title}
-                      </span>
-                      <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                        {exp.category}
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                      {exp.recipientOrVendor || 'Fornitore non specificato'} · {exp.date} · {getMethodLabel(exp.paymentMethod)}
-                    </div>
-                  </div>
+              expenses.map((exp) => {
+                const { cleanTitle, clientName, clientColor } = parseExpenseDetails(exp);
+                const isLongPressed = longPressedExpenseId === exp.id;
+                const longPressProps = createExpenseLongPressProps(exp.id);
 
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="font-mono font-bold text-sm text-rose-700 dark:text-rose-400">
-                      - € {exp.amount.toFixed(2)}
+                return (
+                  <div
+                    key={exp.id}
+                    {...longPressProps}
+                    className={`p-[7px] bg-slate-50 dark:bg-slate-800/60 border rounded-[7px] flex items-center justify-between gap-[7px] text-xs transition-all select-none cursor-pointer ${
+                      isLongPressed
+                        ? 'border-emerald-500 dark:border-emerald-500 shadow-md ring-1 ring-emerald-500/30'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                    }`}
+                    style={clientColor ? { borderLeftWidth: '5px', borderLeftColor: clientColor } : undefined}
+                  >
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-slate-900 dark:text-slate-100 truncate text-xs">
+                          {cleanTitle}
+                        </span>
+                        <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 shrink-0">
+                          {exp.category}
+                        </span>
+                        {clientName && (
+                          <span
+                            className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full border truncate shrink-0 max-w-[160px] inline-flex items-center gap-1 shadow-2xs"
+                            style={
+                              clientColor
+                                ? {
+                                    backgroundColor: `${clientColor}22`,
+                                    color: clientColor,
+                                    borderColor: `${clientColor}55`,
+                                  }
+                                : {
+                                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                                    color: '#2563eb',
+                                    borderColor: 'rgba(59, 130, 246, 0.3)',
+                                  }
+                            }
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: clientColor || '#2563eb' }} />
+                            <span>{clientName}</span>
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        {exp.recipientOrVendor || 'Fornitore non specificato'} · {exp.date} · {getMethodLabel(exp.paymentMethod)}
+                      </div>
                     </div>
-                    <button
-                      onClick={() => deleteExpense(exp.id)}
-                      className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
-                      title="Elimina Spesa"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+
+                    <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <div className="font-mono font-bold text-sm text-rose-700 dark:text-rose-400">
+                        - € {exp.amount.toFixed(2)}
+                      </div>
+
+                      {/* Action Buttons appear ONLY after Long Press */}
+                      {isLongPressed && (
+                        <div className="flex items-center gap-1 animate-in fade-in zoom-in-90 duration-150 ml-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpTitle(exp.title);
+                              setExpAmount(exp.amount);
+                              setExpCategory(exp.category);
+                              setExpMethod(exp.paymentMethod || 'pos_carta');
+                              setExpVendor(exp.recipientOrVendor || '');
+                              setExpDate(exp.date || new Date().toISOString().split('T')[0]);
+                              setExpenseToEdit(exp);
+                            }}
+                            className="p-1.5 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white bg-slate-200 dark:bg-slate-700 rounded-[5px] cursor-pointer transition-colors"
+                            title="Modifica Spesa"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpenseToDelete(exp);
+                            }}
+                            className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 bg-rose-100 dark:bg-rose-950/70 rounded-[5px] cursor-pointer transition-colors"
+                            title="Elimina Spesa"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
       )}
 
-      {/* TAB 4: CHARTS & PAYMENT METHOD ANALYTICS */}
+      {/* TAB 4: CHARTS & FINANCIAL TRENDS */}
       {activeSubTab === 'grafici' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-[7px]">
-          {/* Chart 1: Revenue vs Expenses */}
+          {/* CHART 1: Monochromatic Emerald Donut Chart for Expense Categories */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-            <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
-              <PieChart className="w-4 h-4 text-emerald-600" />
-              <span>Confronto Finanziario: Incassi vs Uscite</span>
-            </h3>
-
-            <div className="p-4 space-y-4">
-              {/* Incassi Bar */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="font-semibold text-emerald-800 dark:text-emerald-400">Incassi Cantieri:</span>
-                  <strong className="font-mono text-emerald-700 dark:text-emerald-400">€ {totalJobCollected.toFixed(2)}</strong>
-                </div>
-                <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 rounded-full w-full" />
-                </div>
-              </div>
-
-              {/* Stipendi Bar */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="font-semibold text-sky-800 dark:text-sky-400">Stipendi Operai Pagati:</span>
-                  <strong className="font-mono text-sky-700 dark:text-sky-400">€ {totalWorkerPaidAll.toFixed(2)}</strong>
-                </div>
-                <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-sky-500 rounded-full"
-                    style={{
-                      width: `${totalJobCollected > 0 ? Math.min(100, (totalWorkerPaidAll / totalJobCollected) * 100) : 30}%`,
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Spese Bar */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="font-semibold text-rose-800 dark:text-rose-400">Spese Operative:</span>
-                  <strong className="font-mono text-rose-700 dark:text-rose-400">€ {totalExpensesAmount.toFixed(2)}</strong>
-                </div>
-                <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-rose-500 rounded-full"
-                    style={{
-                      width: `${totalJobCollected > 0 ? Math.min(100, (totalExpensesAmount / totalJobCollected) * 100) : 20}%`,
-                    }}
-                  />
-                </div>
-              </div>
+            <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+                <PieChart className="w-4 h-4 text-emerald-600" />
+                <span>Spese per Categoria (Donut Chart)</span>
+              </h3>
+              <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                Totale: € {totalExpensesAmount.toFixed(2)}
+              </span>
             </div>
+
+            {expensesByCategory.length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-400">
+                Nessuna spesa disponibile per generare il grafico.
+              </div>
+            ) : (
+              <div className="p-2 space-y-4">
+                {/* Donut Chart SVG & Center Hole */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                  <div className="relative w-44 h-44 shrink-0 flex items-center justify-center">
+                    <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                      {(() => {
+                        const radius = 36;
+                        const circumference = 2 * Math.PI * radius; // ~226.195
+                        let cumulativeOffset = 0;
+
+                        return expensesByCategory.map((cat) => {
+                          const sliceLength = (cat.percentage / 100) * circumference;
+                          const offset = cumulativeOffset;
+                          cumulativeOffset += sliceLength;
+                          const isSelected = selectedCategoryKey === cat.category;
+
+                          return (
+                            <circle
+                              key={cat.category}
+                              cx="50"
+                              cy="50"
+                              r={radius}
+                              fill="transparent"
+                              stroke={cat.color}
+                              strokeWidth={isSelected ? 18 : 15}
+                              strokeDasharray={`${sliceLength} ${circumference - sliceLength}`}
+                              strokeDashoffset={-offset}
+                              className="transition-all duration-300 cursor-pointer hover:opacity-90"
+                              onClick={() => setSelectedCategoryKey((prev) => (prev === cat.category ? null : cat.category))}
+                            />
+                          );
+                        });
+                      })()}
+                    </svg>
+
+                    {/* Donut Center Hole display */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none p-2">
+                      <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">
+                        {selectedCategoryKey
+                          ? expensesByCategory.find((c) => c.category === selectedCategoryKey)?.label
+                          : 'Totale Spese'}
+                      </span>
+                      <span className="font-mono font-extrabold text-xs sm:text-sm text-slate-900 dark:text-slate-100">
+                        € {formatAmountNoCents(
+                          selectedCategoryKey
+                            ? expensesByCategory.find((c) => c.category === selectedCategoryKey)?.amount || 0
+                            : totalExpensesAmount
+                        )}
+                      </span>
+                      {selectedCategoryKey && (
+                        <span className="text-[9.5px] font-bold text-emerald-600">
+                          {expensesByCategory.find((c) => c.category === selectedCategoryKey)?.percentage.toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Category Breakdown List */}
+                  <div className="flex-1 min-w-0 space-y-1.5 w-full">
+                    {expensesByCategory.map((cat) => {
+                      const isSelected = selectedCategoryKey === cat.category;
+                      return (
+                        <div
+                          key={cat.category}
+                          onClick={() => setSelectedCategoryKey((prev) => (prev === cat.category ? null : cat.category))}
+                          className={`p-1.5 rounded-[6px] border text-xs cursor-pointer transition-colors flex items-center justify-between gap-2 ${
+                            isSelected
+                              ? 'bg-slate-100 dark:bg-slate-800 border-emerald-500 font-bold'
+                              : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 hover:bg-slate-100/60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                            <span className="truncate text-[11px] text-slate-800 dark:text-slate-200 font-semibold">
+                              {cat.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 font-mono text-[11px]">
+                            <span className="text-slate-500 dark:text-slate-400 text-[10px]">
+                              {cat.percentage.toFixed(1)}%
+                            </span>
+                            <span className="font-bold text-slate-900 dark:text-slate-100">
+                              € {cat.amount.toFixed(0)}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Chart 2: Payment Method Breakdown */}
+          {/* CHART 2: Temporal Expense Trend Chart */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-            <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
-              <CreditCard className="w-4 h-4 text-emerald-600" />
-              <span>Riparto Modalità di Pagamento</span>
-            </h3>
+            <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+                <BarChart3 className="w-4 h-4 text-emerald-600" />
+                <span>Andamento Temporale Spese</span>
+              </h3>
+              {expensesByMonth.peakMonth && (
+                <span className="text-[10px] font-semibold text-slate-500">
+                  Picco: <strong className="text-rose-600 dark:text-rose-400">{expensesByMonth.peakMonth.label} (€ {expensesByMonth.peakMonth.amount.toFixed(0)})</strong>
+                </span>
+              )}
+            </div>
 
-            <div className="p-4 space-y-3 text-xs">
-              <div className="p-[7px] bg-slate-50 dark:bg-slate-800/60 rounded-[7px] flex items-center justify-between">
-                <span>Bonifico Bancario</span>
-                <strong className="font-mono text-emerald-700 dark:text-emerald-400">65%</strong>
+            <div className="p-2 space-y-3">
+              {/* Summary KPIs */}
+              <div className="grid grid-cols-3 gap-1.5 text-center p-2 bg-slate-50 dark:bg-slate-800/60 rounded-[6px] border border-slate-200 dark:border-slate-800">
+                <div>
+                  <span className="block text-[9px] uppercase font-bold text-slate-400">Media Mensile</span>
+                  <span className="font-mono font-bold text-xs text-slate-900 dark:text-slate-100">
+                    € {formatAmountNoCents(expensesByMonth.avgMonthly)}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-[9px] uppercase font-bold text-slate-400">Totale Periodo</span>
+                  <span className="font-mono font-bold text-xs text-rose-600 dark:text-rose-400">
+                    € {formatAmountNoCents(expensesByMonth.totalPeriodAmount)}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-[9px] uppercase font-bold text-slate-400">Mesi Monitorati</span>
+                  <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
+                    {expensesByMonth.months.length} mesi
+                  </span>
+                </div>
               </div>
 
-              <div className="p-[7px] bg-slate-50 dark:bg-slate-800/60 rounded-[7px] flex items-center justify-between">
-                <span>POS / Carta di Credito</span>
-                <strong className="font-mono text-emerald-700 dark:text-emerald-400">20%</strong>
-              </div>
+              {/* Monthly Histogram Bars */}
+              <div className="pt-2">
+                <div className="h-40 flex items-end justify-between gap-1.5 px-1 relative">
+                  {/* Average Expense Dotted Line */}
+                  {expensesByMonth.maxMonthAmount > 0 && (
+                    <div
+                      className="absolute left-0 right-0 border-b border-dashed border-emerald-500/50 z-10 pointer-events-none flex items-center justify-end pr-1"
+                      style={{
+                        bottom: `${Math.min(95, Math.max(5, (expensesByMonth.avgMonthly / expensesByMonth.maxMonthAmount) * 100))}%`,
+                      }}
+                    >
+                      <span className="text-[8.5px] font-mono font-bold bg-emerald-600 text-white px-1 py-0.5 rounded shadow-2xs opacity-90">
+                        Media: € {expensesByMonth.avgMonthly.toFixed(0)}
+                      </span>
+                    </div>
+                  )}
 
-              <div className="p-[7px] bg-slate-50 dark:bg-slate-800/60 rounded-[7px] flex items-center justify-between">
-                <span>Contanti Diretti</span>
-                <strong className="font-mono text-emerald-700 dark:text-emerald-400">10%</strong>
-              </div>
+                  {expensesByMonth.months.map((m) => {
+                    const heightPercent = expensesByMonth.maxMonthAmount > 0
+                      ? Math.max(8, (m.amount / expensesByMonth.maxMonthAmount) * 100)
+                      : 8;
+                    const isHovered = hoveredMonthKey === m.key;
 
-              <div className="p-[7px] bg-slate-50 dark:bg-slate-800/60 rounded-[7px] flex items-center justify-between">
-                <span>RiBa 30/60 gg</span>
-                <strong className="font-mono text-emerald-700 dark:text-emerald-400">5%</strong>
+                    return (
+                      <div
+                        key={m.key}
+                        onMouseEnter={() => setHoveredMonthKey(m.key)}
+                        onMouseLeave={() => setHoveredMonthKey(null)}
+                        className="flex-1 flex flex-col items-center justify-end h-full group relative cursor-pointer"
+                      >
+                        {/* Tooltip on hover */}
+                        {isHovered && (
+                          <div className="absolute -top-10 z-30 bg-slate-900 text-white text-[10px] p-1.5 rounded shadow-lg whitespace-nowrap animate-in fade-in duration-100">
+                            <div className="font-bold">{m.fullLabel}</div>
+                            <div className="font-mono text-emerald-400 font-bold">€ {m.amount.toFixed(2)} ({m.count} spese)</div>
+                          </div>
+                        )}
+
+                        <div className="w-full max-w-[28px] bg-slate-100 dark:bg-slate-800 rounded-t-[4px] overflow-hidden flex items-end h-full relative">
+                          <div
+                            className={`w-full rounded-t-[4px] transition-all duration-300 ${
+                              isHovered
+                                ? 'bg-emerald-500 shadow-md'
+                                : m.amount === expensesByMonth.peakMonth?.amount
+                                ? 'bg-emerald-700'
+                                : 'bg-emerald-800/80 dark:bg-emerald-600/80'
+                            }`}
+                            style={{ height: `${heightPercent}%` }}
+                          />
+                        </div>
+
+                        <span className="text-[9.5px] font-semibold text-slate-500 dark:text-slate-400 mt-1 truncate max-w-full text-center">
+                          {m.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
@@ -1904,6 +2174,176 @@ export const PaymentsView: React.FC = () => {
                 <span>Azzera Incassi</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Conferma Eliminazione Spesa */}
+      {expenseToDelete && (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/70 p-[7px] backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] max-w-sm w-full p-4 shadow-2xl space-y-3">
+            <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-bold text-sm">
+              <Trash2 className="w-5 h-5 shrink-0" />
+              <span>Elimina Spesa Operativa</span>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              Sei sicuro di voler eliminare la spesa <strong className="text-slate-900 dark:text-slate-100">{expenseToDelete.title}</strong> di <strong className="text-rose-600 font-mono">€ {expenseToDelete.amount.toFixed(2)}</strong>?
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setExpenseToDelete(null)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-[7px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 cursor-pointer"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await deleteExpense(expenseToDelete.id);
+                  setExpenseToDelete(null);
+                  setLongPressedExpenseId(null);
+                }}
+                className="px-3 py-1.5 text-xs font-bold rounded-[7px] bg-rose-600 hover:bg-rose-700 text-white cursor-pointer shadow-xs flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Elimina Definitivamente</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Modifica Spesa Operativa */}
+      {expenseToEdit && (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/70 p-[7px] backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] max-w-md w-full p-4 shadow-2xl space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+              <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+                <Edit2 className="w-4 h-4 text-emerald-600" />
+                <span>Modifica Spesa Operativa</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setExpenseToEdit(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!expTitle.trim() || expAmount <= 0) return;
+                await deleteExpense(expenseToEdit.id);
+                await addExpense({
+                  title: expTitle.trim(),
+                  amount: Number(expAmount),
+                  category: expCategory,
+                  paymentMethod: expMethod,
+                  recipientOrVendor: expVendor.trim() || undefined,
+                  date: expDate,
+                  status: 'paid',
+                });
+                setExpenseToEdit(null);
+                setLongPressedExpenseId(null);
+              }}
+              className="space-y-3 text-xs"
+            >
+              <div className="space-y-1">
+                <label className="font-semibold block text-slate-700 dark:text-slate-300">Descrizione Spesa *</label>
+                <input
+                  type="text"
+                  required
+                  value={expTitle}
+                  onChange={(e) => setExpTitle(e.target.value)}
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="font-semibold block text-slate-700 dark:text-slate-300">Importo (€) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={expAmount}
+                    onChange={(e) => setExpAmount(parseFloat(e.target.value) || 0)}
+                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px] font-mono font-bold text-rose-600"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold block text-slate-700 dark:text-slate-300">Data Spesa</label>
+                  <input
+                    type="date"
+                    value={expDate}
+                    onChange={(e) => setExpDate(e.target.value)}
+                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="font-semibold block text-slate-700 dark:text-slate-300">Categoria</label>
+                  <select
+                    value={expCategory}
+                    onChange={(e) => setExpCategory(e.target.value as ExpenseCategory)}
+                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px]"
+                  >
+                    <option value="carburante">Carburante</option>
+                    <option value="materiale">Materiali Cantiere</option>
+                    <option value="attrezzatura">Attrezzatura & Noleggio</option>
+                    <option value="manutenzione">Manutenzione</option>
+                    <option value="stipendio">Manodopera / Stipendi</option>
+                    <option value="generale">Spese Generali / Altro</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold block text-slate-700 dark:text-slate-300">Metodo Pagamento</label>
+                  <select
+                    value={expMethod}
+                    onChange={(e) => setExpMethod(e.target.value as PaymentMethod)}
+                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px]"
+                  >
+                    <option value="pos_carta">POS / Carta</option>
+                    <option value="contanti">Contanti</option>
+                    <option value="bonifico">Bonifico Bancario</option>
+                    <option value="assegno">Assegno</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold block text-slate-700 dark:text-slate-300">Fornitore / Note (opzionale)</label>
+                <input
+                  type="text"
+                  value={expVendor}
+                  onChange={(e) => setExpVendor(e.target.value)}
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px]"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setExpenseToEdit(null)}
+                  className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-[7px] font-medium cursor-pointer"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-[7px] shadow-xs cursor-pointer"
+                >
+                  Salva Modifiche
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
