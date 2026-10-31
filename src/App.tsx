@@ -17,7 +17,7 @@ import { DesktopSidebar } from './components/navigation/DesktopSidebar';
 import { HamburgerDrawer } from './components/navigation/HamburgerDrawer';
 import { AccountModal } from './components/account/AccountModal';
 import { SettingsModal } from './components/settings/SettingsModal';
-import { TeamManagementModal } from './components/admin/TeamManagementModal';
+import { TeamManagementView } from './components/admin/TeamManagementView';
 import { FirebaseConfigModal } from './components/firebase/FirebaseConfigModal';
 import {
   LayoutDashboard,
@@ -48,14 +48,13 @@ const MainAppContent: React.FC = () => {
   }, []);
 
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather'
+    'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather' | 'team'
   >('dashboard');
 
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
   const [showFirebaseModal, setShowFirebaseModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [showTeamModal, setShowTeamModal] = useState(false);
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     return localStorage.getItem('ramovia_sidebar_collapsed') === 'true';
@@ -101,7 +100,7 @@ const MainAppContent: React.FC = () => {
         onSelectTab={setActiveTab}
         onOpenAccount={() => setShowAccountModal(true)}
         onOpenSettings={() => setShowSettingsModal(true)}
-        onOpenTeamModal={() => setShowTeamModal(true)}
+        onOpenTeamModal={() => setActiveTab('team')}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={handleToggleSidebar}
       />
@@ -139,6 +138,9 @@ const MainAppContent: React.FC = () => {
             {activeTab === 'map' && <MapTabScreen />}
             {activeTab === 'calendar' && <CalendarView />}
             {activeTab === 'workers' && <WorkersView />}
+            {activeTab === 'team' && (
+              <TeamManagementView onBack={() => setActiveTab('workers')} />
+            )}
             {activeTab === 'clients' && <ClientsView />}
             {activeTab === 'inventory' && <InventoryView />}
             {activeTab === 'reports' && <ReportsHub />}
@@ -289,7 +291,7 @@ const MainAppContent: React.FC = () => {
         onSelectTab={setActiveTab}
         onOpenAccount={() => setShowAccountModal(true)}
         onOpenSettings={() => setShowSettingsModal(true)}
-        onOpenTeamModal={() => setShowTeamModal(true)}
+        onOpenTeamModal={() => setActiveTab('team')}
       />
 
       {/* Account Profile Modal */}
@@ -303,11 +305,6 @@ const MainAppContent: React.FC = () => {
           onClose={() => setShowSettingsModal(false)}
           onOpenFirebaseConfig={() => setShowFirebaseModal(true)}
         />
-      )}
-
-      {/* Team Management Modal */}
-      {showTeamModal && (
-        <TeamManagementModal onClose={() => setShowTeamModal(false)} />
       )}
 
       {/* Firebase Config Modal */}

@@ -68,6 +68,12 @@ export interface MaterialRequirement {
   unit: string;
 }
 
+export interface EquipmentRequirement {
+  itemId: string;
+  name: string;
+  hoursUsed: number;
+}
+
 export type JobStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 export type JobPaymentStatus = 'pending' | 'partial' | 'paid' | 'unpaid';
 
@@ -111,6 +117,7 @@ export interface Job {
   description: string;
   notes?: string;
   materialsRequired: MaterialRequirement[];
+  equipmentRequired?: EquipmentRequirement[];
   lat: number;
   lng: number;
   // Financial fields
@@ -150,7 +157,9 @@ export interface InventoryItem {
   currentUsageHours: number; // e.g. 48h
   status: EquipmentStatus;
   brand?: string;
+  brandLogoUrl?: string;
   lastMaintenanceDate?: string;
+  imageUrl?: string;
 }
 
 export interface MaterialUsed {
@@ -208,7 +217,7 @@ export interface WeatherData {
 }
 
 // EXPENSE & FINANCIAL RECORDS
-export type ExpenseCategory = 'attrezzatura' | 'carburante' | 'materiale' | 'manutenzione' | 'stipendio' | 'generale';
+export type ExpenseCategory = 'attrezzatura' | 'carburante' | 'materiale' | 'manutenzione' | 'stipendio' | 'generale' | (string & {});
 
 export interface ExpenseRecord {
   id: string;
@@ -221,6 +230,8 @@ export interface ExpenseRecord {
   notes?: string;
   status: 'pending' | 'paid';
   createdAt: string;
+  jobId?: string;
+  jobCostId?: string;
 }
 
 export interface WorkerPayout {

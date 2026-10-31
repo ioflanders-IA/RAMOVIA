@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 
 import { ClientDirectoryView } from './ClientDirectoryView';
+import { ExpenseModal } from './ExpenseModal';
 
 export const PaymentsView: React.FC = () => {
   const {
@@ -436,79 +437,70 @@ export const PaymentsView: React.FC = () => {
     }
   };
 
+  // Helper to format currency removing trailing ,00
+  const formatAmountNoCents = (val: number) => {
+    return Math.abs(val) % 1 === 0 ? val.toFixed(0) : val.toFixed(2);
+  };
+
   return (
     <div className="space-y-[7px]">
 
-      {/* Financial KPI Summary Grid - 4 card su UN'UNICA LINEA */}
+      {/* Financial KPI Summary Grid - Senza sfondo e senza bordi, max 3px sopra e sotto al testo */}
       <div className="grid grid-cols-4 gap-1 sm:gap-2">
         {/* Total Collections */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-1.5 sm:p-2.5 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-0.5">
-            <span className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Incassi Cantieri</span>
+        <div className="py-[3px] px-0.5 sm:px-1 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 py-[3px] leading-tight">
+            <span className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Incassi</span>
             <TrendingUp className="w-3.5 h-3.5 text-emerald-600 shrink-0 hidden sm:block" />
           </div>
-          <div className="text-xs sm:text-base md:text-xl font-bold font-mono text-emerald-700 dark:text-emerald-400 truncate">
-            € {totalJobCollected.toFixed(2)}
-          </div>
-          <div className="text-[8px] sm:text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between pt-0.5 truncate">
-            <span className="truncate">Da incassare:</span>
-            <strong className="text-amber-600 dark:text-amber-400 font-mono ml-0.5 shrink-0">€ {totalJobPending.toFixed(2)}</strong>
+          <div className="text-[16px] sm:text-[21px] md:text-[26.5px] text-right font-extrabold font-mono text-emerald-700 dark:text-emerald-400 truncate py-[3px] leading-none">
+            € {formatAmountNoCents(totalJobCollected)}
           </div>
         </div>
 
         {/* Total Salaries */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-1.5 sm:p-2.5 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-0.5">
-            <span className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Stipendi Operai</span>
+        <div className="py-[3px] px-0.5 sm:px-1 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 py-[3px] leading-tight">
+            <span className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Stipendi</span>
             <Users className="w-3.5 h-3.5 text-sky-600 shrink-0 hidden sm:block" />
           </div>
-          <div className="text-xs sm:text-base md:text-xl font-bold font-mono text-sky-700 dark:text-sky-400 truncate">
-            € {totalWorkerPaidAll.toFixed(2)}
-          </div>
-          <div className="text-[8px] sm:text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between pt-0.5 truncate">
-            <span className="truncate">Maturato:</span>
-            <strong className="text-slate-800 dark:text-slate-200 font-mono ml-0.5 shrink-0">€ {totalWorkerEarningsAll.toFixed(2)}</strong>
+          <div className="text-[16px] sm:text-[21px] md:text-[26.5px] text-right font-extrabold font-mono text-sky-700 dark:text-sky-400 truncate py-[3px] leading-none">
+            € {formatAmountNoCents(totalWorkerPaidAll)}
           </div>
         </div>
 
         {/* Total Expenses */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-1.5 sm:p-2.5 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-0.5">
-            <span className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Spese Operative</span>
+        <div className="py-[3px] px-0.5 sm:px-1 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 py-[3px] leading-tight">
+            <span className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Spese</span>
             <TrendingDown className="w-3.5 h-3.5 text-rose-600 shrink-0 hidden sm:block" />
           </div>
-          <div className="text-xs sm:text-base md:text-xl font-bold font-mono text-rose-700 dark:text-rose-400 truncate">
-            € {totalExpensesAmount.toFixed(2)}
-          </div>
-          <div className="text-[8px] sm:text-[10px] text-slate-500 dark:text-slate-400 truncate pt-0.5">
-            Carburante e ricambi
+          <div className="text-[16px] sm:text-[21px] md:text-[26.5px] text-right font-extrabold font-mono text-rose-700 dark:text-rose-400 truncate py-[3px] leading-none">
+            € {formatAmountNoCents(totalExpensesAmount)}
           </div>
         </div>
 
         {/* Net Operating Margin */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-1.5 sm:p-2.5 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-0.5">
-            <span className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Margine Netto</span>
+        <div className="py-[3px] px-0.5 sm:px-1 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 py-[3px] leading-tight">
+            <span className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Margine</span>
             <DollarSign className="w-3.5 h-3.5 text-amber-600 shrink-0 hidden sm:block" />
           </div>
-          <div className={`text-xs sm:text-base md:text-xl font-bold font-mono truncate ${netMargin >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
-            € {netMargin.toFixed(2)}
-          </div>
-          <div className="text-[8px] sm:text-[10px] text-slate-500 dark:text-slate-400 truncate pt-0.5">
-            Incassi - Uscite
+          <div className={`text-[16px] sm:text-[21px] md:text-[26.5px] text-right font-extrabold font-mono truncate py-[3px] leading-none ${netMargin >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
+            € {formatAmountNoCents(netMargin)}
           </div>
         </div>
       </div>
 
-      {/* Sub Tabs Navigation - 2 Righi con tasti adattati allo schermo */}
-      <div className="bg-slate-200/80 dark:bg-slate-800/80 p-1.5 rounded-[7px]">
-        <div className="grid grid-cols-3 gap-1.5 text-xs font-bold">
+      {/* Sub Tabs Navigation - Senza bordo e senza sfondo al contenitore */}
+      <div className="py-0.5">
+        <div className="flex items-center gap-1 text-xs font-bold">
           <button
             onClick={() => setActiveSubTab('incassi')}
-            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-[7px] transition-colors cursor-pointer text-center ${
+            className={`flex-1 min-w-0 flex items-center justify-center gap-1 py-1.5 px-1 rounded-[6px] transition-colors cursor-pointer text-center ${
               activeSubTab === 'incassi'
-                ? 'bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-300/40 dark:hover:bg-slate-700/40'
+                ? 'bg-emerald-800 text-white dark:bg-emerald-700 shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}
           >
             <Receipt className="w-3.5 h-3.5 shrink-0" />
@@ -517,10 +509,10 @@ export const PaymentsView: React.FC = () => {
 
           <button
             onClick={() => setActiveSubTab('spese')}
-            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-[7px] transition-colors cursor-pointer text-center ${
+            className={`flex-1 min-w-0 flex items-center justify-center gap-1 py-1.5 px-1 rounded-[6px] transition-colors cursor-pointer text-center ${
               activeSubTab === 'spese'
-                ? 'bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-300/40 dark:hover:bg-slate-700/40'
+                ? 'bg-emerald-800 text-white dark:bg-emerald-700 shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}
           >
             <Fuel className="w-3.5 h-3.5 shrink-0" />
@@ -529,38 +521,37 @@ export const PaymentsView: React.FC = () => {
 
           <button
             onClick={() => setActiveSubTab('clienti')}
-            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-[7px] transition-colors cursor-pointer text-center ${
+            className={`flex-1 min-w-0 flex items-center justify-center gap-1 py-1.5 px-1 rounded-[6px] transition-colors cursor-pointer text-center ${
               activeSubTab === 'clienti'
-                ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-400 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-300/40 dark:hover:bg-slate-700/40'
+                ? 'bg-indigo-700 text-white dark:bg-indigo-600 shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}
           >
-            <Building2 className="w-3.5 h-3.5 shrink-0 text-indigo-600" />
+            <Building2 className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
             <span className="truncate">Clienti</span>
           </button>
 
           <button
             onClick={() => setActiveSubTab('grafici')}
-            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-[7px] transition-colors cursor-pointer text-center ${
+            className={`flex-1 min-w-0 flex items-center justify-center gap-1 py-1.5 px-1 rounded-[6px] transition-colors cursor-pointer text-center ${
               activeSubTab === 'grafici'
-                ? 'bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-300/40 dark:hover:bg-slate-700/40'
+                ? 'bg-emerald-800 text-white dark:bg-emerald-700 shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}
           >
             <PieChart className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">Bilancio</span>
           </button>
 
-          {/* Tasto Registra Spesa: + Spesa */}
+          {/* Tasto Registra Nuova Spesa: SOLO SIMBOLO + */}
           <button
             type="button"
             onClick={() => setShowExpenseModal(true)}
             title="Registra Nuova Spesa"
             aria-label="Registra Nuova Spesa"
-            className="col-span-2 flex items-center justify-center gap-1 py-2 px-2 rounded-[7px] bg-emerald-700 hover:bg-emerald-600 text-white font-bold transition-colors cursor-pointer shadow-xs text-center"
+            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-[6px] bg-emerald-700 hover:bg-emerald-600 text-white font-bold transition-colors cursor-pointer shadow-xs"
           >
-            <Plus className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">Nuova Spesa</span>
+            <Plus className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -575,12 +566,12 @@ export const PaymentsView: React.FC = () => {
             </h3>
           </div>
 
-          {/* Filtri Stato Incasso sullo STESSO RIGO (gap a 3px) */}
-          <div className="grid grid-cols-4 gap-[3px] text-xs font-bold">
+          {/* Filtri Stato Incasso sullo STESSO RIGO (Tutti compatto, gli altri tre allargati) */}
+          <div className="grid grid-cols-[auto_1fr_1fr_1fr] gap-[3px] text-xs font-bold">
             <button
               type="button"
               onClick={() => setStatusFilter('all')}
-              className={`py-1.5 px-2 rounded-[5px] border text-center transition-colors cursor-pointer truncate ${
+              className={`py-1.5 px-2.5 rounded-[5px] border text-center transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                 statusFilter === 'all'
                   ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border-slate-900'
                   : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
@@ -591,33 +582,36 @@ export const PaymentsView: React.FC = () => {
             <button
               type="button"
               onClick={() => setStatusFilter('unpaid')}
-              className={`py-1.5 px-1.5 rounded-[5px] border text-center transition-colors cursor-pointer truncate ${
+              className={`py-1.5 px-1 rounded-[5px] border text-center transition-colors cursor-pointer truncate ${
                 statusFilter === 'unpaid'
                   ? 'bg-rose-700 text-white border-rose-800 shadow-2xs'
                   : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-900/50 hover:bg-rose-100'
               }`}
+              title="Da Incassare"
             >
-              Da Incass...
+              Da Incassare
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter('partial')}
-              className={`py-1.5 px-1.5 rounded-[5px] border text-center transition-colors cursor-pointer truncate ${
+              className={`py-1.5 px-1 rounded-[5px] border text-center transition-colors cursor-pointer truncate ${
                 statusFilter === 'partial'
                   ? 'bg-amber-600 text-white border-amber-700 shadow-2xs'
                   : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50 hover:bg-amber-100'
               }`}
+              title="Acconto"
             >
               Acconto
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter('paid')}
-              className={`py-1.5 px-1.5 rounded-[5px] border text-center transition-colors cursor-pointer truncate ${
+              className={`py-1.5 px-1 rounded-[5px] border text-center transition-colors cursor-pointer truncate ${
                 statusFilter === 'paid'
                   ? 'bg-emerald-700 text-white border-emerald-800 shadow-2xs'
                   : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100'
               }`}
+              title="Saldato"
             >
               Saldato
             </button>
@@ -1137,115 +1131,10 @@ export const PaymentsView: React.FC = () => {
       )}
 
       {/* Modal: Record Expense */}
-      {showExpenseModal && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 p-[7px] backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] max-w-md w-full p-[7px] space-y-[7px] shadow-2xl">
-            <div className="bg-slate-900 text-white p-[7px] px-3 rounded-[7px] flex items-center justify-between">
-              <h3 className="font-bold text-xs">Registra Spesa Operativa</h3>
-              <button onClick={() => setShowExpenseModal(false)} className="text-slate-400 hover:text-white">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveExpense} className="p-[7px] space-y-[7px] text-xs">
-              <div className="space-y-[7px]">
-                <label className="font-semibold block">Descrizione Spesa *</label>
-                <input
-                  type="text"
-                  required
-                  value={expTitle}
-                  onChange={(e) => setExpTitle(e.target.value)}
-                  placeholder="es. Carburante rasaerba, Acquisto concime"
-                  className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-[7px]">
-                <div className="space-y-[7px]">
-                  <label className="font-semibold block">Importo (€) *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={expAmount}
-                    onChange={(e) => setExpAmount(parseFloat(e.target.value) || 0)}
-                    className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px] font-mono font-bold text-rose-600"
-                  />
-                </div>
-
-                <div className="space-y-[7px]">
-                  <label className="font-semibold block">Data *</label>
-                  <input
-                    type="date"
-                    required
-                    value={expDate}
-                    onChange={(e) => setExpDate(e.target.value)}
-                    className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-[7px]">
-                <div className="space-y-[7px]">
-                  <label className="font-semibold block">Categoria</label>
-                  <select
-                    value={expCategory}
-                    onChange={(e) => setExpCategory(e.target.value as ExpenseCategory)}
-                    className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px]"
-                  >
-                    <option value="carburante">Carburante</option>
-                    <option value="manutenzione">Manutenzione Attrezzature</option>
-                    <option value="materiale">Materiali Cantiere</option>
-                    <option value="attrezzatura">Nuova Attrezzatura</option>
-                    <option value="generale">Spese Generali</option>
-                  </select>
-                </div>
-
-                <div className="space-y-[7px]">
-                  <label className="font-semibold block">Modalità Pagamento</label>
-                  <select
-                    value={expMethod}
-                    onChange={(e) => setExpMethod(e.target.value as PaymentMethod)}
-                    className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px]"
-                  >
-                    <option value="pos_carta">POS / Carta di Credito</option>
-                    <option value="bonifico">Bonifico Bancario</option>
-                    <option value="contanti">Contanti</option>
-                    <option value="assegno">Assegno</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-[7px]">
-                <label className="font-semibold block">Fornitore / Esercente</label>
-                <input
-                  type="text"
-                  value={expVendor}
-                  onChange={(e) => setExpVendor(e.target.value)}
-                  placeholder="es. Eni Station / Agraria Monza"
-                  className="w-full p-[7px] bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[7px]"
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end gap-[7px]">
-                <button
-                  type="button"
-                  onClick={() => setShowExpenseModal(false)}
-                  className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-[7px]"
-                >
-                  Annulla
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-[7px]"
-                >
-                  Salva Spesa
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ExpenseModal
+        isOpen={showExpenseModal}
+        onClose={() => setShowExpenseModal(false)}
+      />
 
       {/* Modal: Record Worker Payout */}
       {selectedWorkerForPayout && (

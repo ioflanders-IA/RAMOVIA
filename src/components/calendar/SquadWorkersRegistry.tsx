@@ -473,41 +473,6 @@ export const SquadWorkersRegistry: React.FC = () => {
 
   return (
     <div className="space-y-[3px]">
-      
-      {/* Mese in alto allargato a tutta larghezza con i pulsantini laterali */}
-      <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] p-[3px] px-2 shadow-xs flex items-center justify-between">
-        <button
-          onClick={handlePrevMonth}
-          className="p-1 px-2.5 rounded-[5px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
-          title="Mese precedente"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-          <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 font-mono tracking-tight">
-            {formattedMonthLabel}
-          </span>
-          {selectedMonth !== new Date().toISOString().substring(0, 7) && (
-            <button
-              onClick={handleResetCurrentMonth}
-              className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 underline ml-1 cursor-pointer"
-            >
-              Oggi
-            </button>
-          )}
-        </div>
-
-        <button
-          onClick={handleNextMonth}
-          className="p-1 px-2.5 rounded-[5px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
-          title="Mese successivo"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-
       {/* Pulsanti Azione sulla stessa riga (3 pulsanti adattati allo schermo: Inserisci Giornata, Nuovo Operaio, Riepilogo) */}
       <div className="grid grid-cols-3 gap-[3px] w-full">
         <button
@@ -609,19 +574,44 @@ export const SquadWorkersRegistry: React.FC = () => {
         </div>
       </div>
 
+      {/* Mese posizionato SOTTO i riepiloghi, allargato a tutta larghezza con i pulsantini laterali */}
+      <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] p-[3px] px-2 shadow-xs flex items-center justify-between">
+        <button
+          onClick={handlePrevMonth}
+          className="p-1 px-2.5 rounded-[5px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+          title="Mese precedente"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+          <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 font-mono tracking-tight">
+            {formattedMonthLabel}
+          </span>
+          {selectedMonth !== new Date().toISOString().substring(0, 7) && (
+            <button
+              onClick={handleResetCurrentMonth}
+              className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 underline ml-1 cursor-pointer"
+            >
+              Oggi
+            </button>
+          )}
+        </div>
+
+        <button
+          onClick={handleNextMonth}
+          className="p-1 px-2.5 rounded-[5px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+          title="Mese successivo"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
       {subView === 'registry' ? (
         <>
           {/* SCHEDE OPERAI: RIEPILOGO TOTALE DA DARE AD OGNUNO */}
           <div className="space-y-[7px]">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-            <Users className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-            <span>Compensi Operai per {formattedMonthLabel} ({workers.length})</span>
-          </h2>
-          <span className="text-[10px] text-slate-500">
-            Clicca su "Vedi Giornate" per espandere il dettaglio
-          </span>
-        </div>
 
         {workers.length === 0 ? (
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-8 text-center text-xs text-slate-500 space-y-[7px]">

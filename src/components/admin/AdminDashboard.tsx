@@ -4,6 +4,7 @@ import { fetchWeatherForClients } from '../../services/weatherService';
 import { Job, WorkReport, WeatherData } from '../../types';
 import { JobModal } from '../jobs/JobModal';
 import { WorkReportModal } from '../report/WorkReportModal';
+import { ExpenseModal } from '../payments/ExpenseModal';
 import { isJobTimeExpired, isJobCurrentlyInProgress } from '../../utils/jobTimeUtils';
 import {
   Calendar,
@@ -22,6 +23,7 @@ import {
   CheckCircle2,
   Check,
   RotateCcw,
+  Receipt,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -33,6 +35,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
 
   const [selectedJobForModal, setSelectedJobForModal] = useState<Job | null>(null);
   const [isCreatingJob, setIsCreatingJob] = useState(false);
+  const [isCreatingExpense, setIsCreatingExpense] = useState(false);
   const [selectedReportForModal, setSelectedReportForModal] = useState<WorkReport | null>(null);
 
   // Clock ticker to refresh time-based statuses (in corso, orario scaduto) automatically every 30s
@@ -65,8 +68,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
   // Identify cantieri with active weather alert
   const alertClients = clients.filter((c) => weatherMap[c.id]?.rainAlert);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
   const todayJobs = jobs.filter((j) => j.date === todayStr);
+  const tomorrowJobs = jobs.filter((j) => j.date === tomorrowStr);
   const completedToday = todayJobs.filter((j) => j.status === 'completed');
   const expiredJobsToday = todayJobs.filter((j) => isJobTimeExpired(j));
   const inProgressToday = todayJobs.filter((j) => isJobCurrentlyInProgress(j));
@@ -89,31 +98,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
   return (
     <div className="space-y-[7px]">
       
-      {/* Top Banner with Weather Button & New Job Action */}
+      {/* Top Banner with Weather Button, Add Expense, and New Job Action */}
       <div className="flex items-center justify-between sm:justify-end gap-[7px]">
         <div className="flex items-center gap-[7px] w-full sm:w-auto justify-between sm:justify-end">
-          {/* Tasto unico Meteo Cantieri per navigare alla pagina normale del meteo */}
+          {/* Tasto Meteo solo icona */}
           <button
             onClick={() => onNavigateTab('weather')}
-            className={`flex items-center gap-[7px] p-[7px] px-3 border text-xs font-bold rounded-[7px] shadow-xs transition-colors shrink-0 cursor-pointer ${
+            className={`relative flex items-center justify-center p-[7px] px-2.5 sm:px-3 border rounded-[7px] shadow-xs transition-colors shrink-0 cursor-pointer ${
               alertClients.length > 0
                 ? 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900 dark:bg-amber-950 dark:border-amber-800 dark:text-amber-200'
                 : 'bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200'
             }`}
-            title="Apri la pagina Meteo Cantieri"
+            title={`Meteo Cantieri${alertClients.length > 0 ? ` (${alertClients.length} allerte)` : ''}`}
+            aria-label="Meteo Cantieri"
           >
             <CloudSun className={`w-4 h-4 ${alertClients.length > 0 ? 'text-amber-600' : 'text-emerald-700 dark:text-emerald-400'}`} />
-            <span>Meteo Cantieri</span>
             {alertClients.length > 0 && (
-              <span className="bg-amber-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
-                {alertClients.length} {alertClients.length === 1 ? 'allerta' : 'allerte'}
-              </span>
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse" />
             )}
           </button>
 
+          {/* Tasto Aggiungi Spesa come presente in Spese */}
+          <button
+            onClick={() => setIsCreatingExpense(true)}
+            className="flex items-center gap-1.5 p-[7px] px-3 bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-800 dark:border-slate-700 text-xs font-bold rounded-[7px] shadow-xs transition-colors shrink-0 cursor-pointer"
+            title="Aggiungi Nuova Spesa"
+            aria-label="Aggiungi Spesa"
+          >
+            <Plus className="w-4 h-4 text-emerald-400" />
+            <span>Spesa</span>
+          </button>
+
+          {/* Tasto Nuovo Intervento */}
           <button
             onClick={() => setIsCreatingJob(true)}
-            className="flex items-center gap-[7px] p-[7px] px-3 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-[7px] shadow-xs transition-colors shrink-0 cursor-pointer"
+            className="flex items-center gap-1.5 p-[7px] px-3 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-[7px] shadow-xs transition-colors shrink-0 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Nuovo Intervento</span>
@@ -295,204 +314,247 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
         </div>
       )}
 
-      {/* MAIN OPERATIONAL SECTION: Today's Jobs & Squad Operations */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-[3px]">
+      {/* MAIN OPERATIONAL SECTION: Interventi di Oggi e Domani */}
+      <div className="space-y-[7px]">
         
-        {/* Today's Jobs List (Expanded to 2 cols for clarity) */}
-        <div className="lg:col-span-2 space-y-[3px]">
-          
+        {/* Today's Jobs List */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[3px] shadow-xs space-y-[3px]">
+          <div className="flex items-center justify-between px-1.5 pt-1 pb-1">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+              <span>Interventi di Oggi</span>
+              {todayJobs.length > 0 && (
+                <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.2 rounded-full font-bold">
+                  {todayJobs.length}
+                </span>
+              )}
+            </span>
+            <button
+              onClick={() => onNavigateTab('calendar')}
+              className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
+            >
+              <span>Vai al Calendario</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[3px] shadow-xs space-y-[3px]">
-            <div className="flex items-center justify-between px-1.5 pt-1 pb-1">
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-                <span>Interventi di Oggi</span>
-              </span>
-              <button
-                onClick={() => onNavigateTab('calendar')}
-                className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
-              >
-                <span>Vai al Calendario</span>
-                <ArrowRight className="w-3 h-3" />
-              </button>
-            </div>
+          <div className="space-y-[3px]">
+            {todayJobs.length === 0 ? (
+              <div className="p-3 py-8 text-center space-y-2">
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  Nessun intervento programmato per oggi.
+                </p>
+                <button
+                  onClick={() => setIsCreatingJob(true)}
+                  className="inline-flex items-center gap-1.5 p-2 px-3 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-[6px] shadow-xs transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Pianifica un lavoro per oggi</span>
+                </button>
+              </div>
+            ) : (
+              todayJobs.map((job) => {
+                const isCompleted = job.status === 'completed';
+                const isExpired = !isCompleted && isJobTimeExpired(job);
+                const isInProgress = !isCompleted && isJobCurrentlyInProgress(job);
 
-            <div className="space-y-[3px]">
-              {todayJobs.length === 0 ? (
-                <div className="p-3 py-8 text-center space-y-2">
-                  <p className="text-xs text-slate-400 dark:text-slate-500">
-                    Nessun intervento programmato per oggi.
-                  </p>
-                  <button
-                    onClick={() => setIsCreatingJob(true)}
-                    className="inline-flex items-center gap-1.5 p-2 px-3 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-[6px] shadow-xs transition-colors"
+                return (
+                  <div
+                    key={job.id}
+                    onClick={() => setSelectedJobForModal(job)}
+                    className={`p-2.5 sm:p-3 border rounded-[6px] hover:border-emerald-400 dark:hover:border-emerald-600 cursor-pointer transition-all space-y-1.5 ${
+                      isCompleted
+                        ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800/80 shadow-2xs'
+                        : isInProgress
+                        ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-400 dark:border-emerald-700/80 shadow-2xs'
+                        : isExpired
+                        ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800/70'
+                        : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800'
+                    }`}
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Pianifica un lavoro per oggi</span>
-                  </button>
-                </div>
-              ) : (
-                todayJobs.map((job) => {
-                  const isCompleted = job.status === 'completed';
-                  const isExpired = !isCompleted && isJobTimeExpired(job);
-                  const isInProgress = !isCompleted && isJobCurrentlyInProgress(job);
-
-                  return (
-                    <div
-                      key={job.id}
-                      onClick={() => setSelectedJobForModal(job)}
-                      className={`p-2.5 sm:p-3 border rounded-[6px] hover:border-emerald-400 dark:hover:border-emerald-600 cursor-pointer transition-all space-y-1.5 ${
-                        isCompleted
-                          ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800/80 shadow-2xs'
-                          : isInProgress
-                          ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-400 dark:border-emerald-700/80 shadow-2xs'
-                          : isExpired
-                          ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800/70'
-                          : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate flex items-center gap-1.5 pt-0.5">
-                          {isCompleted && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
-                          <span className={isCompleted ? 'text-emerald-950 dark:text-emerald-200' : ''}>
-                            {job.clientName}
-                          </span>
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate flex items-center gap-1.5 pt-0.5">
+                        {isCompleted && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
+                        <span className={isCompleted ? 'text-emerald-950 dark:text-emerald-200' : ''}>
+                          {job.clientName}
                         </span>
+                      </span>
 
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          <span className="font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 px-2 py-0.5 rounded-[7px] border border-slate-200 dark:border-slate-700 shrink-0">
-                            {job.timeSlot}
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className="font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 px-2 py-0.5 rounded-[7px] border border-slate-200 dark:border-slate-700 shrink-0">
+                          {job.timeSlot}
+                        </span>
+                        {isExpired && (
+                          <span className="text-[9px] text-amber-700 dark:text-amber-400 font-bold bg-amber-100/80 dark:bg-amber-900/40 px-1.5 py-0.5 rounded-[5px] border border-amber-300 dark:border-amber-700 flex items-center gap-1">
+                            <Clock className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />
+                            <span>Orario terminato</span>
                           </span>
-                          {isExpired && (
-                            <span className="text-[9px] text-amber-700 dark:text-amber-400 font-bold bg-amber-100/80 dark:bg-amber-900/40 px-1.5 py-0.5 rounded-[5px] border border-amber-300 dark:border-amber-700 flex items-center gap-1">
-                              <Clock className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />
-                              <span>Orario terminato</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-slate-700 dark:text-slate-200 font-medium">
+                      {job.title}
+                    </div>
+
+                    {job.clientAddress && (
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        {job.clientAddress}
+                      </div>
+                    )}
+
+                    {/* Bottom row with worker assignment & quick completion button */}
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between pt-[7px] border-t border-slate-200/60 dark:border-slate-700/60 gap-2">
+                      <span className="truncate">Assegnato a: <strong>{job.assignedWorkerName}</strong></span>
+                      
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Pulsante 'In Corso' o 'Segna Ultimato' con 1 clic per completare */}
+                        {!isCompleted ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateJob({ ...job, status: 'completed' });
+                            }}
+                            className={`flex items-center gap-1.5 p-[7px] py-1 bg-transparent hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-600 dark:border-emerald-500 rounded-[7px] font-bold text-[10px] transition-colors cursor-pointer ${
+                              isInProgress ? 'ring-1 ring-emerald-500/30' : ''
+                            }`}
+                            title={
+                              isInProgress
+                                ? 'Intervento in corso · Clicca per segnare come Ultimato'
+                                : 'Clicca per segnare subito come Ultimato / Completato'
+                            }
+                          >
+                            {isInProgress ? (
+                              <>
+                                <span className="relative flex h-2 w-2">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600 dark:bg-emerald-400"></span>
+                                </span>
+                                <span>In Corso</span>
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                <span>Segna Ultimato</span>
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <span className="flex items-center gap-1 p-[7px] py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 rounded-[7px] font-bold text-[9px] uppercase">
+                              <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                              <span>Ultimato</span>
                             </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="text-xs text-slate-700 dark:text-slate-200 font-medium">
-                        {job.title}
-                      </div>
-
-                      {job.clientAddress && (
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                          {job.clientAddress}
-                        </div>
-                      )}
-
-                      {/* Bottom row with worker assignment & quick completion button */}
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between pt-[7px] border-t border-slate-200/60 dark:border-slate-700/60 gap-2">
-                        <span className="truncate">Assegnato a: <strong>{job.assignedWorkerName}</strong></span>
-                        
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {/* Pulsante 'In Corso' o 'Segna Ultimato' con 1 clic per completare */}
-                          {!isCompleted ? (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                updateJob({ ...job, status: 'completed' });
+                                updateJob({ ...job, status: 'scheduled' });
                               }}
-                              className={`flex items-center gap-1.5 p-[7px] py-1 bg-transparent hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-600 dark:border-emerald-500 rounded-[7px] font-bold text-[10px] transition-colors cursor-pointer ${
-                                isInProgress ? 'ring-1 ring-emerald-500/30' : ''
-                              }`}
-                              title={
-                                isInProgress
-                                  ? 'Intervento in corso · Clicca per segnare come Ultimato'
-                                  : 'Clicca per segnare subito come Ultimato / Completato'
-                              }
+                              className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 rounded transition-colors text-[10px]"
+                              title="Riapri e imposta come programmato"
                             >
-                              {isInProgress ? (
-                                <>
-                                  <span className="relative flex h-2 w-2">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600 dark:bg-emerald-400"></span>
-                                  </span>
-                                  <span>In Corso</span>
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                  <span>Segna Ultimato</span>
-                                </>
-                              )}
+                              <RotateCcw className="w-3 h-3" />
                             </button>
-                          ) : (
-                            <div className="flex items-center gap-1">
-                              <span className="flex items-center gap-1 p-[7px] py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 rounded-[7px] font-bold text-[9px] uppercase">
-                                <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                                <span>Ultimato</span>
-                              </span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  updateJob({ ...job, status: 'scheduled' });
-                                }}
-                                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 rounded transition-colors text-[10px]"
-                                title="Riapri e imposta come programmato"
-                              >
-                                <RotateCcw className="w-3 h-3" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  );
-                })
-              )}
-            </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
-        {/* Right Side Column: Squads & Quick Info with 7px spacing */}
-        <div className="space-y-[7px]">
-          
-          {/* Quick Team Status Card */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-            <div className="flex items-center justify-between pb-[7px] border-b border-slate-100 dark:border-slate-800">
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-[7px]">
-                <Users className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-                <span>Squadre sul Campo</span>
-              </span>
-              <button
-                onClick={() => onNavigateTab('reports')}
-                className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
-              >
-                <span>Rapportini</span>
-                <ArrowRight className="w-3 h-3" />
-              </button>
-            </div>
-
-            <div className="space-y-[7px]">
-              {users
-                .filter((u) => u.role === 'worker' && u.active)
-                .slice(0, 5)
-                .map((worker) => {
-                  const workerJobsToday = todayJobs.filter(
-                    (j) =>
-                      j.assignedWorkerId === worker.uid ||
-                      (j.assignedWorkerIds && j.assignedWorkerIds.includes(worker.uid)) ||
-                      (j.assignedWorkerName && j.assignedWorkerName.includes(worker.displayName))
-                  );
-                  return (
-                    <div
-                      key={worker.uid}
-                      className="flex items-center justify-between p-[7px] rounded-[7px] bg-slate-50 dark:bg-slate-800/50 text-xs border border-slate-100 dark:border-slate-800"
-                    >
-                      <span className="font-semibold text-slate-900 dark:text-slate-100 truncate">
-                        {worker.displayName}
-                      </span>
-                      <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400">
-                        {workerJobsToday.length} {workerJobsToday.length === 1 ? 'lavoro oggi' : 'lavori oggi'}
-                      </span>
-                    </div>
-                  );
-                })}
-            </div>
+        {/* Tomorrow's Jobs List */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[3px] shadow-xs space-y-[3px]">
+          <div className="flex items-center justify-between px-1.5 pt-1 pb-1">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+              <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+              <span>Interventi di Domani</span>
+              {tomorrowJobs.length > 0 && (
+                <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.2 rounded-full font-bold">
+                  {tomorrowJobs.length}
+                </span>
+              )}
+            </span>
+            <button
+              onClick={() => onNavigateTab('calendar')}
+              className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
+            >
+              <span>Vai al Calendario</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
           </div>
 
+          <div className="space-y-[3px]">
+            {tomorrowJobs.length === 0 ? (
+              <div className="p-3 py-6 text-center space-y-2">
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  Nessun intervento programmato per domani.
+                </p>
+                <button
+                  onClick={() => setIsCreatingJob(true)}
+                  className="inline-flex items-center gap-1.5 p-2 px-3 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-[6px] shadow-xs transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Pianifica un lavoro per domani</span>
+                </button>
+              </div>
+            ) : (
+              tomorrowJobs.map((job) => {
+                const isCompleted = job.status === 'completed';
+
+                return (
+                  <div
+                    key={job.id}
+                    onClick={() => setSelectedJobForModal(job)}
+                    className={`p-2.5 sm:p-3 border rounded-[6px] hover:border-emerald-400 dark:hover:border-emerald-600 cursor-pointer transition-all space-y-1.5 ${
+                      isCompleted
+                        ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800/80 shadow-2xs'
+                        : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate flex items-center gap-1.5 pt-0.5">
+                        {isCompleted && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
+                        <span className={isCompleted ? 'text-emerald-950 dark:text-emerald-200' : ''}>
+                          {job.clientName}
+                        </span>
+                      </span>
+
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className="font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 px-2 py-0.5 rounded-[7px] border border-slate-200 dark:border-slate-700 shrink-0">
+                          {job.timeSlot}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-slate-700 dark:text-slate-200 font-medium">
+                      {job.title}
+                    </div>
+
+                    {job.clientAddress && (
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        {job.clientAddress}
+                      </div>
+                    )}
+
+                    {/* Bottom row with worker assignment */}
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between pt-[7px] border-t border-slate-200/60 dark:border-slate-700/60 gap-2">
+                      <span className="truncate">Assegnato a: <strong>{job.assignedWorkerName}</strong></span>
+                      
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="p-[7px] py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-[7px] font-semibold text-[9px] uppercase">
+                          {job.status === 'completed' ? 'Ultimato' : 'Programmato'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
 
       </div>
@@ -516,6 +578,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
           onClose={() => setSelectedReportForModal(null)}
         />
       )}
+
+      {/* Modal for Recording Expense */}
+      <ExpenseModal
+        isOpen={isCreatingExpense}
+        onClose={() => setIsCreatingExpense(false)}
+      />
 
     </div>
   );

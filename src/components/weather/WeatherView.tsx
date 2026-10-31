@@ -102,8 +102,8 @@ export const WeatherView: React.FC<WeatherViewProps> = ({ onBack }) => {
         </div>
       </div>
 
-      {/* Search & Filters Bar - Strict 7px Spacing */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-[7px]">
+      {/* Search & Filters Bar */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[6px] shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-[3px] sm:gap-[6px]">
         {/* Search Input */}
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -117,10 +117,10 @@ export const WeatherView: React.FC<WeatherViewProps> = ({ onBack }) => {
         </div>
 
         {/* Filter Buttons */}
-        <div className="flex items-center gap-[7px] shrink-0 overflow-x-auto">
+        <div className="flex items-center gap-[3px] sm:gap-[6px] shrink-0 overflow-x-auto">
           <button
             onClick={() => setStatusFilter('all')}
-            className={`p-[7px] px-3 text-xs font-bold rounded-[7px] border transition-colors ${
+            className={`p-1.5 sm:p-[7px] px-2.5 sm:px-3 text-xs font-bold rounded-[7px] border transition-colors ${
               statusFilter === 'all'
                 ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border-slate-900 dark:border-slate-100'
                 : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
@@ -163,7 +163,7 @@ export const WeatherView: React.FC<WeatherViewProps> = ({ onBack }) => {
           Nessun cantiere corrisponde ai filtri di ricerca impostati.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[7px]">
+        <div className="grid grid-cols-3 gap-[3px] sm:gap-[6px]">
           {filteredClients.map((client) => {
             const weather = weatherMap[client.id];
             const isAlert = weather?.rainAlert;
@@ -174,28 +174,34 @@ export const WeatherView: React.FC<WeatherViewProps> = ({ onBack }) => {
             return (
               <div
                 key={client.id}
-                className={`rounded-[7px] border p-[7px] shadow-xs flex flex-col justify-between space-y-[7px] transition-all ${
+                className={`rounded-[7px] border p-1 sm:p-[6px] shadow-xs flex flex-col justify-between space-y-[3px] sm:space-y-[6px] transition-all ${
                   isAlert
                     ? 'bg-amber-50/70 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800'
                     : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
                 }`}
               >
                 {/* Header Row: Client Name, Address & SQM */}
-                <div className="space-y-[7px]">
-                  <div className="flex items-start justify-between gap-[7px]">
-                    <div className="min-w-0">
-                      <h2 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                <div className="space-y-[3px] sm:space-y-1">
+                  <div className="flex items-start justify-between gap-1">
+                    <div className="min-w-0 flex-1">
+                      <h2
+                        className="text-[10.5px] sm:text-xs font-bold text-slate-900 dark:text-slate-100 truncate"
+                        title={client.name}
+                      >
                         {client.name}
                       </h2>
-                      <div className="flex items-center gap-[7px] text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                        <MapPin className="w-3 h-3 shrink-0" />
+                      <div
+                        className="flex items-center gap-0.5 text-[8.5px] sm:text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5"
+                        title={client.address}
+                      >
+                        <MapPin className="w-2.5 h-2.5 shrink-0" />
                         <span className="truncate">{client.address}</span>
                       </div>
                     </div>
 
                     {client.gardenNotes?.squareMeters && (
-                      <span className="font-mono text-[10px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded-[7px] border border-emerald-200 dark:border-emerald-800 shrink-0">
-                        {client.gardenNotes.squareMeters} mq
+                      <span className="font-mono text-[8px] sm:text-[9px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 px-1 py-0.2 rounded-[5px] border border-emerald-200 dark:border-emerald-800 shrink-0">
+                        {client.gardenNotes.squareMeters}m²
                       </span>
                     )}
                   </div>
@@ -203,80 +209,80 @@ export const WeatherView: React.FC<WeatherViewProps> = ({ onBack }) => {
                   {/* Weather Alert or Optimal Badge */}
                   <div>
                     {isAlert ? (
-                      <div className="inline-flex items-center gap-[7px] p-[7px] py-1 rounded-[7px] bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-[10px] font-bold">
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Allerta Meteo (Pioggia {weather?.precipitationProbability}%)</span>
+                      <div className="w-full flex items-center justify-center gap-1 p-0.5 sm:p-1 rounded-[5px] bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-[8px] sm:text-[9.5px] font-bold truncate">
+                        <AlertTriangle className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                        <span className="truncate">Allerta {weather?.precipitationProbability}%</span>
                       </div>
                     ) : (
-                      <div className="inline-flex items-center gap-[7px] p-[7px] py-1 rounded-[7px] bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 text-[10px] font-bold">
-                        <Sun className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Condizioni Ottimali</span>
+                      <div className="w-full flex items-center justify-center gap-1 p-0.5 sm:p-1 rounded-[5px] bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 text-[8px] sm:text-[9.5px] font-bold truncate">
+                        <Sun className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                        <span className="truncate">Ottimale</span>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Weather Info & Metrics */}
-                <div className="pt-[7px] border-t border-slate-100 dark:border-slate-800/80 space-y-[7px]">
+                <div className="pt-1 border-t border-slate-100 dark:border-slate-800/80 space-y-[3px] sm:space-y-1">
                   {weather ? (
-                    <div className="space-y-[7px]">
-                      <div className="flex items-baseline justify-between gap-[7px]">
-                        <div className="flex items-baseline gap-[7px]">
-                          <span className="text-2xl font-bold font-mono text-slate-900 dark:text-slate-100">
-                            {weather.temp}°C
+                    <div className="space-y-[3px] sm:space-y-1">
+                      <div className="flex items-baseline justify-between gap-1">
+                        <div className="flex items-baseline gap-1 truncate">
+                          <span className="text-sm sm:text-lg font-bold font-mono text-slate-900 dark:text-slate-100">
+                            {weather.temp}°
                           </span>
-                          <span className="text-xs text-slate-600 dark:text-slate-300 font-medium">
+                          <span className="text-[8.5px] sm:text-[10px] text-slate-600 dark:text-slate-300 font-medium truncate">
                             {weather.condition}
                           </span>
                         </div>
 
                         {weather.isRaining && (
-                          <span className="text-[10px] font-bold text-sky-700 dark:text-sky-400 flex items-center gap-1">
-                            <CloudRain className="w-3.5 h-3.5 animate-bounce" />
-                            <span>In corso</span>
+                          <span className="text-[8px] sm:text-[9px] font-bold text-sky-700 dark:text-sky-400 flex items-center gap-0.5 shrink-0">
+                            <CloudRain className="w-2.5 h-2.5 animate-bounce" />
+                            <span className="hidden sm:inline">Piove</span>
                           </span>
                         )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-[7px] text-[11px] font-mono text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-[7px] rounded-[7px]">
-                        <div className="flex items-center gap-[7px]">
-                          <Droplets className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                          <span>Pioggia: <strong>{weather.precipitationProbability}%</strong></span>
+                      <div className="grid grid-cols-2 gap-0.5 sm:gap-1 text-[8px] sm:text-[9.5px] font-mono text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-1 rounded-[5px]">
+                        <div className="flex items-center gap-0.5 truncate" title={`Pioggia: ${weather.precipitationProbability}%`}>
+                          <Droplets className="w-2.5 h-2.5 text-sky-600 shrink-0" />
+                          <span className="truncate"><strong>{weather.precipitationProbability}%</strong></span>
                         </div>
-                        <div className="flex items-center gap-[7px]">
-                          <Wind className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                          <span>Vento: <strong>{weather.windSpeed} km/h</strong></span>
+                        <div className="flex items-center gap-0.5 truncate" title={`Vento: ${weather.windSpeed} km/h`}>
+                          <Wind className="w-2.5 h-2.5 text-slate-500 shrink-0" />
+                          <span className="truncate"><strong>{weather.windSpeed}</strong>k/h</span>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="p-[7px] py-3 text-center text-xs text-slate-400">
-                      Caricamento dati meteo in corso...
+                    <div className="p-1 py-2 text-center text-[9px] text-slate-400">
+                      Caricamento...
                     </div>
                   )}
 
                   {/* Operational Gardening Note */}
-                  <div className="text-[10px] p-[7px] rounded-[7px] bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                  <div className="text-[8px] sm:text-[9px] p-1 rounded-[5px] bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 leading-tight">
                     {isAlert ? (
-                      <span className="text-amber-800 dark:text-amber-300 font-semibold">
-                        Attenzione: rischio bagnatura erba o dilavamento. Valuta rinvio sfalci.
+                      <span className="text-amber-800 dark:text-amber-300 font-semibold block truncate" title="Attenzione: rischio bagnatura o pioggia. Valuta rinvio sfalci.">
+                        ⚠️ Rinvio sfalci
                       </span>
                     ) : (
-                      <span className="text-slate-600 dark:text-slate-400">
-                        Terreno idoneo: condizioni ottimali per taglio erba, siepi e potature.
+                      <span className="text-slate-600 dark:text-slate-400 font-semibold block truncate" title="Condizioni ottimali per taglio erba, siepi e potature.">
+                        🌿 Terreno idoneo
                       </span>
                     )}
                   </div>
 
                   {/* Scheduled Jobs Today indicator */}
                   {clientJobsToday.length > 0 && (
-                    <div className="p-[7px] rounded-[7px] bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-[10px] font-bold text-emerald-900 dark:text-emerald-200 flex items-center justify-between">
-                      <div className="flex items-center gap-[7px]">
-                        <Calendar className="w-3.5 h-3.5 text-emerald-700" />
-                        <span>{clientJobsToday.length} intervento/i oggi</span>
+                    <div className="p-1 rounded-[5px] bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-[8px] sm:text-[9px] font-bold text-emerald-900 dark:text-emerald-200 flex items-center justify-between gap-0.5 truncate">
+                      <div className="flex items-center gap-0.5 truncate">
+                        <Calendar className="w-2.5 h-2.5 text-emerald-700 shrink-0" />
+                        <span className="truncate">{clientJobsToday.length} oggi</span>
                       </div>
-                      <span className="font-mono text-[9px] text-emerald-800 dark:text-emerald-300">
-                        {clientJobsToday[0].assignedWorkerName}
+                      <span className="font-mono text-[7.5px] sm:text-[8.5px] text-emerald-800 dark:text-emerald-300 truncate">
+                        {clientJobsToday[0].assignedWorkerName?.split(' ')[0]}
                       </span>
                     </div>
                   )}

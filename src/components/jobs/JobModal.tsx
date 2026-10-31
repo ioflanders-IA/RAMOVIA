@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Job, JobStatus, JobPaymentStatus, MaterialRequirement, PaymentMethod, PaymentInstallment } from '../../types';
+import { Job, JobStatus, JobPaymentStatus, MaterialRequirement, EquipmentRequirement, PaymentMethod, PaymentInstallment } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { X, Trash2, Package, Euro, User, UserCheck, Plus, Check, Repeat, Clock, AlertCircle, Calendar as CalendarIcon, Users } from 'lucide-react';
+import { X, Trash2, Package, Euro, User, UserCheck, Plus, Check, Repeat, Clock, AlertCircle, Calendar as CalendarIcon, Users, Wrench } from 'lucide-react';
 import { formatLocalDate, parseLocalDate, formatItalianDate } from '../../utils/dateUtils';
 import { RichNoteBox } from '../common/RichNoteBox';
 import { getClientColor } from '../../utils/clientColors';
@@ -283,6 +283,48 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
     setMaterialsRequired((prev) => prev.filter((m) => m.itemId !== itemId));
   };
 
+  // Equipment Required & Hours of Usage
+  const [equipmentRequired, setEquipmentRequired] = useState<EquipmentRequirement[]>(
+    job?.equipmentRequired || []
+  );
+  const [selectedEquipId, setSelectedEquipId] = useState<string>('');
+  const [selectedEquipHours, setSelectedEquipHours] = useState<number>(2);
+
+  const handleAddEquipment = () => {
+    if (!selectedEquipId) return;
+    const invItem = inventory.find((i) => i.id === selectedEquipId);
+    if (!invItem) return;
+
+    if (equipmentRequired.some((e) => e.itemId === invItem.id)) {
+      setEquipmentRequired((prev) =>
+        prev.map((e) =>
+          e.itemId === invItem.id ? { ...e, hoursUsed: e.hoursUsed + selectedEquipHours } : e
+        )
+      );
+    } else {
+      setEquipmentRequired((prev) => [
+        ...prev,
+        {
+          itemId: invItem.id,
+          name: invItem.name,
+          hoursUsed: selectedEquipHours,
+        },
+      ]);
+    }
+    setSelectedEquipId('');
+    setSelectedEquipHours(2);
+  };
+
+  const handleRemoveEquipment = (itemId: string) => {
+    setEquipmentRequired((prev) => prev.filter((e) => e.itemId !== itemId));
+  };
+
+  const handleUpdateEquipmentHours = (itemId: string, hours: number) => {
+    setEquipmentRequired((prev) =>
+      prev.map((e) => (e.itemId === itemId ? { ...e, hoursUsed: Math.max(0, hours) } : e))
+    );
+  };
+
   const [sessionsCount, setSessionsCount] = useState<number>(
     job?.sessionsCount || (job?.plannedDates ? job.plannedDates.length : 1)
   );
@@ -328,6 +370,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
       paidAmount: Number(paidAmount),
       installments,
       materialsRequired,
+      equipmentRequired,
       interventionType,
       billingArrangement: interventionType === 'generale' ? billingArrangement : 'standard',
       frequency: interventionType === 'generale' ? `${plannedDates.length} uscite programmate` : undefined,
@@ -1360,6 +1403,117 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                 onClick={handleAddMaterial}
                 className="shrink-0 px-2.5 py-1.5 bg-slate-800 dark:bg-emerald-700 hover:bg-slate-700 dark:hover:bg-emerald-600 text-white font-medium rounded-[7px] text-xs cursor-pointer shadow-xs transition-colors flex items-center gap-1 whitespace-nowrap"
                 title="Aggiungi materiale"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Aggiungi</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Attrezzatura Richiesta & Ore Utilizzo */}
+          <div className="p-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-[7px] space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1.5 uppercase tracking-wider">
+                <Wrench className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>ATTREZZATURA & ORE DI UTILIZZO</span>
+              </label>
+              {equipmentRequired.length > 0 && (
+                <span className="font-mono text-[10px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-100 dark:bg-emerald-950/70 px-1.5 py-0.5 rounded-[4px]">
+                  {equipmentRequired.reduce((sum, eq) => sum + (eq.hoursUsed || 0), 0)}h conteggiate
+                </span>
+              )}
+            </div>
+
+            {/* Elenco attrezzature già selezionate */}
+            {equipmentRequired.length > 0 && (
+              <div className="space-y-1.5">
+                {equipmentRequired.map((equip) => {
+                  const invItem = inventory.find((i) => i.id === equip.itemId);
+                  return (
+                    <div
+                      key={equip.itemId}
+                      className="flex items-center justify-between p-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Wrench className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="font-medium text-slate-800 dark:text-slate-200 truncate">
+                          {equip.name}
+                        </span>
+                        {invItem?.currentUsageHours !== undefined && (
+                          <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">
+                            (Giri attuali: {invItem.currentUsageHours}h)
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="0.5"
+                            step="0.5"
+                            value={equip.hoursUsed}
+                            onChange={(e) =>
+                              handleUpdateEquipmentHours(equip.itemId, parseFloat(e.target.value) || 0)
+                            }
+                            className="w-14 p-1 text-center font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[5px] text-xs"
+                          />
+                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                            ore
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveEquipment(equip.itemId)}
+                          className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-[7px] p-1 cursor-pointer transition-colors"
+                          title="Rimuovi attrezzatura"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Selettore per aggiungere attrezzatura con ore di utilizzo */}
+            <div className="flex items-center gap-1.5 pt-1 w-full min-w-0">
+              <select
+                value={selectedEquipId}
+                onChange={(e) => setSelectedEquipId(e.target.value)}
+                className="flex-1 min-w-0 p-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs text-slate-900 dark:text-slate-100 truncate focus:outline-emerald-600"
+              >
+                <option value="">Seleziona Attrezzatura</option>
+                {inventory
+                  .filter((i) => i.category === 'equipment')
+                  .map((eq) => (
+                    <option key={eq.id} value={eq.id}>
+                      {eq.name} {eq.brand ? `(${eq.brand})` : ''} - Ore attuali: {eq.currentUsageHours}h
+                    </option>
+                  ))}
+              </select>
+
+              <div className="flex items-center gap-1 shrink-0">
+                <input
+                  type="number"
+                  min="0.5"
+                  step="0.5"
+                  value={selectedEquipHours}
+                  onChange={(e) => setSelectedEquipHours(parseFloat(e.target.value) || 0.5)}
+                  placeholder="Ore"
+                  title="Ore di utilizzo da conteggiare"
+                  className="w-12 sm:w-14 p-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs font-mono font-bold text-center text-slate-900 dark:text-slate-100"
+                />
+                <span className="text-[10px] font-bold text-slate-500">h</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAddEquipment}
+                disabled={!selectedEquipId}
+                className="shrink-0 px-2.5 py-1.5 bg-slate-800 dark:bg-emerald-700 hover:bg-slate-700 dark:hover:bg-emerald-600 disabled:opacity-50 text-white font-medium rounded-[7px] text-xs cursor-pointer shadow-xs transition-colors flex items-center gap-1 whitespace-nowrap"
+                title="Aggiungi attrezzatura al cantiere"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Aggiungi</span>

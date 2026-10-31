@@ -74,141 +74,143 @@ export const InventoryView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-[7px]">
-      
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-[7px]">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-[7px]">
-            <Package className="w-5 h-5 text-emerald-700" />
-            <span>Magazzino, Attrezzature & Giacenze</span>
-          </h1>
-          <p className="text-xs text-slate-500 mt-[7px]">
-            Monitoraggio scorte, registro ore di utilizzo macchine e calcolo automatico fabbisogni.
-          </p>
+    <div className="space-y-[6px]">
+      {/* Top Action Buttons (Senza titolo per massimizzare lo spazio) */}
+      {currentUser?.role === 'admin' && (
+        <div className="grid grid-cols-2 gap-[6px] w-full">
+          <button
+            onClick={() => {
+              setNewCategoryType('material');
+              setIsCreatingNew(true);
+            }}
+            className="flex items-center justify-center gap-1.5 p-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-[7px] shadow-xs transition-colors cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Nuovo Consumabile</span>
+          </button>
+          <button
+            onClick={() => {
+              setNewCategoryType('equipment');
+              setIsCreatingNew(true);
+            }}
+            className="flex items-center justify-center gap-1.5 p-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-[7px] shadow-xs transition-colors cursor-pointer border border-slate-700 dark:bg-slate-800 dark:border-slate-700"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Nuova Attrezzatura</span>
+          </button>
         </div>
+      )}
 
-        {currentUser?.role === 'admin' && (
-          <div className="flex items-center gap-[7px] shrink-0">
-            <button
-              onClick={() => {
-                setNewCategoryType('material');
-                setIsCreatingNew(true);
-              }}
-              className="flex items-center gap-[7px] px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold rounded-[7px] shadow-xs transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nuovo Materiale</span>
-            </button>
-            <button
-              onClick={() => {
-                setNewCategoryType('equipment');
-                setIsCreatingNew(true);
-              }}
-              className="flex items-center gap-[7px] px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-[7px] shadow-xs transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nuova Attrezzatura</span>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* KPI Overview Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-[7px]">
-        <div className="bg-white border border-slate-200 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-            Articoli a Magazzino
+      {/* KPI Overview: I 4 RIEPILOGHI SU UN SOLO RIGO (CON COLORI PERFETTI IN ENTRAMBI I TEMI) */}
+      <div className="grid grid-cols-4 gap-[3px] w-full">
+        {/* 1. Articoli a Magazzino */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] p-[3px] py-[3px] px-1.5 shadow-2xs space-y-0.5 flex flex-col justify-between min-w-0">
+          <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tight text-slate-500 dark:text-slate-400 truncate">
+            Articoli
           </span>
-          <span className="text-xl font-bold font-mono text-slate-900 block">
+          <span className="text-xs sm:text-base font-bold font-mono text-slate-900 dark:text-slate-100 truncate">
             {inventory.length}
           </span>
-          <span className="text-[11px] text-slate-400 block">
-            {inventory.filter((i) => i.category === 'material').length} materiali ·{' '}
-            {inventory.filter((i) => i.category === 'equipment').length} macchine
+          <span className="text-[7px] sm:text-[8px] text-slate-400 dark:text-slate-500 truncate">
+            {inventory.filter((i) => i.category === 'material').length} cons · {inventory.filter((i) => i.category === 'equipment').length} attr
           </span>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-            Materiali Sotto Scorta
+        {/* 2. Consumabili Sotto Scorta */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] p-[3px] py-[3px] px-1.5 shadow-2xs space-y-0.5 flex flex-col justify-between min-w-0">
+          <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tight text-slate-500 dark:text-slate-400 truncate">
+            Sotto Scorta
           </span>
-          <span className={`text-xl font-bold font-mono block ${
-            lowStockMaterials.length > 0 ? 'text-amber-700' : 'text-slate-900'
+          <span className={`text-xs sm:text-base font-bold font-mono truncate ${
+            lowStockMaterials.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-slate-100'
           }`}>
             {lowStockMaterials.length}
           </span>
-          <span className="text-[11px] text-amber-700 font-medium block">Richiedono riordino</span>
+          <span className="text-[7px] sm:text-[8px] text-amber-600 dark:text-amber-400 truncate">
+            Da riordinare
+          </span>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-            Allarmi Manutenzione
+        {/* 3. Allarmi Manutenzione */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] p-[3px] py-[3px] px-1.5 shadow-2xs space-y-0.5 flex flex-col justify-between min-w-0">
+          <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tight text-slate-500 dark:text-slate-400 truncate">
+            Manutenzione
           </span>
-          <span className={`text-xl font-bold font-mono block ${
-            equipmentAlerts.length > 0 ? 'text-rose-700' : 'text-slate-900'
+          <span className={`text-xs sm:text-base font-bold font-mono truncate ${
+            equipmentAlerts.length > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'
           }`}>
             {equipmentAlerts.length}
           </span>
-          <span className="text-[11px] text-rose-700 font-medium block">Ore limite raggiunte</span>
+          <span className="text-[7px] sm:text-[8px] text-rose-600 dark:text-rose-400 truncate">
+            Ore limite
+          </span>
         </div>
 
+        {/* 4. Lista della Spesa */}
         <div
           onClick={() => setActiveTab('shopping')}
-          className="bg-emerald-50/70 border border-emerald-200 rounded-[7px] p-[7px] shadow-xs cursor-pointer hover:bg-emerald-100/50 transition-colors space-y-[7px]"
+          className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 rounded-[6px] p-[3px] py-[3px] px-1.5 shadow-2xs space-y-0.5 flex flex-col justify-between min-w-0 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
         >
-          <span className="text-[11px] font-semibold text-emerald-900 uppercase tracking-wider block flex items-center justify-between">
-            <span>Lista della Spesa</span>
-            <ShoppingCart className="w-3.5 h-3.5 text-emerald-700" />
+          <div className="flex items-center justify-between text-emerald-800 dark:text-emerald-300">
+            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tight truncate">Lista Spesa</span>
+            <ShoppingCart className="w-2.5 h-2.5 shrink-0" />
+          </div>
+          <span className="text-xs sm:text-base font-bold font-mono text-emerald-900 dark:text-emerald-200 truncate">
+            {shoppingList.length} art
           </span>
-          <span className="text-xl font-bold font-mono text-emerald-950 block">
-            {shoppingList.length} articoli
+          <span className="text-[7px] sm:text-[8px] text-emerald-700 dark:text-emerald-400 truncate">
+            Da cantieri
           </span>
-          <span className="text-[11px] text-emerald-800 font-medium block">Calcolati da cantieri</span>
         </div>
       </div>
 
       {/* Tabs & Search Filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-[7px] border-b border-slate-200 pb-[7px]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-[6px] border-b border-slate-200 dark:border-slate-800 pb-[6px]">
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-[7px] bg-slate-100 p-[7px] rounded-[7px] flex-wrap">
+        <div className="flex items-center gap-1 bg-slate-200/70 dark:bg-slate-800/80 border border-slate-300/50 dark:border-slate-700 p-1 rounded-[7px] flex-wrap">
           <button
             onClick={() => setActiveTab('all')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-[7px] transition-colors ${
-              activeTab === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            className={`px-3 py-1.5 text-xs font-semibold rounded-[6px] transition-colors cursor-pointer ${
+              activeTab === 'all'
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             Tutti ({inventory.length})
           </button>
           <button
             onClick={() => setActiveTab('materials')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-[7px] transition-colors ${
-              activeTab === 'materials' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            className={`px-3 py-1.5 text-xs font-semibold rounded-[6px] transition-colors cursor-pointer ${
+              activeTab === 'materials'
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
-            Materiali & Concimi
+            Consumabili
           </button>
           <button
             onClick={() => setActiveTab('equipment')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-[7px] transition-colors ${
-              activeTab === 'equipment' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            className={`px-3 py-1.5 text-xs font-semibold rounded-[6px] transition-colors cursor-pointer ${
+              activeTab === 'equipment'
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
-            Attrezzature & Macchine
+            Attrezzature
           </button>
           <button
             onClick={() => setActiveTab('shopping')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-[7px] transition-colors flex items-center gap-[7px] ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-[6px] transition-colors flex items-center gap-1 cursor-pointer ${
               activeTab === 'shopping'
-                ? 'bg-emerald-800 text-white shadow-xs'
-                : 'text-emerald-900 hover:text-emerald-950 font-bold'
+                ? 'bg-emerald-800 dark:bg-emerald-600 text-white shadow-xs'
+                : 'text-emerald-800 dark:text-emerald-400 hover:text-emerald-950 font-bold'
             }`}
           >
             <ShoppingCart className="w-3.5 h-3.5" />
             <span>Lista Spesa</span>
             {shoppingList.length > 0 && (
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-                activeTab === 'shopping' ? 'bg-emerald-600 text-white' : 'bg-emerald-200 text-emerald-900'
+                activeTab === 'shopping' ? 'bg-emerald-600 dark:bg-emerald-500 text-white' : 'bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200'
               }`}>
                 {shoppingList.length}
               </span>
@@ -225,7 +227,7 @@ export const InventoryView: React.FC = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Cerca per articolo o marca..."
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-[7px] shadow-xs focus:outline-emerald-600"
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-[7px] shadow-xs focus:outline-emerald-600"
             />
           </div>
         )}
@@ -330,17 +332,17 @@ export const InventoryView: React.FC = () => {
                     setNewCategoryType('material');
                     setIsCreatingNew(true);
                   }}
-                  className="inline-flex items-center gap-[7px] px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold rounded-[7px] shadow-xs transition-colors"
+                  className="inline-flex items-center gap-[7px] px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold rounded-[7px] shadow-xs transition-colors cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>+ Aggiungi Materiale</span>
+                  <span>+ Aggiungi Consumabile</span>
                 </button>
                 <button
                   onClick={() => {
                     setNewCategoryType('equipment');
                     setIsCreatingNew(true);
                   }}
-                  className="inline-flex items-center gap-[7px] px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-[7px] shadow-xs transition-colors"
+                  className="inline-flex items-center gap-[7px] px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-[7px] shadow-xs transition-colors cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>+ Aggiungi Attrezzatura</span>
@@ -366,12 +368,12 @@ export const InventoryView: React.FC = () => {
             return (
               <div
                 key={item.id}
-                className={`bg-white border rounded-[7px] p-[7px] shadow-xs transition-all flex flex-col justify-between space-y-[7px] ${
+                className={`bg-white dark:bg-slate-900 border rounded-[7px] p-[7px] shadow-xs transition-all flex flex-col justify-between space-y-[7px] ${
                   isMaintenanceAlert
-                    ? 'border-rose-300 ring-2 ring-rose-50'
+                    ? 'border-rose-300 dark:border-rose-800 ring-2 ring-rose-50 dark:ring-rose-950/40'
                     : isLowStock
-                    ? 'border-amber-300 ring-2 ring-amber-50'
-                    : 'border-slate-200 hover:border-slate-300'
+                    ? 'border-amber-300 dark:border-amber-800 ring-2 ring-amber-50 dark:ring-amber-950/40'
+                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
               >
                 <div className="space-y-[7px]">
@@ -380,19 +382,19 @@ export const InventoryView: React.FC = () => {
                     <span
                       className={`inline-flex items-center gap-[7px] px-2 py-0.5 rounded-[7px] text-[10px] font-bold uppercase tracking-wider ${
                         isEquipment
-                          ? 'bg-slate-100 text-slate-800'
-                          : 'bg-emerald-50 text-emerald-800'
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
+                          : 'bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                       }`}
                     >
                       {isEquipment ? <Wrench className="w-3 h-3" /> : <Package className="w-3 h-3" />}
-                      {isEquipment ? 'Attrezzatura' : 'Materiale'}
+                      {isEquipment ? 'Attrezzatura' : 'Consumabile'}
                     </span>
 
                     {currentUser?.role === 'admin' && (
                       <div className="flex items-center gap-[7px]">
                         <button
                           onClick={() => setSelectedItemForEdit(item)}
-                          className="p-1 text-slate-400 hover:text-slate-700 rounded-[7px]"
+                          className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-[7px] cursor-pointer"
                           title="Modifica"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
@@ -403,7 +405,7 @@ export const InventoryView: React.FC = () => {
                               deleteInventoryItem(item.id);
                             }
                           }}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded-[7px]"
+                          className="p-1 text-slate-400 hover:text-rose-600 rounded-[7px] cursor-pointer"
                           title="Elimina"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -412,29 +414,68 @@ export const InventoryView: React.FC = () => {
                     )}
                   </div>
 
-                  <h3 className="text-sm font-bold text-slate-900 leading-snug">{item.name}</h3>
-                  {item.brand && (
-                    <div className="text-[11px] text-slate-500 font-medium">{item.brand}</div>
-                  )}
+                  <div className="flex items-start gap-2.5">
+                    {item.imageUrl && (
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        className="w-12 h-12 object-cover rounded-[6px] border border-slate-200 dark:border-slate-700 shrink-0 bg-slate-100 dark:bg-slate-800"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug truncate">
+                        {item.name}
+                      </h3>
+                      {item.brand && (
+                        <div className="pt-0.5">
+                          {(() => {
+                            const logo =
+                              item.brandLogoUrl?.trim() ||
+                              (item.brand.trim().toLowerCase() === 'stihl'
+                                ? 'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7f/Stihl_Logo.svg/3840px-Stihl_Logo.svg.png?utm_source=it.wikipedia.org&utm_campaign=index&utm_content=thumbnail'
+                                : null);
+                            if (logo) {
+                              return (
+                                <img
+                                  src={logo}
+                                  alt={item.brand}
+                                  className="h-4.5 max-w-[75px] object-contain"
+                                  title={item.brand}
+                                />
+                              );
+                            }
+                            return (
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
+                                {item.brand}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
                   {/* Material Specific View */}
                   {!isEquipment && (
-                    <div className="p-[7px] bg-slate-50 border border-slate-200/80 rounded-[7px] space-y-[7px]">
+                    <div className="p-[7px] bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 rounded-[7px] space-y-[7px]">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500 font-medium">Giacenza a magazzino</span>
-                        <span className="text-base font-bold font-mono text-slate-900">
-                          {item.quantity} <span className="text-xs text-slate-500 font-normal">{item.unit}</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Giacenza a magazzino</span>
+                        <span className="text-base font-bold font-mono text-slate-900 dark:text-slate-100">
+                          {item.quantity} <span className="text-xs text-slate-500 dark:text-slate-400 font-normal">{item.unit}</span>
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between text-xs text-slate-500">
+                      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                         <span>Soglia minima scorta:</span>
-                        <span className="font-mono font-medium">{item.minThreshold} {item.unit}</span>
+                        <span className="font-mono font-medium text-slate-700 dark:text-slate-300">{item.minThreshold} {item.unit}</span>
                       </div>
 
                       {isLowStock && (
-                        <div className="pt-1 flex items-center gap-[7px] text-[11px] text-amber-800 font-bold">
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <div className="pt-1 flex items-center gap-[7px] text-[11px] text-amber-800 dark:text-amber-300 font-bold">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                           <span>Sotto scorta minima! Inserito nella lista spesa.</span>
                         </div>
                       )}
@@ -443,16 +484,16 @@ export const InventoryView: React.FC = () => {
 
                   {/* Equipment Specific View */}
                   {isEquipment && (
-                    <div className="p-[7px] bg-slate-50 border border-slate-200/80 rounded-[7px] space-y-[7px]">
+                    <div className="p-[7px] bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 rounded-[7px] space-y-[7px]">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-500">Ore di lavoro:</span>
-                        <span className="font-mono font-bold text-slate-900">
+                        <span className="text-slate-500 dark:text-slate-400">Ore di lavoro:</span>
+                        <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
                           {item.currentUsageHours}h / {item.maintenanceIntervalHours}h
                         </span>
                       </div>
 
                       {/* Usage bar */}
-                      <div className="w-full bg-slate-200 rounded-[7px] h-2 overflow-hidden">
+                      <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-[7px] h-2 overflow-hidden">
                         <div
                           className={`h-full rounded-[7px] transition-all ${
                             usagePercent >= 100
@@ -466,15 +507,15 @@ export const InventoryView: React.FC = () => {
                       </div>
 
                       {item.assignedWorkerName && (
-                        <div className="flex items-center gap-[7px] text-[11px] text-slate-600">
+                        <div className="flex items-center gap-[7px] text-[11px] text-slate-600 dark:text-slate-300">
                           <Truck className="w-3.5 h-3.5 text-slate-400" />
                           <span>Assegnato: <strong>{item.assignedWorkerName}</strong></span>
                         </div>
                       )}
 
                       {isMaintenanceAlert && (
-                        <div className="p-[7px] bg-rose-50 border border-rose-200 rounded-[7px] text-rose-900 text-xs flex items-center gap-[7px]">
-                          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <div className="p-[7px] bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 rounded-[7px] text-rose-900 dark:text-rose-200 text-xs flex items-center gap-[7px]">
+                          <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
                           <span>
                             <strong>Manutenzione richiesta!</strong> Ore limite raggiunte.
                           </span>
@@ -485,7 +526,7 @@ export const InventoryView: React.FC = () => {
                 </div>
 
                 {/* Card footer actions */}
-                <div className="pt-[7px] border-t border-slate-100 flex items-center justify-between text-xs">
+                <div className="pt-[7px] border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
                   {isEquipment ? (
                     currentUser?.role === 'admin' ? (
                       <button
@@ -499,7 +540,7 @@ export const InventoryView: React.FC = () => {
                             recordEquipmentMaintenance(item.id, parseInt(confirmService) || 0);
                           }
                         }}
-                        className="flex items-center gap-[7px] px-2.5 py-1 text-slate-700 hover:text-emerald-800 bg-slate-100 hover:bg-slate-200 rounded-[7px] font-medium transition-colors"
+                        className="flex items-center gap-[7px] px-2.5 py-1 text-slate-700 dark:text-slate-200 hover:text-emerald-800 dark:hover:text-emerald-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-[7px] font-medium transition-colors cursor-pointer"
                       >
                         <RotateCcw className="w-3 h-3" />
                         <span>Registra Manutenzione</span>
@@ -519,7 +560,7 @@ export const InventoryView: React.FC = () => {
                               quantity: Math.max(0, item.quantity - 1),
                             })
                           }
-                          className="w-6 h-6 rounded-[7px] bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold text-slate-700"
+                          className="w-6 h-6 rounded-[7px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 cursor-pointer"
                         >
                           -
                         </button>
@@ -530,7 +571,7 @@ export const InventoryView: React.FC = () => {
                               quantity: item.quantity + 1,
                             })
                           }
-                          className="w-6 h-6 rounded-[7px] bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold text-slate-700"
+                          className="w-6 h-6 rounded-[7px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 cursor-pointer"
                         >
                           +
                         </button>

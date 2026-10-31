@@ -22,8 +22,8 @@ import {
 } from 'lucide-react';
 
 interface HeaderProps {
-  activeTab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather';
-  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather') => void;
+  activeTab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather' | 'team';
+  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather' | 'team') => void;
   onOpenFirebaseModal?: () => void;
   isSidebarCollapsed?: boolean;
 }
@@ -97,10 +97,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenFi
         />
       )}
 
-      {/* Team Management Modal */}
-      {showTeamModal && (
-        <TeamManagementModal onClose={() => setShowTeamModal(false)} />
-      )}
+
 
       {/* iOS PWA Installation Guide Modal */}
       {showIOSGuide && (

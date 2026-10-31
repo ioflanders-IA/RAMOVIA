@@ -23,8 +23,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface HamburgerDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  activeTab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather';
-  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather') => void;
+  activeTab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather' | 'team';
+  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather' | 'team') => void;
   onOpenAccount: () => void;
   onOpenSettings: () => void;
   onOpenTeamModal: () => void;
@@ -44,7 +44,7 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
 
   if (!currentUser) return null;
 
-  const handleNavClick = (tab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather') => {
+  const handleNavClick = (tab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather' | 'team') => {
     onSelectTab(tab);
     onClose();
   };
@@ -98,13 +98,55 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
                 </div>
               </div>
 
-              {/* Minimal Textless Light/Dark Theme Switcher */}
-              <div className="flex items-center gap-[7px] shrink-0">
+              {/* Minimal Action Icons + Theme Toggle + Close */}
+              <div className="flex items-center gap-[5px] shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenAccount();
+                  }}
+                  className="p-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-emerald-600 text-slate-700 dark:text-slate-300 rounded-[7px] transition-colors shadow-xs"
+                  title="Profilo & Dati Aziendali"
+                  aria-label="Profilo & Dati Aziendali"
+                >
+                  <User className="w-4 h-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenSettings();
+                  }}
+                  className="p-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-emerald-600 text-slate-700 dark:text-slate-300 rounded-[7px] transition-colors shadow-xs"
+                  title="Impostazioni Applicazione"
+                  aria-label="Impostazioni Applicazione"
+                >
+                  <Settings className="w-4 h-4" />
+                </button>
+
+                {currentUser.role === 'admin' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenTeamModal();
+                    }}
+                    className="p-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-emerald-600 text-emerald-700 dark:text-emerald-400 rounded-[7px] transition-colors shadow-xs"
+                    title="Gestione Squadra & Operai"
+                    aria-label="Gestione Squadra & Operai"
+                  >
+                    <Shield className="w-4 h-4" />
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={toggleTheme}
                   className="p-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-emerald-600 rounded-[7px] text-slate-700 dark:text-slate-200 transition-colors shadow-xs"
                   title={`Tema attuale: ${effectiveTheme === 'dark' ? 'Scuro' : 'Chiaro'} (Clicca per cambiare)`}
+                  aria-label="Cambia tema chiaro/scuro"
                 >
                   {effectiveTheme === 'dark' ? (
                     <Sun className="w-4 h-4 text-amber-400" />
@@ -116,6 +158,7 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
                 <button
                   onClick={onClose}
                   className="p-[7px] text-slate-400 hover:text-slate-800 dark:hover:text-white rounded-[7px] hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                  aria-label="Chiudi menu"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -232,47 +275,7 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
                 </button>
               </div>
 
-              {/* Company & Settings Section */}
-              <div className="space-y-[7px] pt-1">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1 block">
-                  Profilo & Impostazioni
-                </span>
 
-                <button
-                  onClick={() => {
-                    onClose();
-                    onOpenAccount();
-                  }}
-                  className="w-full p-[7px] px-3 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-[7px] flex items-center gap-[7px] transition-colors"
-                >
-                  <User className="w-4 h-4 text-slate-600 dark:text-slate-400" />
-                  <span>Profilo & Dati Aziendali</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    onClose();
-                    onOpenSettings();
-                  }}
-                  className="w-full p-[7px] px-3 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-[7px] flex items-center gap-[7px] transition-colors"
-                >
-                  <Settings className="w-4 h-4 text-slate-600 dark:text-slate-400" />
-                  <span>Impostazioni Applicazione</span>
-                </button>
-
-                {currentUser.role === 'admin' && (
-                  <button
-                    onClick={() => {
-                      onClose();
-                      onOpenTeamModal();
-                    }}
-                    className="w-full p-[7px] px-3 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 rounded-[7px] flex items-center gap-[7px] transition-colors"
-                  >
-                    <Shield className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-                    <span>Gestione Squadra & Operai</span>
-                  </button>
-                )}
-              </div>
 
               {/* Logout Action */}
               <div className="pt-2">
