@@ -121,20 +121,6 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
                   <Palette className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>Colore Identificativo (Mappa & Calendario)</span>
                 </label>
-
-                {/* Live Preview Badge */}
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-[5px] bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                  <span className="text-[10px] text-slate-500 font-medium">Anteprima:</span>
-                  <div
-                    className="w-5 h-5 rounded-[4px] text-white font-bold text-[10px] flex items-center justify-center shadow-2xs"
-                    style={{ backgroundColor: color }}
-                  >
-                    {(name || 'C').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="text-[10px] font-bold truncate max-w-[100px]" style={{ color }}>
-                    {name || 'Cliente'}
-                  </span>
-                </div>
               </div>
 
               {/* Swatches Grid */}

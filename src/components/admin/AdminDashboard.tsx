@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { fetchWeatherForClients } from '../../services/weatherService';
 import { Job, WorkReport, WeatherData } from '../../types';
@@ -85,6 +85,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
   // Real operational hours logged across all reports
   const totalReportedHours = reports.reduce((sum, r) => sum + r.totalHours, 0);
 
+  // Operatori unici impegnati nei cantieri di oggi (contati solo 1 volta al giorno)
+  const activeWorkersToday = useMemo(() => {
+    const uniqueWorkerIds = new Set<string>();
+    todayJobs.forEach((j) => {
+      if (j.assignedWorkerIds && j.assignedWorkerIds.length > 0) {
+        j.assignedWorkerIds.forEach((wId) => { if (wId) uniqueWorkerIds.add(wId); });
+      } else if (j.assignedWorkerId) {
+        uniqueWorkerIds.add(j.assignedWorkerId);
+      }
+    });
+    return uniqueWorkerIds.size > 0
+      ? uniqueWorkerIds.size
+      : users.filter((u) => u.role === 'worker' && u.active).length;
+  }, [todayJobs, users]);
+
   const handleSaveJob = (jobData: any) => {
     if (selectedJobForModal) {
       updateJob({ ...selectedJobForModal, ...jobData });
@@ -166,7 +181,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
             <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
           </div>
           <div className="text-xl sm:text-2xl font-bold font-mono text-slate-900 dark:text-slate-100 leading-tight">
-            {users.filter((u) => u.role === 'worker' && u.active).length}
+            {activeWorkersToday}
           </div>
           <div className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
             Operatori sul campo

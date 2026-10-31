@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { PaymentMethod, ExpenseCategory, ExpenseRecord, WorkerPayout, PaymentInstallment, Job } from '../../types';
 import {
@@ -27,10 +27,12 @@ import {
   Trash2,
   Edit2,
   RotateCcw,
+  BarChart3,
 } from 'lucide-react';
 
 import { ClientDirectoryView } from './ClientDirectoryView';
 import { ExpenseModal } from './ExpenseModal';
+import { getClientColor } from '../../utils/clientColors';
 
 export const PaymentsView: React.FC = () => {
   const {
@@ -98,6 +100,13 @@ export const PaymentsView: React.FC = () => {
 
   // Confirmation modal to delete an entire job / cantiere
   const [jobToDelete, setJobToDelete] = useState<Job | null>(null);
+
+  // Confirmation modal to safely delete a single expense
+  const [expenseToDelete, setExpenseToDelete] = useState<ExpenseRecord | null>(null);
+
+  // Chart interactivity states
+  const [selectedCategoryKey, setSelectedCategoryKey] = useState<string | null>(null);
+  const [hoveredMonthKey, setHoveredMonthKey] = useState<string | null>(null);
 
   // Long-press state for revealing icon-only actions (modifica & azzera) in bottom-right
   const [longPressedPaymentJobId, setLongPressedPaymentJobId] = useState<string | null>(null);
@@ -218,6 +227,119 @@ export const PaymentsView: React.FC = () => {
 
   // 4. Operating Profit Margin
   const netMargin = totalJobCollected - totalWorkerPaidAll - totalExpensesAmount;
+
+  // Monochromatic modern green/emerald palette for Donut Chart
+  const MONOCHROME_EMERALD_PALETTE = [
+    '#047857', // emerald-700
+    '#059669', // emerald-600
+    '#10b981', // emerald-500
+    '#34d399', // emerald-400
+    '#065f46', // emerald-800
+    '#6ee7b7', // emerald-300
+    '#064e3b', // emerald-900
+    '#0f766e', // teal-700
+    '#14b8a6', // teal-500
+    '#a7f3d0', // emerald-200
+  ];
+
+  // 1. Spese raggruppate per categoria (con quote percentuali e palette monocromatica)
+  const expensesByCategory = useMemo(() => {
+    const map = new Map<string, { category: string; label: string; amount: number; count: number }>();
+
+    const categoryLabels: Record<string, string> = {
+      carburante: 'Carburante',
+      materiale: 'Materiale / Consumabili',
+      attrezzatura: 'Attrezzatura & Noleggio',
+      manutenzione: 'Manutenzione',
+      stipendio: 'Manodopera / Stipendi',
+      generale: 'Spese Generali / Altro',
+    };
+
+    expenses.forEach((e) => {
+      const rawCat = (e.category || 'generale').toLowerCase();
+      const catKey = categoryLabels[rawCat] ? rawCat : 'generale';
+      const existing = map.get(catKey) || {
+        category: catKey,
+        label: categoryLabels[catKey] || catKey,
+        amount: 0,
+        count: 0,
+      };
+      existing.amount += Number(e.amount) || 0;
+      existing.count += 1;
+      map.set(catKey, existing);
+    });
+
+    const list = Array.from(map.values()).sort((a, b) => b.amount - a.amount);
+    const total = list.reduce((sum, item) => sum + item.amount, 0);
+
+    return list.map((item, index) => ({
+      ...item,
+      color: MONOCHROME_EMERALD_PALETTE[index % MONOCHROME_EMERALD_PALETTE.length],
+      percentage: total > 0 ? (item.amount / total) * 100 : 0,
+    }));
+  }, [expenses]);
+
+  // 2. Andamento temporale spese (raggruppamento cronologico per mese)
+  const expensesByMonth = useMemo(() => {
+    const monthNames = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+    const monthMap = new Map<string, { key: string; label: string; fullLabel: string; year: string; amount: number; count: number }>();
+
+    // Inizializza gli ultimi 6 mesi per continuità visiva immediata
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const y = d.getFullYear().toString();
+      const mNum = String(d.getMonth() + 1).padStart(2, '0');
+      const key = `${y}-${mNum}`;
+      monthMap.set(key, {
+        key,
+        label: `${monthNames[d.getMonth()]} '${y.slice(2)}`,
+        fullLabel: `${monthNames[d.getMonth()]} ${y}`,
+        year: y,
+        amount: 0,
+        count: 0,
+      });
+    }
+
+    // Aggiungi le spese effettive registrate
+    expenses.forEach((e) => {
+      const dateStr = e.date || e.createdAt;
+      if (!dateStr) return;
+      const key = dateStr.slice(0, 7); // YYYY-MM
+      if (!monthMap.has(key)) {
+        const parts = key.split('-');
+        const y = parts[0];
+        const mIdx = (parseInt(parts[1], 10) || 1) - 1;
+        monthMap.set(key, {
+          key,
+          label: `${monthNames[mIdx] || parts[1]} '${y.slice(2)}`,
+          fullLabel: `${monthNames[mIdx] || parts[1]} ${y}`,
+          year: y,
+          amount: 0,
+          count: 0,
+        });
+      }
+      const entry = monthMap.get(key)!;
+      entry.amount += Number(e.amount) || 0;
+      entry.count += 1;
+    });
+
+    const sorted = Array.from(monthMap.values()).sort((a, b) => a.key.localeCompare(b.key));
+    const displayMonths = sorted.length > 8 ? sorted.slice(sorted.length - 8) : sorted;
+
+    const maxMonthAmount = Math.max(...displayMonths.map((m) => m.amount), 1);
+    const totalPeriodAmount = displayMonths.reduce((s, m) => s + m.amount, 0);
+    const avgMonthly = displayMonths.length > 0 ? totalPeriodAmount / displayMonths.length : 0;
+    const peakMonth = displayMonths.reduce((prev, curr) => (curr.amount > prev.amount ? curr : prev), displayMonths[0]);
+
+    return {
+      months: displayMonths,
+      maxMonthAmount,
+      totalPeriodAmount,
+      avgMonthly,
+      peakMonth,
+    };
+  }, [expenses]);
 
   // Handlers
   const handleSaveExpense = async (e: React.FormEvent) => {

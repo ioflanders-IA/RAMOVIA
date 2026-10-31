@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import {
   Client,
   ExpenseRecord,
@@ -344,14 +344,62 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  const [expenses, setExpenses] = useState<ExpenseRecord[]>(() => {
+  const [operationalExpenses, setOperationalExpenses] = useState<ExpenseRecord[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.EXPENSES);
-      return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
+      const parsed = saved ? JSON.parse(saved) : [];
+      const pureExpenses = Array.isArray(parsed)
+        ? parsed.filter((e: any) => !e.jobId && !e.jobCostId && !e.id?.startsWith('exp_job_'))
+        : [];
+      return pureExpenses.length > 0 ? pureExpenses : INITIAL_EXPENSES;
     } catch {
       return INITIAL_EXPENSES;
     }
   });
+
+  // Combina in tempo reale le spese operative generali con ciascun costo singolo registrato nei cantieri
+  const expenses = useMemo<ExpenseRecord[]>(() => {
+    const combined: ExpenseRecord[] = [];
+    const seenIds = new Set<string>();
+
+    // 1. Spese generali
+    operationalExpenses.forEach((exp) => {
+      if (!seenIds.has(exp.id)) {
+        seenIds.add(exp.id);
+        combined.push(exp);
+      }
+    });
+
+    // 2. Ogni voce di costo dei cantieri/lavori
+    jobs.forEach((job) => {
+      if (job.costs && job.costs.length > 0) {
+        job.costs.forEach((cost) => {
+          const costExpId = `exp_job_${job.id}_${cost.id}`;
+          if (!seenIds.has(costExpId) && !seenIds.has(cost.id)) {
+            seenIds.add(costExpId);
+            combined.push({
+              id: costExpId,
+              title: cost.name,
+              category: mapJobCostCategoryToExpense(cost.category),
+              amount: Number(cost.amount) || 0,
+              date: job.date || new Date().toISOString().split('T')[0],
+              paymentMethod: job.paymentMethod || 'contanti',
+              recipientOrVendor: cost.notes || job.clientName,
+              notes: `Costo cantiere: ${job.title} (${job.clientName})`,
+              status: 'paid',
+              createdAt: cost.createdAt || job.date || new Date().toISOString(),
+              jobId: job.id,
+              jobCostId: cost.id,
+              clientId: job.clientId,
+              clientName: job.clientName,
+            });
+          }
+        });
+      }
+    });
+
+    return combined.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }, [operationalExpenses, jobs]);
 
   const [payouts, setPayouts] = useState<WorkerPayout[]>(() => {
     try {
@@ -365,7 +413,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [workedDays, setWorkedDays] = useState<WorkedDay[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.WORKED_DAYS);
-      return saved ? JSON.parse(saved) : [];
+      const parsed: WorkedDay[] = saved ? JSON.parse(saved) : [];
+      // Deduplica presenze nello stesso giorno per lo stesso operaio
+      const uniqueMap = new Map<string, WorkedDay>();
+      parsed.forEach((wd) => {
+        const key = `${wd.workerId}_${wd.date}`;
+        if (!uniqueMap.has(key)) {
+          uniqueMap.set(key, { ...wd });
+        } else {
+          const existing = uniqueMap.get(key)!;
+          if (wd.notes && !existing.notes?.includes(wd.notes)) {
+            existing.notes = `${existing.notes || ''} | ${wd.notes}`;
+          }
+        }
+      });
+      return Array.from(uniqueMap.values());
     } catch {
       return [];
     }
@@ -404,8 +466,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [reports]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses));
-  }, [expenses]);
+    localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(operationalExpenses));
+  }, [operationalExpenses]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.PAYOUTS, JSON.stringify(payouts));
@@ -415,49 +477,90 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem(STORAGE_KEYS.WORKED_DAYS, JSON.stringify(workedDays));
   }, [workedDays]);
 
-  // Sincronizzazione automatica: ogni voce di costo registrata in un cantiere/lavoro
-  // deve apparire nel Registro Spese Operative come singola spesa
+  // Auto-reconciliation: verifica e applica ore attrezzatura e scarico materiali dei lavori già completati
   useEffect(() => {
-    let hasNewExpense = false;
-    const currentList = [...expenses];
+    const unappliedJobs = jobs.filter(
+      (j) =>
+        j.status === 'completed' &&
+        (!j.equipmentHoursApplied || !j.materialsDeducted) &&
+        ((j.equipmentRequired && j.equipmentRequired.length > 0) ||
+          (j.materialsRequired && j.materialsRequired.length > 0))
+    );
 
-    jobs.forEach((job) => {
-      if (job.costs && job.costs.length > 0) {
-        job.costs.forEach((cost) => {
-          const linkedId = `exp_job_${job.id}_${cost.id}`;
-          const alreadyExists = currentList.some(
-            (e) => e.id === linkedId || e.jobCostId === cost.id
-          );
-          if (!alreadyExists) {
-            hasNewExpense = true;
-            currentList.push({
-              id: linkedId,
-              title: `${cost.name} [${job.clientName}]`,
-              category: mapJobCostCategoryToExpense(cost.category),
-              amount: cost.amount,
-              date: job.date || new Date().toISOString().split('T')[0],
-              paymentMethod: job.paymentMethod || 'contanti',
-              recipientOrVendor: cost.notes || job.clientName,
-              notes: `Costo intervento ${job.title} (${job.clientName})`,
-              status: 'paid',
-              createdAt: cost.createdAt || new Date().toISOString(),
-              jobId: job.id,
-              jobCostId: cost.id,
+    if (unappliedJobs.length === 0) return;
+
+    let invChanged = false;
+    let nextInv = [...inventory];
+
+    unappliedJobs.forEach((job) => {
+      // 1. Attrezzature: somma ore
+      if (!job.equipmentHoursApplied && job.equipmentRequired) {
+        job.equipmentRequired.forEach((req) => {
+          const hours = Number(req.hoursUsed) || 0;
+          if (hours > 0) {
+            nextInv = nextInv.map((item) => {
+              if (
+                item.category === 'equipment' &&
+                (item.id === req.itemId || (item.name && req.name && item.name.trim().toLowerCase() === req.name.trim().toLowerCase()))
+              ) {
+                invChanged = true;
+                return { ...item, currentUsageHours: (item.currentUsageHours || 0) + hours };
+              }
+              return item;
+            });
+          }
+        });
+      }
+
+      // 2. Materiali: scarico giacenza
+      if (!job.materialsDeducted && job.materialsRequired) {
+        job.materialsRequired.forEach((mat) => {
+          const qty = Number(mat.qtyNeeded) || 0;
+          if (qty > 0) {
+            nextInv = nextInv.map((item) => {
+              if (
+                item.category === 'material' &&
+                (item.id === mat.itemId || (item.name && mat.name && item.name.trim().toLowerCase() === mat.name.trim().toLowerCase()))
+              ) {
+                invChanged = true;
+                return { ...item, quantity: Math.max(0, (item.quantity || 0) - qty) };
+              }
+              return item;
             });
           }
         });
       }
     });
 
-    if (hasNewExpense) {
-      setExpenses(currentList);
+    if (invChanged) {
+      setInventory(nextInv);
       try {
-        localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(currentList));
+        localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(nextInv));
       } catch (e) {
         console.warn(e);
       }
     }
-  }, [jobs]);
+
+    setJobs((prev) => {
+      const next = prev.map((j) => {
+        if (
+          j.status === 'completed' &&
+          (!j.equipmentHoursApplied || !j.materialsDeducted) &&
+          ((j.equipmentRequired && j.equipmentRequired.length > 0) ||
+            (j.materialsRequired && j.materialsRequired.length > 0))
+        ) {
+          return { ...j, equipmentHoursApplied: true, materialsDeducted: true };
+        }
+        return j;
+      });
+      try {
+        localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
+  }, [jobs.length]);
 
   // 3. Firestore snapshot listeners & real-time cross-device sync (PC <-> Mobile)
   useEffect(() => {
@@ -523,16 +626,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       (err) => console.warn('reports snapshot error:', err)
     );
 
-    // EXPENSES LISTENER
+    // EXPENSES LISTENER (Solo spese operative generali)
     const unsubExpenses = onSnapshot(
       collection(db, 'expenses'),
       (snap) => {
-        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as ExpenseRecord));
-        setExpenses(docs);
-        try {
-          localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(docs));
-        } catch (e) {
-          console.warn(e);
+        if (!snap.empty) {
+          const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as ExpenseRecord));
+          const pureDocs = docs.filter((e) => !e.jobId && !e.jobCostId && !e.id?.startsWith('exp_job_'));
+          if (pureDocs.length > 0) {
+            setOperationalExpenses(pureDocs);
+            try {
+              localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(pureDocs));
+            } catch (e) {
+              console.warn(e);
+            }
+          }
         }
       },
       (err) => console.warn('expenses snapshot error:', err)
@@ -1058,6 +1166,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // WORKED DAYS (Presenze & Compensi Giornalieri)
   const addWorkedDay = async (data: Omit<WorkedDay, 'id' | 'createdAt'>) => {
+    // Controlla se l'operaio ha già una giornata conteggiata in questa data
+    const existing = workedDays.find((wd) => wd.workerId === data.workerId && wd.date === data.date);
+    if (existing) {
+      // Aggiorna l'esistente unificando note e cantieri senza conteggiare due volte la giornata
+      const updated: WorkedDay = {
+        ...existing,
+        cantiereName: data.cantiereName && !existing.cantiereName?.includes(data.cantiereName)
+          ? `${existing.cantiereName || ''}, ${data.cantiereName}`
+          : existing.cantiereName,
+        notes: data.notes && !existing.notes?.includes(data.notes)
+          ? `${existing.notes || ''} | ${data.notes}`
+          : existing.notes,
+      };
+      await updateWorkedDay(updated);
+      return;
+    }
+
     const id = `wd_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const newDay: WorkedDay = {
       ...data,
@@ -1193,12 +1318,87 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // Helper: Sincronizza ore di utilizzo attrezzature e consumo materiali in Magazzino
+  const syncJobToInventory = (updatedJob: Job, prevJob?: Job) => {
+    setInventory((prevInv) => {
+      let changed = false;
+      const nextInv = prevInv.map((item) => {
+        const updatedItem = { ...item };
+
+        // 1. ATTREZZATURE: Calcolo e aggiornamento ore di utilizzo
+        if (item.category === 'equipment') {
+          const req = updatedJob.equipmentRequired?.find(
+            (r) => r.itemId === item.id || (r.name && item.name && r.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+          );
+          const prevReq = prevJob?.equipmentRequired?.find(
+            (r) => r.itemId === item.id || (r.name && item.name && r.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+          );
+
+          const newHours = updatedJob.status === 'completed' ? (Number(req?.hoursUsed) || 0) : 0;
+          const oldHours = (prevJob?.status === 'completed' && prevJob.equipmentHoursApplied) ? (Number(prevReq?.hoursUsed) || 0) : 0;
+          const deltaHours = newHours - oldHours;
+
+          if (deltaHours !== 0) {
+            const calculatedHours = Math.max(0, (item.currentUsageHours || 0) + deltaHours);
+            updatedItem.currentUsageHours = calculatedHours;
+            changed = true;
+            if (db) {
+              updateDoc(doc(db, 'inventory', item.id), { currentUsageHours: calculatedHours }).catch((err) =>
+                console.warn('Firestore equipment hours update error:', err)
+              );
+            }
+          }
+        }
+
+        // 2. MATERIALI & CONSUMABILI: Scarico giacenze da magazzino
+        if (item.category === 'material') {
+          const reqMat = updatedJob.materialsRequired?.find(
+            (m) => m.itemId === item.id || (m.name && item.name && m.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+          );
+          const prevMat = prevJob?.materialsRequired?.find(
+            (m) => m.itemId === item.id || (m.name && item.name && m.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+          );
+
+          const newQtyDeducted = updatedJob.status === 'completed' ? (Number(reqMat?.qtyNeeded) || 0) : 0;
+          const oldQtyDeducted = (prevJob?.status === 'completed' && prevJob.materialsDeducted) ? (Number(prevMat?.qtyNeeded) || 0) : 0;
+          const deltaQty = newQtyDeducted - oldQtyDeducted;
+
+          if (deltaQty !== 0) {
+            const calculatedQty = Math.max(0, (item.quantity || 0) - deltaQty);
+            updatedItem.quantity = calculatedQty;
+            changed = true;
+            if (db) {
+              updateDoc(doc(db, 'inventory', item.id), { quantity: calculatedQty }).catch((err) =>
+                console.warn('Firestore material quantity update error:', err)
+              );
+            }
+          }
+        }
+
+        return updatedItem;
+      });
+
+      if (changed) {
+        try {
+          localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(nextInv));
+        } catch (e) {
+          console.warn(e);
+        }
+        return nextInv;
+      }
+      return prevInv;
+    });
+  };
+
   // JOB MANAGEMENT
   const addJob = async (jobData: Omit<Job, 'id'>) => {
     const id = `job_${Date.now()}`;
+    const isCompleted = jobData.status === 'completed';
     const newJob: Job = {
       ...jobData,
       id,
+      equipmentHoursApplied: isCompleted,
+      materialsDeducted: isCompleted,
     };
 
     setJobs((prev) => {
@@ -1211,6 +1411,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
 
+    if (isCompleted) {
+      syncJobToInventory(newJob);
+    }
+
     if (db) {
       try {
         await setDoc(doc(db, 'jobs', id), sanitizeForFirestore(newJob));
@@ -1221,8 +1425,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateJob = async (updated: Job) => {
+    const prevJob = jobs.find((j) => j.id === updated.id);
+    const isCompleted = updated.status === 'completed';
+
+    const processedJob: Job = {
+      ...updated,
+      equipmentHoursApplied: isCompleted,
+      materialsDeducted: isCompleted,
+    };
+
     setJobs((prev) => {
-      const next = prev.map((j) => (j.id === updated.id ? updated : j));
+      const next = prev.map((j) => (j.id === processedJob.id ? processedJob : j));
       try {
         localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(next));
       } catch (e) {
@@ -1231,65 +1444,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
 
-    if (updated.status === 'completed') {
-      const targetWorkerIds = updated.assignedWorkerIds && updated.assignedWorkerIds.length > 0
-        ? updated.assignedWorkerIds
-        : [updated.assignedWorkerId];
+    // Sincronizza sempre ore macchine e consumo materiali in magazzino
+    syncJobToInventory(processedJob, prevJob);
+
+    if (isCompleted) {
+      const targetWorkerIds = processedJob.assignedWorkerIds && processedJob.assignedWorkerIds.length > 0
+        ? processedJob.assignedWorkerIds
+        : [processedJob.assignedWorkerId];
 
       targetWorkerIds.forEach((wId) => {
         if (!wId) return;
         const workerObj = users.find((u) => u.uid === wId);
-        const wName = workerObj?.displayName || updated.assignedWorkerName || 'Operaio';
-        const existing = workedDays.find((wd) => wd.jobId === updated.id && wd.workerId === wId);
-        if (!existing) {
+        const wName = workerObj?.displayName || processedJob.assignedWorkerName || 'Operaio';
+        const existingOnDate = workedDays.find((wd) => wd.workerId === wId && wd.date === processedJob.date);
+        if (!existingOnDate) {
           const defaultDailyRate = workerObj?.dailyRate || 90;
           addWorkedDay({
             workerId: wId,
             workerName: wName,
-            date: updated.date,
+            date: processedJob.date,
             dayType: 'full',
             dailyRate: defaultDailyRate,
             amount: defaultDailyRate,
-            cantiereName: updated.cantiereName || updated.clientName,
-            jobId: updated.id,
-            notes: `Completato: ${updated.title}`,
+            cantiereName: processedJob.cantiereName || processedJob.clientName,
+            jobId: processedJob.id,
+            notes: `Completato: ${processedJob.title}`,
             paid: false,
           });
         }
       });
-
-      // Aggiornamento ore di utilizzo attrezzature a magazzino
-      if (updated.equipmentRequired && updated.equipmentRequired.length > 0) {
-        const prevJob = jobs.find((j) => j.id === updated.id);
-        if (prevJob?.status !== 'completed') {
-          setInventory((prev) => {
-            const next = prev.map((item) => {
-              const req = updated.equipmentRequired?.find((r) => r.itemId === item.id);
-              if (req && req.hoursUsed > 0) {
-                const newHours = (item.currentUsageHours || 0) + req.hoursUsed;
-                if (db) {
-                  updateDoc(doc(db, 'inventory', item.id), { currentUsageHours: newHours }).catch((err) =>
-                    console.warn('Firestore equipment hours update error:', err)
-                  );
-                }
-                return { ...item, currentUsageHours: newHours };
-              }
-              return item;
-            });
-            try {
-              localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(next));
-            } catch (e) {
-              console.warn(e);
-            }
-            return next;
-          });
-        }
-      }
     }
 
     if (db) {
       try {
-        await setDoc(doc(db, 'jobs', updated.id), sanitizeForFirestore(updated), { merge: true });
+        await setDoc(doc(db, 'jobs', processedJob.id), sanitizeForFirestore(processedJob), { merge: true });
       } catch (err) {
         console.warn('Firestore update job error:', err);
       }
@@ -1344,26 +1532,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
 
-    const targetJob = jobs.find((j) => j.id === jobId);
-    const clientName = targetJob?.clientName || 'Cantiere';
-    const jobTitle = targetJob?.title || 'Intervento';
-    const expenseId = `exp_job_${jobId}_${costId}`;
-
-    const newExpense: ExpenseRecord = {
-      id: expenseId,
-      title: `${newCost.name} [${clientName}]`,
-      category: mapJobCostCategoryToExpense(newCost.category),
-      amount: newCost.amount,
-      date: targetJob?.date || new Date().toISOString().split('T')[0],
-      paymentMethod: targetJob?.paymentMethod || 'contanti',
-      recipientOrVendor: newCost.notes || clientName,
-      notes: `Costo intervento ${jobTitle} (${clientName})`,
-      status: 'paid',
-      createdAt: newCost.createdAt || new Date().toISOString(),
-      jobId,
-      jobCostId: costId,
-    };
-
     setJobs((prev) => {
       const next = prev.map((j) => {
         if (j.id === jobId) {
@@ -1385,24 +1553,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return next;
     });
-
-    setExpenses((prev) => {
-      const next = [newExpense, ...prev.filter((e) => e.id !== expenseId && e.jobCostId !== costId)];
-      try {
-        localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(next));
-      } catch (e) {
-        console.warn(e);
-      }
-      return next;
-    });
-
-    if (db) {
-      try {
-        await setDoc(doc(db, 'expenses', expenseId), sanitizeForFirestore(newExpense));
-      } catch (err) {
-        console.warn('Firestore add expense for job cost error:', err);
-      }
-    }
   };
 
   const deleteJobCost = async (jobId: string, costId: string) => {
@@ -1427,25 +1577,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return next;
     });
-
-    const linkedExpenseId = `exp_job_${jobId}_${costId}`;
-    setExpenses((prev) => {
-      const next = prev.filter((e) => e.jobCostId !== costId && e.id !== linkedExpenseId);
-      try {
-        localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(next));
-      } catch (e) {
-        console.warn(e);
-      }
-      return next;
-    });
-
-    if (db) {
-      try {
-        await deleteDoc(doc(db, 'expenses', linkedExpenseId));
-      } catch (err) {
-        console.warn('Firestore delete linked expense error:', err);
-      }
-    }
   };
 
   // INVENTORY MANAGEMENT
@@ -1651,7 +1782,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
 
-    setExpenses((prev) => {
+    setOperationalExpenses((prev) => {
       const next = [newExpense, ...prev.filter((e) => e.id !== id)];
       try {
         localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(next));
@@ -1671,7 +1802,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateExpense = async (updated: ExpenseRecord) => {
-    setExpenses((prev) => {
+    // If it belongs to a job cost
+    if (updated.jobId && updated.jobCostId) {
+      setJobs((prev) => {
+        const next = prev.map((j) => {
+          if (j.id === updated.jobId) {
+            const updatedCosts = (j.costs || []).map((c) =>
+              c.id === updated.jobCostId
+                ? { ...c, amount: Number(updated.amount) || 0, name: updated.title, notes: updated.recipientOrVendor }
+                : c
+            );
+            const updatedJob = { ...j, costs: updatedCosts };
+            if (db) {
+              setDoc(doc(db, 'jobs', j.id), sanitizeForFirestore(updatedJob), { merge: true }).catch((e) =>
+                console.warn(e)
+              );
+            }
+            return updatedJob;
+          }
+          return j;
+        });
+        try {
+          localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(next));
+        } catch (e) {
+          console.warn(e);
+        }
+        return next;
+      });
+      return;
+    }
+
+    setOperationalExpenses((prev) => {
       const next = prev.map((e) => (e.id === updated.id ? updated : e));
       try {
         localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(next));
@@ -1693,16 +1854,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteExpense = async (id: string) => {
     const expenseToDelete = expenses.find((e) => e.id === id);
 
-    setExpenses((prev) => {
-      const next = prev.filter((e) => e.id !== id);
-      try {
-        localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(next));
-      } catch (e) {
-        console.warn(e);
-      }
-      return next;
-    });
-
+    // Se appartiene a un costo di cantiere
     if (expenseToDelete?.jobId && expenseToDelete?.jobCostId) {
       setJobs((prev) => {
         const next = prev.map((j) => {
@@ -1725,7 +1877,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         return next;
       });
+      return;
     }
+
+    if (id.startsWith('exp_job_')) {
+      const parts = id.replace('exp_job_', '').split('_');
+      const jobId = parts[0];
+      const costId = parts.slice(1).join('_');
+      setJobs((prev) => {
+        const next = prev.map((j) => {
+          if (j.id === jobId) {
+            const updatedCosts = (j.costs || []).filter((c) => c.id !== costId);
+            const updatedJob = { ...j, costs: updatedCosts };
+            if (db) {
+              setDoc(doc(db, 'jobs', j.id), sanitizeForFirestore(updatedJob), { merge: true }).catch((e) =>
+                console.warn(e)
+              );
+            }
+            return updatedJob;
+          }
+          return j;
+        });
+        try {
+          localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(next));
+        } catch (e) {
+          console.warn(e);
+        }
+        return next;
+      });
+      return;
+    }
+
+    // Se è una spesa operativa generale, rimuovi solo questo ID
+    setOperationalExpenses((prev) => {
+      const next = prev.filter((e) => e.id !== id);
+      try {
+        localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
 
     if (db) {
       try {
@@ -1848,7 +2040,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setJobs([]);
     setInventory([]);
     setReports([]);
-    setExpenses([]);
+    setOperationalExpenses([]);
     setPayouts([]);
     setWorkedDays([]);
   };

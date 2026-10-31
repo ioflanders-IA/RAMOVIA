@@ -320,24 +320,16 @@ export const ClientsView: React.FC = () => {
                   key={client.id}
                   onClick={() => setSelectedClientId(client.id)}
                   style={{ borderLeftColor: clientColor, borderLeftWidth: '3.5px' }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[3px] shadow-xs hover:border-emerald-500 dark:hover:border-emerald-600 cursor-pointer transition-all space-y-[3px] group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-2 shadow-xs hover:border-emerald-500 dark:hover:border-emerald-600 cursor-pointer transition-all space-y-[3px] group"
                 >
-                  <div className="flex items-start justify-between gap-[3px]">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div
-                        className="w-8 h-8 rounded-[5px] text-white font-bold flex items-center justify-center text-xs shrink-0 shadow-2xs"
-                        style={{ backgroundColor: clientColor }}
-                      >
-                        {client.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors truncate">
-                          {client.name}
-                        </h3>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate">
-                          <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                          <span className="truncate">{client.address}</span>
-                        </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
+                        {client.name}
+                      </h3>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-start gap-1 pt-0.5 leading-snug">
+                        <MapPin className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
+                        <span className="whitespace-normal break-words">{client.address}</span>
                       </div>
                     </div>
 
@@ -491,12 +483,6 @@ export const ClientsView: React.FC = () => {
             </button>
 
             <div className="flex items-center gap-2">
-              <div
-                className="w-7 h-7 rounded-[5px] text-white font-bold flex items-center justify-center text-xs shrink-0 shadow-2xs"
-                style={{ backgroundColor: getClientColor(activeClient) }}
-              >
-                {activeClient.name.charAt(0).toUpperCase()}
-              </div>
               <div>
                 <h1 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <span>{activeClient.name}</span>

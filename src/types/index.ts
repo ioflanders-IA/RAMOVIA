@@ -138,6 +138,8 @@ export interface Job {
   hourlyRate?: number; // tariffa oraria (€/h)
   estimatedHoursPerSession?: number; // stima ore per uscita
   plannedDates?: string[]; // elenco date scelte liberamente dall'utente
+  equipmentHoursApplied?: boolean;
+  materialsDeducted?: boolean;
 }
 
 export type InventoryCategory = 'equipment' | 'material';
@@ -232,6 +234,8 @@ export interface ExpenseRecord {
   createdAt: string;
   jobId?: string;
   jobCostId?: string;
+  clientId?: string;
+  clientName?: string;
 }
 
 export interface WorkerPayout {

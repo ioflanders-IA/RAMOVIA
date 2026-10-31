@@ -289,12 +289,8 @@ export const ClientDirectoryView: React.FC<ClientDirectoryViewProps> = ({
                   onClick={() => setSelectedClientId(isExpanded ? null : client.id)}
                   className="p-[7px] bg-white dark:bg-slate-900 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-[7px] transition-colors"
                 >
-                  <div className="flex items-start gap-[7px] min-w-0">
-                    <div className="w-9 h-9 rounded-[7px] bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold flex items-center justify-center shrink-0 text-sm">
-                      {client.name.charAt(0).toUpperCase()}
-                    </div>
-
-                    <div className="min-w-0 space-y-1">
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 space-y-1">
                       <div className="flex items-center gap-[7px] flex-wrap">
                         <span className="font-bold text-xs text-slate-900 dark:text-slate-100">
                           {client.name}
@@ -322,9 +318,9 @@ export const ClientDirectoryView: React.FC<ClientDirectoryViewProps> = ({
                             {client.email}
                           </span>
                         )}
-                        <span className="flex items-center gap-1 truncate">
-                          <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                          <span className="truncate">{client.address}</span>
+                        <span className="flex items-start gap-1 leading-snug">
+                          <MapPin className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
+                          <span className="whitespace-normal break-words">{client.address}</span>
                         </span>
                       </div>
                     </div>
