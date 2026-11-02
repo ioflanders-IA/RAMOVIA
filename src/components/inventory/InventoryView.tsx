@@ -432,26 +432,32 @@ export const InventoryView: React.FC = () => {
                       {item.brand && (
                         <div className="pt-0.5">
                           {(() => {
+                            const isBrandUrl = item.brand.toLowerCase().includes('http://') || item.brand.toLowerCase().includes('https://');
+                            const cleanBrand = isBrandUrl ? '' : item.brand.trim();
                             const logo =
                               item.brandLogoUrl?.trim() ||
-                              (item.brand.trim().toLowerCase() === 'stihl'
+                              (isBrandUrl ? item.brand.trim() : null) ||
+                              (cleanBrand.toLowerCase() === 'stihl'
                                 ? 'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7f/Stihl_Logo.svg/3840px-Stihl_Logo.svg.png?utm_source=it.wikipedia.org&utm_campaign=index&utm_content=thumbnail'
                                 : null);
                             if (logo) {
                               return (
                                 <img
                                   src={logo}
-                                  alt={item.brand}
+                                  alt={cleanBrand || item.name}
                                   className="h-4.5 max-w-[75px] object-contain"
-                                  title={item.brand}
+                                  title={cleanBrand || item.name}
                                 />
                               );
                             }
-                            return (
-                              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
-                                {item.brand}
-                              </div>
-                            );
+                            if (cleanBrand) {
+                              return (
+                                <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
+                                  {cleanBrand}
+                                </div>
+                              );
+                            }
+                            return null;
                           })()}
                         </div>
                       )}

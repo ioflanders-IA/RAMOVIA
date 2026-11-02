@@ -46,6 +46,7 @@ export const SquadWorkersRegistry: React.FC = () => {
     deleteUser,
     payouts,
     recordWorkerPayout,
+    deleteWorkerPayout,
     clients,
     jobs,
     currentUser,
@@ -343,6 +344,19 @@ export const SquadWorkersRegistry: React.FC = () => {
         await handleQuickPayWorker(item.worker, item.pendingToPay, item.days, 'contanti');
       }
     }
+  };
+
+  // Helper to format short date in Italian (e.g., "30 OTT")
+  const formatShortDateItalian = (dateStr: string) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length < 3) return dateStr;
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+    const d = new Date(year, month - 1, day);
+    const monthShort = d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', '').toUpperCase();
+    return `${day} ${monthShort}`;
   };
 
   // Helper to format YYYY-MM safely
@@ -807,7 +821,7 @@ export const SquadWorkersRegistry: React.FC = () => {
 
                     {/* Accordion Elenco Giornate Operaio */}
                     {isExpanded && (
-                      <div className="p-2 bg-slate-100 dark:bg-slate-800/80 rounded-[7px] space-y-1.5 max-h-48 overflow-y-auto text-[11px]">
+                      <div className="p-2 bg-slate-100 dark:bg-slate-800/80 rounded-[7px] space-y-[3px] max-h-48 overflow-y-auto text-[11px]">
                         {st.days.length === 0 ? (
                           <div className="text-slate-400 text-center py-2">
                             Nessuna giornata inserita in questo mese.
@@ -820,7 +834,7 @@ export const SquadWorkersRegistry: React.FC = () => {
                             >
                               <div className="min-w-0 flex-1">
                                 <div className="font-mono font-bold text-slate-800 dark:text-slate-200 truncate">
-                                  {d.date} ({d.dayType === 'full' ? '1 gg' : d.dayType === 'half' ? '0.5 gg' : `${d.hours}h`})
+                                  {formatShortDateItalian(d.date)}
                                 </div>
                                 {d.cantiereName && (
                                   <div className="text-[10px] text-slate-500 truncate" title={d.cantiereName}>
@@ -870,7 +884,7 @@ export const SquadWorkersRegistry: React.FC = () => {
             Nessuna giornata di lavoro inserita per {formattedMonthLabel}.
           </div>
         ) : (
-          <div className="space-y-1 max-h-56 overflow-y-auto pr-0.5">
+          <div className="space-y-[3px] max-h-56 overflow-y-auto pr-0.5">
             {monthWorkedDays
               .sort((a, b) => b.date.localeCompare(a.date))
               .map((d) => (
@@ -880,7 +894,7 @@ export const SquadWorkersRegistry: React.FC = () => {
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <span className="font-mono text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/80 shrink-0">
-                      {d.date}
+                      {formatShortDateItalian(d.date)}
                     </span>
                     <span className="font-bold text-slate-100 text-xs shrink-0">
                       {d.workerName}
@@ -931,7 +945,7 @@ export const SquadWorkersRegistry: React.FC = () => {
             Nessun pagamento di stipendio o acconto registrato per {formattedMonthLabel}.
           </div>
         ) : (
-          <div className="space-y-1 max-h-56 overflow-y-auto pr-0.5">
+          <div className="space-y-[3px] max-h-56 overflow-y-auto pr-0.5">
             {monthPayouts
               .sort((a, b) => (b.paymentDate || b.createdAt).localeCompare(a.paymentDate || a.createdAt))
               .map((p) => (
@@ -941,7 +955,7 @@ export const SquadWorkersRegistry: React.FC = () => {
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <span className="font-mono text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/80 shrink-0">
-                      {p.paymentDate || p.createdAt?.split('T')[0]}
+                      {formatShortDateItalian(p.paymentDate || p.createdAt?.split('T')[0])}
                     </span>
                     <span className="font-bold text-slate-100 text-xs shrink-0">
                       {p.workerName}
@@ -956,13 +970,21 @@ export const SquadWorkersRegistry: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <span className="font-mono font-bold text-xs sm:text-sm text-emerald-400">
                       € {p.totalAmount.toFixed(0)}
                     </span>
                     <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800 uppercase shrink-0">
                       LIQUIDATO
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => deleteWorkerPayout(p.id)}
+                      className="p-1 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer shrink-0"
+                      title="Elimina registrazione pagamento"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               ))}

@@ -85,6 +85,7 @@ interface AppContextType {
   deleteExpense: (id: string) => Promise<void>;
   recordWorkerPayout: (payoutData: Omit<WorkerPayout, 'id' | 'createdAt'>) => Promise<void>;
   updateWorkerPayout: (payout: WorkerPayout) => Promise<void>;
+  deleteWorkerPayout: (id: string) => Promise<void>;
   clearAllData: () => void;
 }
 
@@ -375,7 +376,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [inventory, setInventory] = useState<InventoryItem[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.INVENTORY);
-      return saved ? JSON.parse(saved) : [];
+      const parsed: InventoryItem[] = saved ? JSON.parse(saved) : [];
+      return parsed.map((item) => {
+        if (!item.brand) return item;
+        const trimmed = item.brand.trim();
+        if (trimmed.toLowerCase().includes('http://') || trimmed.toLowerCase().includes('https://')) {
+          return {
+            ...item,
+            brand: '',
+            brandLogoUrl: item.brandLogoUrl || trimmed,
+          };
+        }
+        return item;
+      });
     } catch {
       return [];
     }
@@ -2045,6 +2058,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const deleteWorkerPayout = async (id: string) => {
+    setPayouts((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      try {
+        localStorage.setItem(STORAGE_KEYS.PAYOUTS, JSON.stringify(next));
+      } catch (e) {
+        console.warn(e);
+      }
+      return next;
+    });
+
+    if (db) {
+      try {
+        await deleteDoc(doc(db, 'worker_payouts', id));
+      } catch (err) {
+        console.warn('Firestore delete payout error:', err);
+      }
+    }
+  };
+
   // SHOPPING LIST COMPUTATION
   const calculateShoppingList = (): ShoppingListItem[] => {
     const materialsNeededMap = new Map<string, number>();
@@ -2163,6 +2196,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteExpense,
         recordWorkerPayout,
         updateWorkerPayout,
+        deleteWorkerPayout,
         clearAllData,
       }}
     >

@@ -43,6 +43,7 @@ export const PaymentsView: React.FC = () => {
     expenses,
     payouts,
     clients,
+    workedDays,
     addExpense,
     deleteExpense,
     recordWorkerPayout,
@@ -274,31 +275,17 @@ export const PaymentsView: React.FC = () => {
   }, 0);
   const totalJobPending = Math.max(0, totalJobRevenue - totalJobCollected);
 
-  // 2. Calculate Worker Earnings based on Work Reports (Default €15/h if not set)
+  // 2. Calculate Worker Earnings & Pending Payouts based on workedDays and payouts (excluding admins)
   const workers = users.filter((u) => u.role === 'worker');
-  const workerStats = workers.map((worker) => {
-    const workerReports = reports.filter((r) => r.workerId === worker.uid && r.status === 'approved');
-    const totalHours = workerReports.reduce((sum, r) => sum + r.totalHours, 0);
-    const hourlyRate = worker.hourlyRate || 15.0;
-    const estimatedEarnings = totalHours * hourlyRate;
+  const workerUids = new Set(workers.map((w) => w.uid));
+  const validWorkedDays = workedDays.filter((wd) => workerUids.has(wd.workerId));
 
-    const workerPayouts = payouts.filter((p) => p.workerId === worker.uid);
-    const totalPaidOut = workerPayouts.reduce((sum, p) => (p.status === 'paid' ? sum + p.totalAmount : sum), 0);
-    const pendingPayout = Math.max(0, estimatedEarnings - totalPaidOut);
+  const totalWorkedDaysEarnings = validWorkedDays.reduce((sum, d) => sum + (d.amount || 0), 0);
+  const totalWorkerPaidAll = payouts
+    .filter((p) => workerUids.has(p.workerId) && p.status === 'paid')
+    .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
 
-    return {
-      worker,
-      totalHours,
-      daysWorked: new Set(workerReports.map((r) => r.date)).size,
-      hourlyRate,
-      estimatedEarnings,
-      totalPaidOut,
-      pendingPayout,
-    };
-  });
-
-  const totalWorkerEarningsAll = workerStats.reduce((sum, w) => sum + w.estimatedEarnings, 0);
-  const totalWorkerPaidAll = workerStats.reduce((sum, w) => sum + w.totalPaidOut, 0);
+  const totalWorkerPendingAll = Math.max(0, totalWorkedDaysEarnings - totalWorkerPaidAll);
 
   // 3. Calculate Expenses
   const totalExpensesAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -667,8 +654,13 @@ export const PaymentsView: React.FC = () => {
             <span className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Stipendi</span>
             <Users className="w-3.5 h-3.5 text-sky-600 shrink-0 hidden sm:block" />
           </div>
-          <div className="text-[16px] sm:text-[21px] md:text-[26.5px] text-right font-extrabold font-mono text-sky-700 dark:text-sky-400 truncate py-[3px] leading-none">
-            € {formatAmountNoCents(totalWorkerPaidAll)}
+          <div className="flex flex-col items-end justify-center py-[1px] leading-none space-y-0.5">
+            <div className="text-right font-mono font-extrabold text-sky-700 dark:text-sky-400 text-xs sm:text-sm md:text-base leading-tight" title="Totale già liquidato / pagato agli operai">
+              € {formatAmountNoCents(totalWorkerPaidAll)} <span className="text-[9px] sm:text-[10px] font-sans font-bold text-slate-400 uppercase">Pagati</span>
+            </div>
+            <div className="text-right font-mono font-extrabold text-amber-600 dark:text-amber-400 text-[11px] sm:text-xs md:text-sm leading-tight" title="Totale maturato ancora da dare agli operai">
+              € {formatAmountNoCents(totalWorkerPendingAll)} <span className="text-[9px] sm:text-[10px] font-sans font-bold text-amber-600/80 dark:text-amber-400/80 uppercase">Da dare</span>
+            </div>
           </div>
         </div>
 

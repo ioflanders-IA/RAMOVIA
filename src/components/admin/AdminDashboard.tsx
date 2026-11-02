@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   Droplets,
   Wind,
+  Thermometer,
   CheckCircle2,
   Check,
   RotateCcw,
@@ -326,18 +327,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                 <div
                   key={client.id}
                   onClick={() => onNavigateTab('weather')}
-                  className="p-2 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 rounded-[7px] hover:border-amber-500 cursor-pointer transition-colors space-y-1 shadow-xs min-w-0"
+                  className="p-2 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 rounded-[7px] hover:border-amber-500 cursor-pointer transition-colors flex flex-col justify-between shadow-xs min-w-0 h-full"
                 >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="font-bold text-[11px] sm:text-xs text-slate-900 dark:text-slate-100 truncate flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-1">
+                    <span className="font-bold text-[11px] sm:text-xs text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight flex-1 min-w-0 break-words">
                       {client.name}
-                    </span>
-                    <span className="font-mono text-xs sm:text-sm font-bold text-amber-700 dark:text-amber-400 shrink-0">
-                      {w ? `${w.temp}°C` : '--'}
                     </span>
                   </div>
 
-                  <div className="space-y-0.5 text-[10px] sm:text-[11px] font-mono text-amber-800 dark:text-amber-300 font-semibold pt-0.5">
+                  <div className="space-y-0.5 text-[10px] sm:text-[11px] font-mono text-amber-800 dark:text-amber-300 font-semibold mt-auto pt-1">
                     <div className="flex items-center gap-1">
                       <Droplets className="w-3 h-3 text-sky-500 shrink-0" />
                       <span>{w?.precipitationProbability ?? 0}%</span>
@@ -345,6 +343,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                     <div className="flex items-center gap-1">
                       <Wind className="w-3 h-3 text-slate-400 shrink-0" />
                       <span>{w?.windSpeed ?? 0} km/h</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-amber-700 dark:text-amber-400 font-bold">
+                      <Thermometer className="w-3 h-3 text-amber-500 shrink-0" />
+                      <span>{w ? `${w.temp}°C` : '--'}</span>
                     </div>
                   </div>
                 </div>

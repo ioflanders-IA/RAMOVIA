@@ -70,15 +70,26 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     e.preventDefault();
 
     const assignedWorker = users.find((u) => u.uid === assignedToWorkerId);
-    const effectiveBrandLogo =
-      brandLogoUrl.trim() ||
-      (brand.trim().toLowerCase() === 'stihl' ? STIHL_LOGO_URL : undefined);
+    
+    let cleanBrand = brand.trim();
+    let effectiveBrandLogo = brandLogoUrl.trim();
+
+    if (cleanBrand.toLowerCase().includes('http://') || cleanBrand.toLowerCase().includes('https://')) {
+      if (!effectiveBrandLogo) {
+        effectiveBrandLogo = cleanBrand;
+      }
+      cleanBrand = '';
+    }
+
+    if (!effectiveBrandLogo && cleanBrand.toLowerCase() === 'stihl') {
+      effectiveBrandLogo = STIHL_LOGO_URL;
+    }
 
     onSave({
       name,
       category,
-      brand,
-      brandLogoUrl: effectiveBrandLogo,
+      brand: cleanBrand,
+      brandLogoUrl: effectiveBrandLogo || undefined,
       imageUrl: imageUrl.trim() || undefined,
       quantity: Number(quantity),
       unit,

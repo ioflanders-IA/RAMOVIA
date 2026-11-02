@@ -1489,11 +1489,15 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                 <option value="">Seleziona Attrezzatura</option>
                 {inventory
                   .filter((i) => i.category === 'equipment')
-                  .map((eq) => (
-                    <option key={eq.id} value={eq.id}>
-                      {eq.name} {eq.brand ? `(${eq.brand})` : ''} - Ore attuali: {eq.currentUsageHours}h
-                    </option>
-                  ))}
+                  .map((eq) => {
+                    const isUrl = eq.brand && (eq.brand.toLowerCase().includes('http://') || eq.brand.toLowerCase().includes('https://'));
+                    const cleanBrand = eq.brand && !isUrl ? eq.brand.trim() : '';
+                    return (
+                      <option key={eq.id} value={eq.id}>
+                        {eq.name} {cleanBrand ? `(${cleanBrand})` : ''} - Ore attuali: {eq.currentUsageHours}h
+                      </option>
+                    );
+                  })}
               </select>
 
               <div className="flex items-center gap-1 shrink-0">
