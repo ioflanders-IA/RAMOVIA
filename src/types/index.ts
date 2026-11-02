@@ -141,6 +141,12 @@ export interface Job {
   plannedDates?: string[]; // elenco date scelte liberamente dall'utente
   equipmentHoursApplied?: boolean;
   materialsDeducted?: boolean;
+  // Gestione Lavori per Naturando (Provvigione concordata)
+  isNaturando?: boolean;
+  naturandoAmount?: number; // Importo concordato/comunicato a Naturando
+  naturandoPercentage?: number; // Percentuale da riconoscere a Naturando (default 20%)
+  naturandoPaid?: boolean; // Se la quota è stata saldata a Naturando
+  naturandoPaidDate?: string;
 }
 
 export type InventoryCategory = 'equipment' | 'material';

@@ -27,6 +27,9 @@ const PAYMENT_STATUSES: Array<{ id: JobPaymentStatus; label: string }> = [
   { id: 'paid', label: 'Saldato' },
 ];
 
+export const NATURANDO_LOGO_URL =
+  'https://www.naturandodal1997.it/wp-content/uploads/2023/06/Logo-Naturando-il-vivaio-per-il-tuo-giardino-removebg-preview.png';
+
 export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, onSave }) => {
   const { clients, users, inventory, currentUser } = useApp();
 
@@ -244,6 +247,11 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
     return job?.paidAmount || 0;
   });
 
+  // Gestione Lavori per Naturando (Provvigione concordata per Naturando)
+  const [isNaturando, setIsNaturando] = useState<boolean>(job?.isNaturando || false);
+  const [naturandoAmount, setNaturandoAmount] = useState<number>(job?.naturandoAmount || 0);
+  const [naturandoPercentage, setNaturandoPercentage] = useState<number>(job?.naturandoPercentage ?? 20);
+
   // Materials Required
   const [materialsRequired, setMaterialsRequired] = useState<MaterialRequirement[]>(
     job?.materialsRequired || []
@@ -381,8 +389,94 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
       estimatedHoursPerSession: Number(estimatedHoursPerSession),
       plannedDates: interventionType === 'generale' ? plannedDates : undefined,
       billingTermsNote: interventionType === 'generale' ? billingTermsNote : undefined,
+      isNaturando,
+      naturandoAmount: isNaturando ? Number(naturandoAmount) : undefined,
+      naturandoPercentage: isNaturando ? Number(naturandoPercentage) : undefined,
+      naturandoPaid: job?.naturandoPaid ?? false,
+      naturandoPaidDate: job?.naturandoPaidDate,
     });
   };
+
+  const renderNaturandoCard = () => (
+    <div
+      className={`p-2.5 rounded-[7px] border transition-all ${
+        isNaturando
+          ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-500/80 shadow-2xs'
+          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+          Intervento per
+        </span>
+
+        {/* Pulsante con solo il logo senza '+ attiva', sfondo bianco nel tema scuro, logo adattato ai bordi */}
+        <button
+          type="button"
+          onClick={() => {
+            const next = !isNaturando;
+            setIsNaturando(next);
+            if (next && (!naturandoAmount || naturandoAmount === 0)) {
+              setNaturandoAmount(price || 0);
+            }
+          }}
+          className={`h-9 px-2.5 py-1 rounded-[6px] border flex items-center justify-center transition-all cursor-pointer bg-white ${
+            isNaturando
+              ? 'border-emerald-600 ring-2 ring-emerald-500/70 shadow-xs'
+              : 'border-slate-300 dark:border-slate-600 opacity-65 hover:opacity-100 hover:border-emerald-500'
+          }`}
+          title={isNaturando ? 'Intervento per Naturando attivo' : 'Clicca per attivare intervento per Naturando'}
+        >
+          <img
+            src={NATURANDO_LOGO_URL}
+            alt="Naturando"
+            className="h-full w-auto max-w-[105px] object-contain shrink-0"
+          />
+        </button>
+      </div>
+
+      {isNaturando && (
+        <div className="pt-2 mt-2 border-t border-slate-200/80 dark:border-slate-700/80 space-y-2">
+          <div className="space-y-1">
+            <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+              Importo da comunicare a Naturando (€) *
+            </label>
+            <div className="relative">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">€</span>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={naturandoAmount || ''}
+                onChange={(e) => setNaturandoAmount(parseFloat(e.target.value) || 0)}
+                placeholder="es. 100"
+                className="w-full p-2 pl-6 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[6px] text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400 focus:outline-emerald-600"
+              />
+            </div>
+          </div>
+
+          <div className="p-2 bg-emerald-50/90 dark:bg-emerald-950/40 rounded-[6px] border border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-xs font-mono">
+            <div>
+              <span className="text-slate-500 dark:text-slate-400 text-[10px] block">
+                Da dare a Naturando ({naturandoPercentage}%):
+              </span>
+              <strong className="text-rose-600 dark:text-rose-400 text-sm font-bold">
+                € {((naturandoAmount * naturandoPercentage) / 100).toFixed(2)}
+              </strong>
+            </div>
+            <div className="text-right">
+              <span className="text-slate-500 dark:text-slate-400 text-[10px] block">
+                Tuo Ricavo Netto ({Math.max(0, 100 - naturandoPercentage)}%):
+              </span>
+              <strong className="text-emerald-700 dark:text-emerald-300 text-sm font-bold">
+                € {(naturandoAmount - (naturandoAmount * naturandoPercentage) / 100).toFixed(2)}
+              </strong>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 z-[1000] bg-slate-900 text-slate-100 overflow-y-auto flex flex-col min-h-screen">
@@ -633,57 +727,46 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1">
                       <CalendarIcon className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Date Pianificate ({plannedDates.length} interventi)</span>
+                      <span>Date Pianificate</span>
                     </label>
-                    <span className="text-[10px] text-slate-500">Pianifica tu stesso le uscite</span>
                   </div>
 
-                  {/* Input date + pulsante aggiungi + shortcut */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
+                  {/* Input date + pulsante +7 gg + pulsante aggiungi adattati alla larghezza */}
+                  <div className="grid grid-cols-[1fr_auto_1fr] gap-1.5 w-full items-center">
                     <input
                       type="date"
                       value={dateToAdd}
                       onChange={(e) => setDateToAdd(e.target.value)}
-                      className="p-1 px-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[6px] font-mono text-slate-900 dark:text-slate-100"
+                      className="w-full p-1.5 px-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[6px] font-mono text-slate-900 dark:text-slate-100 min-w-0"
                     />
                     <button
                       type="button"
-                      onClick={() => handleAddPlannedDate()}
-                      className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-[6px] text-xs flex items-center gap-1 cursor-pointer shadow-xs transition-colors"
+                      onClick={() => handleAddDaysShortcut(7)}
+                      className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-[6px] border border-slate-300 dark:border-slate-700 text-xs font-bold whitespace-nowrap cursor-pointer shadow-2xs"
+                      title="Aggiungi data tra 7 giorni"
                     >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Aggiungi Data</span>
+                      +7 gg
                     </button>
-                    <div className="flex items-center gap-1 text-[10px]">
-                      <button
-                        type="button"
-                        onClick={() => handleAddDaysShortcut(7)}
-                        className="px-2 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-[5px] border border-slate-300 dark:border-slate-700 font-semibold cursor-pointer"
-                        title="Aggiungi data tra 7 giorni"
-                      >
-                        +7 gg
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleAddDaysShortcut(14)}
-                        className="px-2 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-[5px] border border-slate-300 dark:border-slate-700 font-semibold cursor-pointer"
-                        title="Aggiungi data tra 14 giorni"
-                      >
-                        +14 gg
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAddPlannedDate()}
+                      className="w-full p-1.5 px-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-[6px] text-xs flex items-center justify-center gap-1 cursor-pointer shadow-xs transition-colors whitespace-nowrap min-w-0"
+                    >
+                      <Plus className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">Aggiungi Data</span>
+                    </button>
                   </div>
 
-                  {/* Lista chips delle date pianificate */}
-                  <div className="flex flex-wrap gap-1.5 pt-1 max-h-28 overflow-y-auto">
+                  {/* Lista chips delle date pianificate (visibili tutte senza scrollare, gap 3px, senza anno) */}
+                  <div className="flex flex-wrap gap-[3px] pt-1">
                     {plannedDates.map((dStr, idx) => {
-                      const formatted = formatItalianDate(dStr, { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+                      const formatted = formatItalianDate(dStr, { weekday: 'short', day: '2-digit', month: '2-digit' });
                       return (
                         <span
                           key={dStr}
-                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[5px] text-[11px] font-mono font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shadow-2xs"
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] text-[10px] font-mono font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shadow-2xs"
                         >
-                          <span className="font-bold text-[10px] text-emerald-600 dark:text-emerald-400">#{idx + 1}</span>
+                          <span className="font-bold text-[9.5px] text-emerald-600 dark:text-emerald-400">#{idx + 1}</span>
                           <span>{formatted}</span>
                           {plannedDates.length > 1 && (
                             <button
@@ -692,7 +775,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                               className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors ml-0.5 cursor-pointer"
                               title="Rimuovi data"
                             >
-                              <X className="w-3 h-3" />
+                              <X className="w-2.5 h-2.5" />
                             </button>
                           )}
                         </span>
@@ -708,9 +791,9 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                   </label>
                   <div className="grid grid-cols-3 gap-1.5">
                     {[
-                      { id: 'hourly', label: 'Tariffa Oraria (€/h)' },
+                      { id: 'hourly', label: 'Oraria (€/h)' },
                       { id: 'per_session', label: 'A Uscita (€)' },
-                      { id: 'fixed', label: 'Canone Fisso (€)' },
+                      { id: 'fixed', label: 'A corpo (€)' },
                     ].map((mode) => (
                       <button
                         key={mode.id}
@@ -848,26 +931,30 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                   )}
                 </div>
 
+                {/* Intervento per Naturando (richiesta utente sotto modalità tariffa) */}
+                {renderNaturandoCard()}
+
                 {/* 3. MODALITÀ ACCORDO PAGAMENTO */}
                 <div className="space-y-1">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     Accordo di Pagamento
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                  <div className="grid grid-cols-3 gap-1">
                     {[
-                      { id: 'fine_mese_giornate', label: 'A Fine Mese (somma ore/uscite)' },
-                      { id: 'fine_ciclo_interventi', label: 'A Fine Interventi' },
-                      { id: 'canone_fisso_mensile', label: 'Canone Fisso Mensile' },
+                      { id: 'fine_mese_giornate', label: 'Fine Mese' },
+                      { id: 'fine_ciclo_interventi', label: 'Fine Interventi' },
+                      { id: 'canone_fisso_mensile', label: 'Canone Mensile' },
                     ].map((item) => (
                       <button
                         key={item.id}
                         type="button"
                         onClick={() => setBillingArrangement(item.id as any)}
-                        className={`py-1.5 px-2 rounded-[6px] text-[10px] font-bold border transition-colors cursor-pointer text-center leading-tight ${
+                        className={`py-1.5 px-1 rounded-[6px] text-[10px] font-bold border transition-colors cursor-pointer text-center leading-tight truncate ${
                           billingArrangement === item.id
                             ? 'bg-emerald-800 text-white border-emerald-900 shadow-2xs'
                             : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-emerald-500'
                         }`}
+                        title={item.label}
                       >
                         {item.label}
                       </button>
@@ -1331,6 +1418,9 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
               )}
             </div>
           </div>
+
+          {/* Opzione Naturando per interventi singoli */}
+          {interventionType !== 'generale' && renderNaturandoCard()}
 
           <div className="space-y-[7px]">
             <label className="font-semibold text-slate-700 dark:text-slate-300 block">Note per l'Operaio</label>
