@@ -516,7 +516,7 @@ export const ClientDirectoryView: React.FC<ClientDirectoryViewProps> = ({
                           Nessun intervento registrato per questo cliente.
                         </div>
                       ) : (
-                        <div className="space-y-[7px]">
+                        <div className="grid grid-cols-3 gap-1.5 sm:gap-[7px]">
                           {metrics.jobs.map((job) => {
                             const price = job.price || 0;
                             const installmentsSum = job.installments
@@ -533,74 +533,54 @@ export const ClientDirectoryView: React.FC<ClientDirectoryViewProps> = ({
                             return (
                               <div
                                 key={job.id}
-                                className="p-[7px] bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-[7px] space-y-[7px]"
+                                className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-[7px] flex flex-col justify-between space-y-1.5 text-xs min-w-0 shadow-2xs"
                               >
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-[7px]">
-                                  <div>
-                                    <div className="flex items-center gap-[7px] flex-wrap">
-                                      <span className="font-bold text-xs text-slate-900 dark:text-slate-100">
-                                        {job.title}
-                                      </span>
-                                      {job.cantiereName && (
-                                        <span className="font-bold text-[10px] text-indigo-700 dark:text-indigo-300 bg-indigo-100/70 dark:bg-indigo-950 px-1.5 py-0.5 rounded-[7px]">
-                                          {job.cantiereName}
-                                        </span>
-                                      )}
-                                      <span className="font-mono text-[11px] text-slate-500">
-                                        📅 {job.date} ({job.timeSlot})
-                                      </span>
+                                <div className="space-y-1 min-w-0">
+                                  <div className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate" title={job.title}>
+                                    {job.title}
+                                  </div>
+                                  {job.cantiereName && (
+                                    <div className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 truncate">
+                                      {job.cantiereName}
                                     </div>
-                                    <div className="text-[11px] text-slate-600 dark:text-slate-400">
-                                      📍 {job.clientAddress} · Assegnato: <strong>{job.assignedWorkerName}</strong>
-                                    </div>
+                                  )}
+                                  <div className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                                    {job.date}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center justify-between gap-1 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
+                                  <div className="font-mono font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100">
+                                    € {price.toFixed(2)}
                                   </div>
 
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <div className="text-right font-mono">
-                                      <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                                        € {price.toFixed(2)}
-                                      </div>
-                                      <div
-                                        className={`text-[10px] font-bold ${
-                                          jobPending <= 0
-                                            ? 'text-emerald-700 dark:text-emerald-400'
-                                            : 'text-amber-700 dark:text-amber-400'
-                                        }`}
-                                      >
-                                        {jobPending <= 0 ? 'Saldato' : `Sospeso: € ${jobPending.toFixed(2)}`}
-                                      </div>
-                                    </div>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <span
+                                      className={`text-[9.5px] font-bold ${
+                                        jobPending <= 0
+                                          ? 'text-emerald-600 dark:text-emerald-400'
+                                          : 'text-amber-600 dark:text-amber-400'
+                                      }`}
+                                    >
+                                      {jobPending <= 0 ? 'Saldato' : `€ ${jobPending.toFixed(0)}`}
+                                    </span>
 
                                     {jobPending > 0 && (
                                       <button
+                                        type="button"
                                         onClick={() => onOpenAccontoModal(job)}
-                                        className="p-[7px] px-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] rounded-[7px] shadow-2xs transition-colors shrink-0"
+                                        className="p-1 px-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[9px] rounded shadow-2xs transition-colors shrink-0 cursor-pointer"
+                                        title="Registra Acconto"
                                       >
-                                        Acconto
+                                        + Acconto
                                       </button>
                                     )}
                                   </div>
                                 </div>
 
-                                {/* Installments History for this Job */}
                                 {job.installments && job.installments.length > 0 && (
-                                  <div className="p-[7px] bg-white dark:bg-slate-900 rounded-[7px] border border-slate-200/80 dark:border-slate-800 space-y-1">
-                                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                                      Acconti Versati ({job.installments.length})
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[10px] font-mono">
-                                      {job.installments.map((inst) => (
-                                        <div
-                                          key={inst.id}
-                                          className="p-1 px-2 bg-slate-50 dark:bg-slate-800 rounded-[7px] border border-slate-200 dark:border-slate-700 flex items-center justify-between"
-                                        >
-                                          <span>{inst.date} ({inst.paymentMethod})</span>
-                                          <span className="font-bold text-emerald-700 dark:text-emerald-400">
-                                            + € {inst.amount.toFixed(2)}
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
+                                  <div className="pt-1 text-[9px] font-mono text-slate-500 dark:text-slate-400 border-t border-dashed border-slate-200 dark:border-slate-700">
+                                    Acconti: {job.installments.map((i) => `+€${i.amount}`).join(', ')}
                                   </div>
                                 )}
                               </div>

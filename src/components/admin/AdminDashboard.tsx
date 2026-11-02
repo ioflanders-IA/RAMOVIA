@@ -317,54 +317,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
             </span>
           </div>
 
-          {/* Elenco cantieri in allerta con spaziatura 7PX */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[7px]">
+          {/* Elenco cantieri in allerta: 3 cantieri per ogni riga */}
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-[7px]">
             {alertClients.map((client) => {
               const w = weatherMap[client.id];
-              const clientTodayJobs = todayJobs.filter(
-                (j) => j.clientId === client.id || j.clientName === client.name
-              );
 
               return (
                 <div
                   key={client.id}
                   onClick={() => onNavigateTab('weather')}
-                  className="p-[7px] bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 rounded-[7px] hover:border-amber-500 cursor-pointer transition-colors space-y-[7px] shadow-xs"
+                  className="p-2 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 rounded-[7px] hover:border-amber-500 cursor-pointer transition-colors space-y-1 shadow-xs min-w-0"
                 >
-                  <div className="flex items-start justify-between gap-[7px]">
-                    <div className="min-w-0">
-                      <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate block">
-                        {client.name}
-                      </span>
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate block">
-                        {client.address}
-                      </span>
-                    </div>
-                    <span className="font-mono text-sm font-bold text-amber-700 dark:text-amber-400 shrink-0">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-bold text-[11px] sm:text-xs text-slate-900 dark:text-slate-100 truncate flex-1 min-w-0">
+                      {client.name}
+                    </span>
+                    <span className="font-mono text-xs sm:text-sm font-bold text-amber-700 dark:text-amber-400 shrink-0">
                       {w ? `${w.temp}°C` : '--'}
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] font-mono text-amber-900 dark:text-amber-200 bg-amber-100/60 dark:bg-amber-900/40 p-[7px] rounded-[7px]">
-                    <span className="flex items-center gap-[7px]">
-                      <Droplets className="w-3.5 h-3.5 text-sky-600" />
-                      Pioggia: <strong>{w?.precipitationProbability ?? 0}%</strong>
-                    </span>
-                    <span className="flex items-center gap-[7px]">
-                      <Wind className="w-3.5 h-3.5 text-slate-500" />
-                      {w?.windSpeed ?? 0} km/h
-                    </span>
-                  </div>
-
-                  <div className="text-[10px] text-amber-800 dark:text-amber-300 font-semibold">
-                    {w?.condition}: Sfalcio sconsigliato.
-                  </div>
-
-                  {clientTodayJobs.length > 0 && (
-                    <div className="text-[10px] font-bold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 p-[7px] rounded-[7px] border border-rose-200 dark:border-rose-800">
-                      Attenzione: {clientTodayJobs.length} lavoro in programma per oggi!
+                  <div className="space-y-0.5 text-[10px] sm:text-[11px] font-mono text-amber-800 dark:text-amber-300 font-semibold pt-0.5">
+                    <div className="flex items-center gap-1">
+                      <Droplets className="w-3 h-3 text-sky-500 shrink-0" />
+                      <span>{w?.precipitationProbability ?? 0}%</span>
                     </div>
-                  )}
+                    <div className="flex items-center gap-1">
+                      <Wind className="w-3 h-3 text-slate-400 shrink-0" />
+                      <span>{w?.windSpeed ?? 0} km/h</span>
+                    </div>
+                  </div>
                 </div>
               );
             })}

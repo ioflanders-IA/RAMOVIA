@@ -95,16 +95,30 @@ export const SquadWorkersRegistry: React.FC = () => {
   const [quickPayMethod, setQuickPayMethod] = useState<PaymentMethod>('contanti');
   const [quickPaySuccessMsg, setQuickPaySuccessMsg] = useState<string | null>(null);
 
-  // Filter worked days for current selected month with 1 day per date consolidation
-  const monthWorkedDays = useMemo(() => {
-    const raw = workedDays.filter((wd) => wd.date && wd.date.startsWith(selectedMonth));
-    return consolidateWorkedDays(raw);
-  }, [workedDays, selectedMonth]);
-
-  // List of workers
+  // List of workers (strictly non-admin workers)
   const workers = useMemo(() => {
     return users.filter((u) => u.role === 'worker');
   }, [users]);
+
+  // Filter worked days for current selected month (excluding admin users) with 1 day per date consolidation
+  const monthWorkedDays = useMemo(() => {
+    const workerUids = new Set(workers.map((w) => w.uid));
+    const raw = workedDays.filter(
+      (wd) => wd.date && wd.date.startsWith(selectedMonth) && workerUids.has(wd.workerId)
+    );
+    return consolidateWorkedDays(raw);
+  }, [workedDays, selectedMonth, workers]);
+
+  // Filter payouts strictly for current selected month (excluding admin users)
+  const monthPayouts = useMemo(() => {
+    const workerUids = new Set(workers.map((w) => w.uid));
+    return payouts.filter((p) => {
+      const isWorkerValid = workerUids.has(p.workerId);
+      const pDate = p.paymentDate || p.createdAt?.split('T')[0];
+      const isMonthMatch = p.period === selectedMonth || (pDate && pDate.startsWith(selectedMonth));
+      return isWorkerValid && isMonthMatch;
+    });
+  }, [payouts, selectedMonth, workers]);
 
   // Calculate worker stats for this month
   const workerStats = useMemo(() => {
@@ -331,28 +345,49 @@ export const SquadWorkersRegistry: React.FC = () => {
     }
   };
 
+  // Helper to format YYYY-MM safely
+  const formatYearMonth = (year: number, month: number): string => {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${year}-${pad(month)}`;
+  };
+
   // Format month name in Italian (e.g., "Ottobre 2026")
   const formattedMonthLabel = useMemo(() => {
-    const [year, month] = selectedMonth.split('-');
-    const d = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const d = new Date(year, month - 1, 15); // Use mid-month to prevent timezone boundary shifts
     const monthName = d.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
     return monthName.charAt(0).toUpperCase() + monthName.slice(1);
   }, [selectedMonth]);
 
   const handlePrevMonth = () => {
     const [year, month] = selectedMonth.split('-').map(Number);
-    const prev = new Date(year, month - 2, 1);
-    setSelectedMonth(prev.toISOString().substring(0, 7));
+    let prevYear = year;
+    let prevMonth = month - 1;
+    if (prevMonth < 1) {
+      prevMonth = 12;
+      prevYear -= 1;
+    }
+    setSelectedMonth(formatYearMonth(prevYear, prevMonth));
   };
 
   const handleNextMonth = () => {
     const [year, month] = selectedMonth.split('-').map(Number);
-    const next = new Date(year, month, 1);
-    setSelectedMonth(next.toISOString().substring(0, 7));
+    let nextYear = year;
+    let nextMonth = month + 1;
+    if (nextMonth > 12) {
+      nextMonth = 1;
+      nextYear += 1;
+    }
+    setSelectedMonth(formatYearMonth(nextYear, nextMonth));
   };
 
+  const currentRealMonth = useMemo(() => {
+    const now = new Date();
+    return formatYearMonth(now.getFullYear(), now.getMonth() + 1);
+  }, []);
+
   const handleResetCurrentMonth = () => {
-    setSelectedMonth(new Date().toISOString().substring(0, 7));
+    setSelectedMonth(currentRealMonth);
   };
 
   // When changing worker or dayType in AddDay modal, auto-calculate dayAmount
@@ -595,7 +630,7 @@ export const SquadWorkersRegistry: React.FC = () => {
         <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100 font-bold font-mono text-sm sm:text-base">
           <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           <span>{formattedMonthLabel}</span>
-          {selectedMonth !== new Date().toISOString().substring(0, 7) && (
+          {selectedMonth !== currentRealMonth && (
             <button
               type="button"
               onClick={handleResetCurrentMonth}
@@ -818,63 +853,56 @@ export const SquadWorkersRegistry: React.FC = () => {
         )}
       </div>
 
-      {/* REGISTRO COMPLETO DELLE GIORNATE LAVORATE DEL MESE */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-        <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-            <Clock className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-            <span>Registro Giornate del Mese ({monthWorkedDays.length} registrazioni)</span>
+      {/* REGISTRO COMPLETO DELLE GIORNATE LAVORATE DEL MESE (COMPATTO STILE CALENDARIO) */}
+      <div className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs space-y-1.5">
+        <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-100 flex items-center gap-1.5">
+            <Clock className="w-4 h-4 text-emerald-400" />
+            <span>REGISTRO GIORNATE DEL MESE ({monthWorkedDays.length})</span>
           </h3>
-          <span className="text-[11px] text-slate-500">
+          <span className="text-[11px] font-mono font-bold text-emerald-400">
             {formattedMonthLabel}
           </span>
         </div>
 
         {monthWorkedDays.length === 0 ? (
-          <div className="p-6 text-center text-xs text-slate-400">
-            Nessuna giornata di lavoro inserita per il mese di {formattedMonthLabel}. Clicca su "Inserisci Giornata Lavorata" per iniziare.
+          <div className="p-4 text-center text-xs text-slate-400">
+            Nessuna giornata di lavoro inserita per {formattedMonthLabel}.
           </div>
         ) : (
-          <div className="space-y-[7px] max-h-72 overflow-y-auto">
+          <div className="space-y-1 max-h-56 overflow-y-auto pr-0.5">
             {monthWorkedDays
               .sort((a, b) => b.date.localeCompare(a.date))
               .map((d) => (
                 <div
                   key={d.id}
-                  className="p-[7px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-[7px] flex items-center justify-between gap-[7px] text-xs"
+                  className="p-1.5 px-2 bg-slate-800/60 border border-slate-700/60 rounded-md flex items-center justify-between gap-2 text-xs"
                 >
-                  <div className="space-y-0.5 min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900 dark:text-slate-100">
-                        {d.workerName}
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="font-mono text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/80 shrink-0">
+                      {d.date}
+                    </span>
+                    <span className="font-bold text-slate-100 text-xs shrink-0">
+                      {d.workerName}
+                    </span>
+                    <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-700 text-emerald-300 shrink-0">
+                      {d.dayType === 'full' ? '1 GG' : d.dayType === 'half' ? '0.5 GG' : `${d.hours}h`}
+                    </span>
+                    {d.cantiereName && (
+                      <span className="text-[10px] text-slate-400 truncate hidden sm:inline">
+                        · {d.cantiereName}
                       </span>
-                      <span className="font-mono text-[10px] bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-bold">
-                        {d.date}
-                      </span>
-                      <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                        {d.dayType === 'full' ? 'Giornata Intera' : d.dayType === 'half' ? 'Mezza Giornata' : `${d.hours} Ore`}
-                      </span>
-                    </div>
-
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                      {d.cantiereName ? `Cantiere: ${d.cantiereName}` : 'Nessun cantiere specificato'}
-                      {d.notes && ` · ${d.notes}`}
-                    </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="text-right">
-                      <div className="font-mono font-bold text-sm text-emerald-700 dark:text-emerald-400">
-                        € {d.amount.toFixed(2)}
-                      </div>
-                      <div className="text-[10px] text-slate-400">
-                        Tariffa: € {d.dailyRate.toFixed(2)}/gg
-                      </div>
-                    </div>
-
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-mono font-bold text-xs sm:text-sm text-emerald-400">
+                      € {d.amount.toFixed(0)}
+                    </span>
                     <button
+                      type="button"
                       onClick={() => deleteWorkedDay(d.id)}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors"
+                      className="p-1 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
                       title="Elimina registrazione giornata"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -886,46 +914,53 @@ export const SquadWorkersRegistry: React.FC = () => {
         )}
       </div>
 
-      {/* STORICO PAGAMENTI STIPENDI OPERAI */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-        <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-            <CreditCard className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-            <span>Storico Pagamenti Stipendi ({payouts.length} erogazioni)</span>
+      {/* STORICO PAGAMENTI STIPENDI OPERAI (FILTRATO PER MESE - COMPATTO STILE CALENDARIO) */}
+      <div className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs space-y-1.5">
+        <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-100 flex items-center gap-1.5">
+            <CreditCard className="w-4 h-4 text-emerald-400" />
+            <span>STORICO PAGAMENTI STIPENDI ({monthPayouts.length})</span>
           </h3>
+          <span className="text-[11px] font-mono font-bold text-emerald-400">
+            {formattedMonthLabel}
+          </span>
         </div>
 
-        {payouts.length === 0 ? (
+        {monthPayouts.length === 0 ? (
           <div className="p-4 text-center text-xs text-slate-400">
-            Nessun pagamento di stipendio o acconto ancora erogato.
+            Nessun pagamento di stipendio o acconto registrato per {formattedMonthLabel}.
           </div>
         ) : (
-          <div className="space-y-[7px] max-h-72 overflow-y-auto">
-            {payouts
+          <div className="space-y-1 max-h-56 overflow-y-auto pr-0.5">
+            {monthPayouts
               .sort((a, b) => (b.paymentDate || b.createdAt).localeCompare(a.paymentDate || a.createdAt))
               .map((p) => (
                 <div
                   key={p.id}
-                  className="p-[7px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-[7px] flex items-center justify-between gap-[7px] text-xs"
+                  className="p-1.5 px-2 bg-slate-800/60 border border-slate-700/60 rounded-md flex items-center justify-between gap-2 text-xs"
                 >
-                  <div className="space-y-0.5 min-w-0 flex-1">
-                    <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                      <span>{p.workerName}</span>
-                      <span className="font-mono text-[10px] bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.2 rounded font-bold">
-                        {p.period}
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="font-mono text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/80 shrink-0">
+                      {p.paymentDate || p.createdAt?.split('T')[0]}
+                    </span>
+                    <span className="font-bold text-slate-100 text-xs shrink-0">
+                      {p.workerName}
+                    </span>
+                    <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 shrink-0">
+                      {p.paymentMethod}
+                    </span>
+                    {p.notes && (
+                      <span className="text-[10px] text-slate-400 truncate hidden sm:inline italic">
+                        · {p.notes}
                       </span>
-                    </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                      Pagato il: <strong className="text-slate-700 dark:text-slate-300">{p.paymentDate || p.createdAt.split('T')[0]}</strong> · Metodo: <strong className="text-slate-700 dark:text-slate-300">{p.paymentMethod}</strong>
-                    </div>
-                    {p.notes && <div className="text-[10px] text-slate-400 italic truncate">{p.notes}</div>}
+                    )}
                   </div>
 
-                  <div className="text-right shrink-0">
-                    <div className="font-mono font-bold text-sm text-emerald-700 dark:text-emerald-400">
-                      € {p.totalAmount.toFixed(2)}
-                    </div>
-                    <span className="text-[9px] font-bold uppercase text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-mono font-bold text-xs sm:text-sm text-emerald-400">
+                      € {p.totalAmount.toFixed(0)}
+                    </span>
+                    <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800 uppercase shrink-0">
                       LIQUIDATO
                     </span>
                   </div>
@@ -933,7 +968,7 @@ export const SquadWorkersRegistry: React.FC = () => {
               ))}
           </div>
         )}
-        </div>
+      </div>
         </>
       ) : (
         /* SCHERMATA RIEPILOGO COMPENSI E SALDI A PAGINA NORMALE */

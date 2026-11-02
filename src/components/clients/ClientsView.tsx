@@ -788,7 +788,7 @@ export const ClientsView: React.FC = () => {
                   key={job.id}
                   className="p-[3px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] space-y-[3px] text-xs hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-2xs"
                 >
-                  {/* Job Header: Titolo, Data, Orario e Stato */}
+                  {/* Job Header: Titolo, Data, Orario, Gestisci Costi e Stato (Top Right) */}
                   <div className="p-1.5 px-2 bg-slate-50/70 dark:bg-slate-800/40 rounded-[5px] border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                       <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate">
@@ -800,6 +800,16 @@ export const ClientsView: React.FC = () => {
                     </div>
 
                     <div className="shrink-0 flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setCostJob(job)}
+                        className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 rounded-[5px] font-bold text-[10px] flex items-center gap-1 transition-colors cursor-pointer shrink-0 shadow-2xs"
+                        title="Inserisci e monitora i costi sostenuti per questo intervento (benzina, sacchi, ecc.)"
+                      >
+                        <Fuel className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                        <span>Gestisci Costi {costs.length > 0 ? `(${costs.length})` : ''}</span>
+                      </button>
+
                       <span
                         className={`px-2 py-0.5 rounded font-bold text-[9px] uppercase tracking-wider ${
                           isCompleted
@@ -814,7 +824,7 @@ export const ClientsView: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Descrizione & Assegnazione Operaio + Tasto Gestisci Costi */}
+                  {/* Descrizione & Assegnazione Operaio */}
                   <div className="p-1.5 px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px]">
                     <div className="space-y-0.5 min-w-0">
                       {job.description && (
@@ -826,16 +836,6 @@ export const ClientsView: React.FC = () => {
                         Operaio: <strong className="text-slate-700 dark:text-slate-300">{job.assignedWorkerName || 'Non assegnato'}</strong>
                       </div>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setCostJob(job)}
-                      className="px-2 py-1 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 rounded-[5px] font-bold text-[10px] flex items-center gap-1 transition-colors cursor-pointer self-start sm:self-center shrink-0 shadow-2xs"
-                      title="Inserisci e monitora i costi sostenuti per questo intervento (benzina, sacchi, ecc.)"
-                    >
-                      <Fuel className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                      <span>Gestisci Costi {costs.length > 0 ? `(${costs.length})` : ''}</span>
-                    </button>
                   </div>
 
                   {/* Financial KPI Strip: Prezzo | Costi | Margine (compact 3-col grid with gap-[3px]) */}
