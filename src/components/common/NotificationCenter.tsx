@@ -21,10 +21,11 @@ export interface AppNotification {
   title: string;
   message: string;
   timestamp: string;
-  type: 'report' | 'maintenance' | 'weather' | 'worker' | 'job_expired';
+  type: 'report' | 'maintenance' | 'weather' | 'worker' | 'job_expired' | 'suspended_job';
   read: boolean;
   targetTab?: 'dashboard' | 'calendar' | 'clients' | 'inventory' | 'reports';
   jobId?: string;
+  suspendedDate?: string;
 }
 
 interface NotificationCenterProps {
@@ -33,14 +34,39 @@ interface NotificationCenterProps {
 }
 
 export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigateTab, placement = 'bottom-right' }) => {
-  const { jobs, inventory, reports, users, currentUser, updateJob } = useApp();
+  const { jobs, inventory, reports, users, currentUser, updateJob, deleteJob, redDays } = useApp();
 
   const [isOpen, setIsOpen] = useState(false);
   const [readIds, setReadIds] = useState<string[]>([]);
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+  const [reschedulingJobId, setReschedulingJobId] = useState<string | null>(null);
+  const [rescheduleDateValue, setRescheduleDateValue] = useState<string>('');
 
   // Dynamically generate operational notifications from real app state
   const generatedNotifications: AppNotification[] = [];
+
+  // 0. Interventi in sospeso per Giornata Rossa
+  (redDays || []).forEach((rDate) => {
+    const suspendedJobs = jobs.filter(
+      (j) =>
+        (j.date === rDate || (Array.isArray(j.plannedDates) && j.plannedDates.includes(rDate))) &&
+        j.status !== 'completed'
+    );
+    suspendedJobs.forEach((job) => {
+      const notifId = `notif_suspended_${job.id}_${rDate}`;
+      generatedNotifications.push({
+        id: notifId,
+        title: 'Intervento in sospeso',
+        message: `${job.clientName} · ${job.title || 'Intervento'}`,
+        timestamp: 'Giornata rossa',
+        type: 'suspended_job',
+        read: readIds.includes(notifId),
+        targetTab: 'calendar',
+        jobId: job.id,
+        suspendedDate: rDate,
+      });
+    });
+  });
 
   // 1. Expired scheduled jobs requiring completion confirmation
   const expiredJobs = jobs.filter((j) => isJobTimeExpired(j));
@@ -221,7 +247,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
                       key={notif.id}
                       onClick={() => handleNotificationClick(notif)}
                       className={`p-[3px] px-2 rounded-[7px] border transition-all cursor-pointer flex items-center justify-between gap-[3px] relative group ${
-                        notif.read
+                        notif.type === 'suspended_job'
+                          ? 'bg-rose-50/70 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800'
+                          : notif.read
                           ? 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 opacity-75'
                           : 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/50'
                       }`}
@@ -229,6 +257,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
                       {/* Client Name & Full Details (No left icon, full non-truncated text) */}
                       <div className="min-w-0 flex-1 space-y-[2px]">
                         <div className="flex flex-wrap items-baseline gap-[3px]">
+                          {notif.type === 'suspended_job' && (
+                            <span className="w-2 h-2 rounded-full bg-rose-600 inline-block shrink-0 shadow-xs mr-0.5" />
+                          )}
                           <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 whitespace-normal break-words leading-tight">
                             {notif.title}
                           </h4>
@@ -241,7 +272,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
                         </p>
                       </div>
 
-                      {/* Right actions: Quick Complete button + Dismiss */}
+                      {/* Right actions: Quick Complete button / Suspended actions + Dismiss */}
                       <div className="flex items-center gap-[3px] shrink-0 ml-1">
                         {notif.type === 'job_expired' && notif.jobId && (
                           <button
@@ -259,6 +290,73 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             <span>Ultimato</span>
                           </button>
+                        )}
+
+                        {notif.type === 'suspended_job' && notif.jobId && (
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            {reschedulingJobId === notif.jobId ? (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="date"
+                                  value={rescheduleDateValue || notif.suspendedDate || ''}
+                                  onChange={(e) => setRescheduleDateValue(e.target.value)}
+                                  className="px-1.5 py-0.5 text-[10px] border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-900"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (!rescheduleDateValue) return;
+                                    const target = jobs.find((j) => j.id === notif.jobId);
+                                    if (target) {
+                                      const updatedPlanned = Array.isArray(target.plannedDates)
+                                        ? target.plannedDates.map((d) => (d === notif.suspendedDate ? rescheduleDateValue : d))
+                                        : [rescheduleDateValue];
+                                      updateJob({
+                                        ...target,
+                                        date: target.date === notif.suspendedDate ? rescheduleDateValue : target.date,
+                                        plannedDates: updatedPlanned,
+                                      });
+                                    }
+                                    setReschedulingJobId(null);
+                                    setDismissedIds((prev) => [...prev, notif.id]);
+                                  }}
+                                  className="px-2 py-0.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded font-bold text-[10px] cursor-pointer"
+                                >
+                                  Sposta
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setReschedulingJobId(null)}
+                                  className="p-0.5 text-slate-400 hover:text-slate-600"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setReschedulingJobId(notif.jobId!);
+                                    setRescheduleDateValue('');
+                                  }}
+                                  className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded font-bold text-[10px] cursor-pointer"
+                                >
+                                  Ricolloca
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    deleteJob(notif.jobId!);
+                                    setDismissedIds((prev) => [...prev, notif.id]);
+                                  }}
+                                  className="px-2 py-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded font-bold text-[10px] cursor-pointer"
+                                >
+                                  Elimina
+                                </button>
+                              </>
+                            )}
+                          </div>
                         )}
 
                         <button

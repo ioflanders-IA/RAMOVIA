@@ -203,31 +203,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
       <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
         
         {/* 1. Cantieri Oggi */}
-        <div className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1">
-          <div className="flex items-center justify-between text-slate-300 dark:text-slate-300">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
             <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Cantieri</span>
-            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
+            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           </div>
-          <div className="text-xl sm:text-2xl font-black font-mono text-white leading-tight">
+          <div className="text-xl sm:text-2xl font-black font-mono text-slate-900 dark:text-white leading-tight">
             {todayJobs.length}
           </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-300 dark:text-slate-300 font-medium leading-none">
-            <span className="text-emerald-400 font-bold">{completedToday.length} fatti</span>
-            <span className="mx-1 text-slate-500">·</span>
-            <span className="text-sky-400 font-bold">{inProgressToday.length} in corso</span>
+          <div className="text-[10px] sm:text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-none">
+            <span className="text-emerald-700 dark:text-emerald-400 font-bold">{completedToday.length} fatti</span>
+            <span className="mx-1 text-slate-300 dark:text-slate-600">·</span>
+            <span className="text-sky-700 dark:text-sky-400 font-bold">{inProgressToday.length} in corso</span>
           </div>
         </div>
 
         {/* 2. Squadre Attive */}
-        <div className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1">
-          <div className="flex items-center justify-between text-slate-300 dark:text-slate-300">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
             <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Squadra</span>
-            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
+            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           </div>
-          <div className="text-xl sm:text-2xl font-black font-mono text-white leading-tight">
+          <div className="text-xl sm:text-2xl font-black font-mono text-slate-900 dark:text-white leading-tight">
             {activeWorkersToday}
           </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-300 dark:text-slate-300 font-medium leading-none">
+          <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-none">
             Sul campo oggi
           </div>
         </div>
@@ -235,16 +235,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
         {/* 3. Ore Rendicontate */}
         <div
           onClick={() => onNavigateTab('reports')}
-          className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs cursor-pointer hover:border-emerald-500/60 transition-colors flex flex-col justify-between space-y-1"
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2 shadow-xs cursor-pointer hover:border-emerald-500/60 transition-colors flex flex-col justify-between space-y-1"
         >
-          <div className="flex items-center justify-between text-slate-300 dark:text-slate-300">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
             <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Ore Report</span>
-            <Timer className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
+            <Timer className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           </div>
-          <div className="text-xl sm:text-2xl font-black font-mono text-emerald-400 leading-tight">
+          <div className="text-xl sm:text-2xl font-black font-mono text-emerald-700 dark:text-emerald-400 leading-tight">
             {totalReportedHours.toFixed(1)}<span className="text-sm ml-0.5 font-normal">h</span>
           </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-300 dark:text-slate-300 font-medium leading-none">
+          <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-none">
             Totale lavorato
           </div>
         </div>
@@ -254,18 +254,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
           onClick={() => onNavigateTab('reports')}
           className={`border rounded-lg p-2 shadow-xs cursor-pointer transition-colors flex flex-col justify-between space-y-1 ${
             pendingApprovalReports.length > 0
-              ? 'bg-amber-950/70 border-amber-600/80 text-amber-200'
-              : 'bg-slate-900/90 dark:bg-slate-900 border-slate-800 text-slate-100'
+              ? 'bg-amber-50 dark:bg-amber-950/70 border-amber-300 dark:border-amber-600/80 text-amber-900 dark:text-amber-200'
+              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100'
           }`}
         >
-          <div className="flex items-center justify-between text-slate-300 dark:text-slate-300">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
             <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Rapportini</span>
-            <FileCheck2 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${pendingApprovalReports.length > 0 ? 'text-amber-400' : 'text-slate-400'} shrink-0`} />
+            <FileCheck2 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${pendingApprovalReports.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'} shrink-0`} />
           </div>
-          <div className={`text-xl sm:text-2xl font-black font-mono leading-tight ${pendingApprovalReports.length > 0 ? 'text-amber-300' : 'text-white'}`}>
+          <div className={`text-xl sm:text-2xl font-black font-mono leading-tight ${pendingApprovalReports.length > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-slate-900 dark:text-white'}`}>
             {pendingApprovalReports.length}
           </div>
-          <div className={`text-[10px] sm:text-[11px] font-semibold flex items-center justify-between leading-none ${pendingApprovalReports.length > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+          <div className={`text-[10px] sm:text-[11px] font-semibold flex items-center justify-between leading-none ${pendingApprovalReports.length > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
             <span>{pendingApprovalReports.length > 0 ? 'Da validare' : 'Inviati oggi'}</span>
             <ArrowRight className="w-3 h-3 shrink-0 ml-0.5" />
           </div>

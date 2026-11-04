@@ -86,6 +86,10 @@ interface AppContextType {
   recordWorkerPayout: (payoutData: Omit<WorkerPayout, 'id' | 'createdAt'>) => Promise<void>;
   updateWorkerPayout: (payout: WorkerPayout) => Promise<void>;
   deleteWorkerPayout: (id: string) => Promise<void>;
+  // Red Days (Giornate rosse per meteo o imprevisti)
+  redDays: string[];
+  toggleRedDay: (dateISO: string) => Promise<void>;
+  isRedDay: (dateISO: string) => boolean;
   clearAllData: () => void;
 }
 
@@ -99,6 +103,7 @@ const STORAGE_KEYS = {
   EXPENSES: 'ramovia_expenses_v3',
   PAYOUTS: 'ramovia_payouts_v3',
   WORKED_DAYS: 'ramovia_worked_days_v3',
+  RED_DAYS: 'ramovia_red_days_v3',
 };
 
 // Initial Sample Data for Expenses if empty
@@ -500,6 +505,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [redDays, setRedDays] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.RED_DAYS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   // Save current user whenever changed
   useEffect(() => {
     try {
@@ -773,6 +787,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       (err) => console.warn('users snapshot error:', err)
     );
 
+    // RED DAYS LISTENER (Giornate rosse)
+    const unsubRedDays = onSnapshot(
+      collection(db, 'red_days'),
+      (snap) => {
+        const dates = snap.docs.map((d) => d.id);
+        setRedDays(dates);
+        try {
+          localStorage.setItem(STORAGE_KEYS.RED_DAYS, JSON.stringify(dates));
+        } catch (e) {
+          console.warn(e);
+        }
+      },
+      (err) => console.warn('red_days snapshot error:', err)
+    );
+
     return () => {
       unsubClients();
       unsubJobs();
@@ -782,6 +811,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubPayouts();
       unsubWorkedDays();
       unsubUsers();
+      unsubRedDays();
     };
   }, []);
 
@@ -2078,6 +2108,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // RED DAYS MANAGEMENT (Giornate rosse per meteo o imprevisti)
+  const toggleRedDay = async (dateISO: string) => {
+    if (!dateISO) return;
+    const exists = redDays.includes(dateISO);
+    const next = exists ? redDays.filter((d) => d !== dateISO) : [...redDays, dateISO];
+    setRedDays(next);
+    try {
+      localStorage.setItem(STORAGE_KEYS.RED_DAYS, JSON.stringify(next));
+    } catch (e) {
+      console.warn(e);
+    }
+
+    if (db) {
+      try {
+        const docRef = doc(db, 'red_days', dateISO);
+        if (exists) {
+          await deleteDoc(docRef);
+        } else {
+          await setDoc(docRef, { date: dateISO, createdAt: new Date().toISOString() });
+        }
+      } catch (err) {
+        console.warn('Firestore toggleRedDay error:', err);
+      }
+    }
+  };
+
+  const isRedDay = (dateISO: string): boolean => {
+    return redDays.includes(dateISO);
+  };
+
   // SHOPPING LIST COMPUTATION
   const calculateShoppingList = (): ShoppingListItem[] => {
     const materialsNeededMap = new Map<string, number>();
@@ -2197,6 +2257,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         recordWorkerPayout,
         updateWorkerPayout,
         deleteWorkerPayout,
+        redDays,
+        toggleRedDay,
+        isRedDay,
         clearAllData,
       }}
     >

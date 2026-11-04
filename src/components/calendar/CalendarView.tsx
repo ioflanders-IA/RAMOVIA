@@ -76,7 +76,7 @@ const ITALIAN_MONTHS = [
 ];
 
 export const CalendarView: React.FC = () => {
-  const { jobs, users, addJob, updateJob, deleteJob, currentUser, workedDays, clients } = useApp();
+  const { jobs, users, addJob, updateJob, deleteJob, currentUser, workedDays, clients, redDays, toggleRedDay, isRedDay } = useApp();
 
   const getClientForJob = useCallback((job: Job) => {
     return clients.find(
@@ -103,6 +103,22 @@ export const CalendarView: React.FC = () => {
   // Long-press delete state
   const [activeDeleteJobId, setActiveDeleteJobId] = useState<string | null>(null);
   const [jobToDeleteConfirm, setJobToDeleteConfirm] = useState<Job | null>(null);
+
+  // Giornata rossa (red day) modal and rescheduling state
+  const [redDayModalDate, setRedDayModalDate] = useState<string | null>(null);
+  const [reschedulingJobId, setReschedulingJobId] = useState<string | null>(null);
+  const [rescheduleDateValue, setRescheduleDateValue] = useState<string>('');
+
+  const handleToggleRedDay = async (dateISO: string, dayJobs: Job[]) => {
+    const currentlyRed = isRedDay(dateISO);
+    await toggleRedDay(dateISO);
+    if (!currentlyRed) {
+      const incomplete = dayJobs.filter((j) => j.status !== 'completed');
+      if (incomplete.length > 0) {
+        setRedDayModalDate(dateISO);
+      }
+    }
+  };
 
   // Quick Month/Year Dropdown
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -313,7 +329,7 @@ export const CalendarView: React.FC = () => {
         };
       default:
         return {
-          label: 'PROG',
+          label: 'In programma',
           bg: 'bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-800',
           dot: 'bg-amber-500',
         };
@@ -712,6 +728,7 @@ export const CalendarView: React.FC = () => {
                 {weekDates.map((dayDate) => {
                   const dateISO = formatLocalDate(dayDate);
                   const isToday = dateISO === todayStr;
+                  const isWeekRed = isRedDay(dateISO);
                   const dayJobs = filteredJobs.filter((job) => isJobScheduledOnDate(job, dateISO));
 
                   const isSelected = selectedDateISO === dateISO;
@@ -723,6 +740,8 @@ export const CalendarView: React.FC = () => {
                       className={`border rounded-[7px] p-[3px] sm:p-2 flex flex-col justify-between min-h-[260px] shadow-xs space-y-[3px] transition-all cursor-pointer ${
                         isSelected
                           ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/50 ring-2 ring-emerald-500/30'
+                          : isWeekRed
+                          ? 'border-rose-400 dark:border-rose-600 bg-rose-50/80 dark:bg-rose-950/50 ring-1 ring-rose-500/30'
                           : isToday
                           ? 'border-emerald-500 bg-white dark:bg-slate-900 ring-1 ring-emerald-500/20'
                           : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
@@ -737,25 +756,44 @@ export const CalendarView: React.FC = () => {
                             </div>
                             <div
                               className={`text-sm sm:text-base font-bold font-mono ${
-                                isToday ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'
+                                isWeekRed
+                                  ? 'text-rose-700 dark:text-rose-400 font-extrabold'
+                                  : isToday
+                                  ? 'text-emerald-700 dark:text-emerald-400'
+                                  : 'text-slate-900 dark:text-slate-100'
                               }`}
                             >
                               {dayDate.getDate()}
                             </div>
                           </div>
 
-                          {currentUser?.role === 'admin' && (
-                            <button
-                              onClick={() => {
-                                setNewJobDate(dateISO);
-                                setIsCreatingNew(true);
-                              }}
-                              className="p-1 text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 rounded hover:bg-emerald-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                              title="Pianifica intervento per questa data"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            {currentUser?.role === 'admin' && (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleRedDay(dateISO, dayJobs)}
+                                className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full transition-all cursor-pointer shrink-0 ${
+                                  isWeekRed
+                                    ? 'bg-rose-600 ring-2 ring-rose-300 dark:ring-rose-800 shadow-xs'
+                                    : 'border border-rose-400 dark:border-rose-500/70 hover:bg-rose-500 hover:border-rose-500'
+                                }`}
+                                title={isWeekRed ? 'Giornata rossa attiva' : 'Giornata rossa'}
+                              />
+                            )}
+
+                            {currentUser?.role === 'admin' && (
+                              <button
+                                onClick={() => {
+                                  setNewJobDate(dateISO);
+                                  setIsCreatingNew(true);
+                                }}
+                                className="p-1 text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 rounded hover:bg-emerald-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                title="Pianifica intervento per questa data"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         {/* Day Jobs List with Long-Press Delete Support */}
@@ -862,6 +900,7 @@ export const CalendarView: React.FC = () => {
                   {monthMatrix.map((cell) => {
                     const dayJobs = filteredJobs.filter((job) => isJobScheduledOnDate(job, cell.dateISO));
                     const isSelected = selectedDateISO === cell.dateISO;
+                    const isRed = isRedDay(cell.dateISO);
 
                     return (
                       <div
@@ -870,6 +909,8 @@ export const CalendarView: React.FC = () => {
                         className={`min-h-[85px] sm:min-h-[110px] p-1 rounded-[5px] border flex flex-col justify-between transition-all cursor-pointer ${
                           isSelected
                             ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 dark:border-emerald-500 ring-2 ring-emerald-500/30 shadow-xs'
+                            : isRed
+                            ? 'bg-rose-50/90 dark:bg-rose-950/60 border-rose-400 dark:border-rose-600 ring-1 ring-rose-500/30'
                             : cell.isToday
                             ? 'border-emerald-400 dark:border-emerald-600 bg-white dark:bg-slate-900 font-bold'
                             : cell.isCurrentMonth
@@ -877,12 +918,14 @@ export const CalendarView: React.FC = () => {
                             : 'bg-slate-50/70 dark:bg-slate-950/40 border-slate-100 dark:border-slate-900 opacity-60'
                         }`}
                       >
-                        {/* Top Row: Day Number (plain text without circle background) + Add button */}
+                        {/* Top Row: Day Number (plain text without circle background) + Red button + Add button */}
                         <div className="flex items-center justify-between mb-0.5">
                           <span
                             className={`text-xs sm:text-sm font-mono font-bold ${
                               isSelected
                                 ? 'text-emerald-900 dark:text-emerald-200 font-extrabold'
+                                : isRed
+                                ? 'text-rose-700 dark:text-rose-400 font-extrabold'
                                 : cell.isToday
                                 ? 'text-emerald-700 dark:text-emerald-400 font-extrabold'
                                 : cell.isCurrentMonth
@@ -893,7 +936,20 @@ export const CalendarView: React.FC = () => {
                             {cell.date.getDate()}
                           </span>
 
-                          <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            {currentUser?.role === 'admin' && (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleRedDay(cell.dateISO, dayJobs)}
+                                className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full transition-all cursor-pointer shrink-0 ${
+                                  isRed
+                                    ? 'bg-rose-600 ring-2 ring-rose-300 dark:ring-rose-800 shadow-xs'
+                                    : 'border border-rose-400 dark:border-rose-500/70 hover:bg-rose-500 hover:border-rose-500'
+                                }`}
+                                title={isRed ? 'Giornata rossa attiva' : 'Giornata rossa'}
+                              />
+                            )}
+
                             {currentUser?.role === 'admin' && (
                               <button
                                 onClick={() => {
@@ -980,25 +1036,42 @@ export const CalendarView: React.FC = () => {
                     <div className="flex items-center gap-1.5 min-w-0">
                       <Clock className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-200 capitalize truncate">
-                        Interventi di {selectedDateObj.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                        Interventi
                       </span>
                       <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 shrink-0">
                         {selectedDayJobs.length}
                       </span>
                     </div>
 
-                    {currentUser?.role === 'admin' && (
-                      <button
-                        onClick={() => {
-                          setNewJobDate(selectedDateISO);
-                          setIsCreatingNew(true);
-                        }}
-                        className="flex items-center gap-1 px-2 py-0.5 bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold rounded-[5px] transition-colors cursor-pointer shadow-2xs shrink-0"
-                      >
-                        <Plus className="w-3 h-3" />
-                        <span>Aggiungi</span>
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {currentUser?.role === 'admin' && (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleRedDay(selectedDateISO, selectedDayJobs)}
+                          className={`flex items-center gap-1 px-2 py-0.5 rounded-[5px] text-[11px] font-bold transition-all cursor-pointer ${
+                            isRedDay(selectedDateISO)
+                              ? 'bg-rose-600 text-white shadow-xs'
+                              : 'border border-rose-300 dark:border-rose-700 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40'
+                          }`}
+                          title={isRedDay(selectedDateISO) ? 'Giornata rossa attiva' : 'Giornata rossa'}
+                        >
+                          <span className="w-2 h-2 rounded-full bg-current" />
+                          <span>Giornata rossa</span>
+                        </button>
+                      )}
+                      {currentUser?.role === 'admin' && (
+                        <button
+                          onClick={() => {
+                            setNewJobDate(selectedDateISO);
+                            setIsCreatingNew(true);
+                          }}
+                          className="flex items-center gap-1 px-2 py-0.5 bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold rounded-[5px] transition-colors cursor-pointer shadow-2xs shrink-0"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>Aggiungi</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-[3px]">
@@ -1037,9 +1110,22 @@ export const CalendarView: React.FC = () => {
                             }`}
                           >
                             <div className="flex items-center gap-2 min-w-0">
-                              <span className="font-mono text-[11px] font-bold shrink-0 px-1.5 py-0.5 rounded bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-700/60">
-                                {job.timeSlot || 'Fascia non def.'}
-                              </span>
+                              {(() => {
+                                const parts = (job.timeSlot || '').split(/\s*[-/]\s*/).map((s) => s.trim()).filter(Boolean);
+                                if (parts.length >= 2) {
+                                  return (
+                                    <div className="font-mono text-[10px] sm:text-[11px] font-bold shrink-0 px-1.5 py-0.5 rounded bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-700/80 flex flex-col items-center justify-center leading-tight shadow-2xs">
+                                      <span>{parts[0]}</span>
+                                      <span>{parts[1]}</span>
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <div className="font-mono text-[10px] sm:text-[11px] font-bold shrink-0 px-2 py-1 rounded bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-center shadow-2xs">
+                                    <span>{job.timeSlot || '--:--'}</span>
+                                  </div>
+                                );
+                              })()}
 
                               <div className="min-w-0">
                                 <div className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate flex items-center gap-1.5">
@@ -1075,7 +1161,7 @@ export const CalendarView: React.FC = () => {
                                   </button>
                                 </div>
                               ) : (
-                                <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-white/80 dark:bg-slate-900/80">
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/80 dark:bg-slate-900/80 whitespace-nowrap">
                                   {badge.label}
                                 </span>
                               )}
@@ -1480,6 +1566,121 @@ export const CalendarView: React.FC = () => {
             )}
           </div>
         </div>
+
+      {/* Suspended Jobs Modal for Giornata Rossa (essential texts only) */}
+      {redDayModalDate && (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/60 backdrop-blur-xs p-3">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-3 max-w-sm w-full space-y-2.5 shadow-2xl animate-in fade-in zoom-in-95 text-slate-900 dark:text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-600 shadow-xs" />
+                <h3 className="font-bold text-sm">Intervento in sospeso</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setRedDayModalDate(null);
+                  setReschedulingJobId(null);
+                }}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+              {filteredJobs
+                .filter((j) => isJobScheduledOnDate(j, redDayModalDate) && j.status !== 'completed')
+                .map((job) => {
+                  const isRescheduling = reschedulingJobId === job.id;
+
+                  return (
+                    <div
+                      key={job.id}
+                      className="p-2 rounded-[5px] border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-1.5"
+                    >
+                      <div className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
+                        {job.clientName}
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        {job.title || 'Intervento'} · {job.timeSlot || 'Tutto il giorno'}
+                      </div>
+
+                      {isRescheduling ? (
+                        <div className="flex items-center gap-1 pt-1">
+                          <input
+                            type="date"
+                            value={rescheduleDateValue || redDayModalDate}
+                            onChange={(e) => setRescheduleDateValue(e.target.value)}
+                            className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex-1"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!rescheduleDateValue) return;
+                              const updatedPlanned = Array.isArray(job.plannedDates)
+                                ? job.plannedDates.map((d) => (d === redDayModalDate ? rescheduleDateValue : d))
+                                : [rescheduleDateValue];
+                              updateJob({
+                                ...job,
+                                date: job.date === redDayModalDate ? rescheduleDateValue : job.date,
+                                plannedDates: updatedPlanned,
+                              });
+                              setReschedulingJobId(null);
+                            }}
+                            className="px-2 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-xs font-bold cursor-pointer"
+                          >
+                            Sposta
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setReschedulingJobId(null)}
+                            className="p-1 text-slate-400 hover:text-slate-600"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReschedulingJobId(job.id);
+                              setRescheduleDateValue('');
+                            }}
+                            className="flex-1 py-1 px-2 text-center bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded text-xs font-bold cursor-pointer"
+                          >
+                            Ricolloca
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteJob(job.id)}
+                            className="py-1 px-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-bold cursor-pointer"
+                          >
+                            Elimina
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+
+            <div className="pt-1 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setRedDayModalDate(null);
+                  setReschedulingJobId(null);
+                }}
+                className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                Chiudi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Modal for Job Deletion (triggered by long-press) */}
       {jobToDeleteConfirm && (
