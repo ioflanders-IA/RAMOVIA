@@ -19,6 +19,8 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  Tag,
   HardHat,
   Phone,
   FileText,
@@ -33,6 +35,27 @@ import {
   ArrowRight,
   DollarSign,
 } from 'lucide-react';
+
+const WORKER_PALETTE = [
+  '#38bdf8', // sky-400 (bright blue, like first card in clients)
+  '#c084fc', // purple-400 (magenta/purple, like Salè in clients)
+  '#fb923c', // orange-400 (orange, like Vincenzo photinia in clients)
+  '#34d399', // emerald-400
+  '#f472b6', // pink-400
+  '#a78bfa', // violet-400
+  '#2dd4bf', // teal-400
+  '#facc15', // amber-400
+];
+
+const getWorkerColor = (workerId: string, index: number) => {
+  if (!workerId) return WORKER_PALETTE[index % WORKER_PALETTE.length];
+  let hash = 0;
+  for (let i = 0; i < workerId.length; i++) {
+    hash = workerId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const idx = Math.abs(hash) % WORKER_PALETTE.length;
+  return WORKER_PALETTE[idx];
+};
 
 export const SquadWorkersRegistry: React.FC = () => {
   const {
@@ -138,7 +161,8 @@ export const SquadWorkersRegistry: React.FC = () => {
       );
       const totalPaidFromPayouts = workerPayoutsThisMonth.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
       const totalPaidFromDays = days.filter((d) => d.paid).reduce((sum, d) => sum + (d.amount || 0), 0);
-      const totalPaid = Math.max(totalPaidFromPayouts, totalPaidFromDays);
+      const rawPaid = Math.max(totalPaidFromPayouts, totalPaidFromDays);
+      const totalPaid = totalEarned > 0 ? Math.min(totalEarned, rawPaid) : rawPaid;
 
       const pendingToPay = Math.max(0, totalEarned - totalPaid);
 
@@ -243,7 +267,8 @@ export const SquadWorkersRegistry: React.FC = () => {
       });
       const paidFromPayouts = weekPayouts.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
       const paidFromDays = weekDays.filter((d) => d.paid).reduce((sum, d) => sum + (d.amount || 0), 0);
-      const paid = Math.max(paidFromPayouts, paidFromDays);
+      const rawPaid = Math.max(paidFromPayouts, paidFromDays);
+      const paid = earned > 0 ? Math.min(earned, rawPaid) : rawPaid;
       const pending = Math.max(0, earned - paid);
 
       return {
@@ -526,6 +551,46 @@ export const SquadWorkersRegistry: React.FC = () => {
     setEditingWorker(null);
   };
 
+  // Helper per gestire click (apertura/chiusura) e pressione prolungata (modifica operaio)
+  const createWorkerCardProps = (worker: User) => {
+    let pressTimer: NodeJS.Timeout | null = null;
+    let didLongPress = false;
+
+    const start = () => {
+      didLongPress = false;
+      pressTimer = setTimeout(() => {
+        didLongPress = true;
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+        setEditingWorker(worker);
+      }, 500);
+    };
+
+    const clear = () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    };
+
+    return {
+      onMouseDown: start,
+      onMouseUp: clear,
+      onMouseLeave: clear,
+      onTouchStart: start,
+      onTouchEnd: clear,
+      onClick: () => {
+        if (didLongPress) return;
+        setExpandedWorkerId((prev) => (prev === worker.uid ? null : worker.uid));
+      },
+      onContextMenu: (e: React.MouseEvent) => {
+        e.preventDefault();
+        setEditingWorker(worker);
+      },
+    };
+  };
+
   return (
     <div className="space-y-[3px]">
       {/* Header Action Buttons Grouped on the Right (Icon-only vector style) */}
@@ -579,7 +644,7 @@ export const SquadWorkersRegistry: React.FC = () => {
             <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Da Dare</span>
             <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
           </div>
-          <div className="text-xl sm:text-2xl font-black font-mono text-amber-400 leading-tight">
+          <div className="text-xl sm:text-2xl font-black font-mono text-slate-900 dark:text-white leading-tight">
             € {totalDueAllWorkers.toFixed(0)}
           </div>
           <div className="text-[10px] sm:text-[11px] text-slate-300 dark:text-slate-300 font-medium leading-none">
@@ -689,177 +754,175 @@ export const SquadWorkersRegistry: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[7px]">
-            {workerStats.map((st) => {
+            {workerStats.map((st, index) => {
               const isExpanded = expandedWorkerId === st.worker.uid;
+              const workerColor = getWorkerColor(st.worker.uid, index);
+              const cardProps = createWorkerCardProps(st.worker);
 
               return (
                 <div
                   key={st.worker.uid}
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px] flex flex-col justify-between"
+                  style={{ borderLeftColor: workerColor, borderLeftWidth: '3.5px' }}
+                  {...cardProps}
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-2.5 shadow-xs hover:border-emerald-500 dark:hover:border-emerald-600 transition-all space-y-2 group cursor-pointer select-none"
                 >
-                  <div className="space-y-[7px]">
-                    {/* Header Card Operaio */}
-                    <div className="flex items-start justify-between gap-[7px]">
-                      <div className="flex items-center gap-[7px] min-w-0">
-                        <div className="w-8 h-8 rounded-[7px] bg-emerald-800 text-white font-bold flex items-center justify-center text-xs shrink-0">
-                          {st.worker.displayName.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
-                              {st.worker.displayName}
-                            </h3>
-                            {st.worker.isOfflineWorker ? (
-                              <span className="px-1.5 py-0.2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold text-[9px] rounded uppercase border border-slate-200 dark:border-slate-700">
-                                Offline
-                              </span>
-                            ) : (
-                              <span className="px-1.5 py-0.2 bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 font-bold text-[9px] rounded uppercase border border-emerald-200 dark:border-emerald-800">
-                                Google
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-slate-500 font-mono truncate">
-                            {st.worker.phone || 'Nessun telefono'} · Cod: {st.worker.workerCode || 'OP----'}
-                          </div>
-                        </div>
-                      </div>
+                  {/* Top Row: Name on Left, Google / Offline Badge on Right (No edit icon, no chevron) */}
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors truncate">
+                      {st.worker.displayName}
+                    </h3>
+                    <div className="shrink-0">
+                      {st.worker.isOfflineWorker ? (
+                        <span className="px-1.5 py-0.2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold text-[9px] rounded uppercase border border-slate-200 dark:border-slate-700">
+                          Offline
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.2 bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 font-bold text-[9px] rounded uppercase border border-emerald-200 dark:border-emerald-800">
+                          Google
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-                      <button
-                        onClick={() => setEditingWorker(st.worker)}
-                        className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
-                        title="Modifica tariffa o dati operaio"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
+                  {/* Middle Row: Tariffa (without Cod) + Maturato on Left, DA DARE on Right (enlarged value, small euro, no decimals, no bg, no border) */}
+                  <div className="flex items-end justify-between gap-2">
+                    <div className="min-w-0 flex-1 space-y-0.5 text-[11px] text-slate-600 dark:text-slate-400">
+                      <div className="flex items-center gap-1 leading-snug">
+                        <Tag className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span className="font-medium text-slate-700 dark:text-slate-300">
+                          Tariffa: € {(st.worker.dailyRate || 90).toFixed(0)} / gg
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-400 dark:text-slate-500 pl-4 leading-snug truncate">
+                        Maturato nel mese: € {st.totalEarned.toFixed(0)}
+                        {st.totalPaid > 0 && ` · Pagati: € ${st.totalPaid.toFixed(0)}`}
+                      </div>
                     </div>
 
-                    {/* Riepilogo Giornate & Totale da Dare */}
-                    <div className="bg-slate-50 dark:bg-slate-800/60 p-[7px] rounded-[7px] space-y-[7px] text-xs">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-500 dark:text-slate-400">Tariffa Giornaliera:</span>
-                        <strong className="font-mono text-slate-900 dark:text-slate-100">
-                          € {(st.worker.dailyRate || 90).toFixed(2)} / gg
-                        </strong>
-                      </div>
-
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-500 dark:text-slate-400">Giornate Lavorate nel Mese:</span>
-                        <span className="font-mono font-bold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
-                          {st.totalDaysCount.toFixed(1)} gg
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-500 dark:text-slate-400">Totale Maturato:</span>
-                        <strong className="font-mono text-slate-800 dark:text-slate-200">
-                          € {st.totalEarned.toFixed(2)}
-                        </strong>
-                      </div>
-
-                      {st.totalPaid > 0 && (
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-slate-500 dark:text-slate-400">Acconti / Pagati:</span>
-                          <span className="font-mono text-emerald-700 dark:text-emerald-400">
-                            - € {st.totalPaid.toFixed(2)}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* TOTALE DA DARE HIGHLIGHT */}
-                      <div className="pt-1.5 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                        <span className="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase">
-                          Totale da Dare:
-                        </span>
-                        <span className="font-mono font-black text-sm text-emerald-700 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-950 px-2 py-0.5 rounded-[7px] border border-emerald-300 dark:border-emerald-800">
-                          € {st.pendingToPay.toFixed(2)}
+                    <div className="text-right shrink-0">
+                      <span className="text-[9px] uppercase font-bold text-amber-500/90 dark:text-amber-400/90 tracking-wider block leading-none pb-0.5">
+                        Da dare
+                      </span>
+                      <div className="font-mono font-black text-slate-900 dark:text-white leading-none flex items-baseline justify-end">
+                        <span className="text-xs font-bold mr-0.5 text-slate-500 dark:text-slate-300">€</span>
+                        <span className="text-2xl sm:text-3xl tracking-tight text-slate-900 dark:text-white">
+                          {Math.round(st.pendingToPay)}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Pulsanti Azione Operaio */}
-                  <div className="pt-2 space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => {
-                          setDayWorkerId(st.worker.uid);
-                          setDayRate(st.worker.dailyRate || 90);
-                          setDayAmount(st.worker.dailyRate || 90);
-                          setDayDate(new Date().toISOString().split('T')[0]);
-                          setDayType('full');
-                          setShowAddDayModal(true);
-                        }}
-                        className="flex-1 p-[7px] bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] font-bold text-xs flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>+ Giornata</span>
-                      </button>
+                  {/* Bottom Action Bar: Square + button on left (transparent bg & green border), Phone/Nessun tel on left of Salda, Salda with transparent bg & thick border */}
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 dark:border-slate-800/80">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDayWorkerId(st.worker.uid);
+                        setDayRate(st.worker.dailyRate || 90);
+                        setDayAmount(st.worker.dailyRate || 90);
+                        setDayDate(new Date().toISOString().split('T')[0]);
+                        setDayType('full');
+                        setShowAddDayModal(true);
+                      }}
+                      className="w-7 h-7 rounded-[6px] bg-transparent hover:bg-emerald-500/10 border-2 border-emerald-500 dark:border-emerald-400 text-emerald-500 dark:text-emerald-400 flex items-center justify-center shrink-0 cursor-pointer shadow-2xs transition-colors"
+                      title="Aggiungi giornata"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
+                    </button>
+
+                    <div className="flex items-center gap-2.5 ml-auto shrink-0">
+                      {st.worker.phone ? (
+                        <a
+                          href={`tel:${st.worker.phone}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-bold"
+                          title="Chiama operaio"
+                        >
+                          <Phone className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                          <span>{st.worker.phone}</span>
+                        </a>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 italic">
+                          Nessun tel
+                        </span>
+                      )}
 
                       <button
-                        onClick={() => {
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setPayoutWorker(st.worker);
                           setPayoutAmount(st.pendingToPay > 0 ? st.pendingToPay : st.totalEarned);
                           setPayoutMethod('bonifico');
                           setPayoutNotes(`Saldo compenso ${formattedMonthLabel}`);
                           setShowPayoutModal(true);
                         }}
-                        className="p-[7px] px-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-[7px] font-bold text-xs flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
-                        title="Registra Pagamento / Acconto"
+                        className="h-7 px-3 bg-transparent hover:bg-amber-400/10 border-2 border-amber-400 text-amber-500 dark:text-amber-400 rounded-[6px] font-bold text-xs flex items-center gap-1.5 shadow-2xs cursor-pointer transition-colors shrink-0"
+                        title="Registra Pagamento / Saldo"
                       >
                         <CreditCard className="w-3.5 h-3.5 text-amber-400" />
                         <span>Salda</span>
                       </button>
                     </div>
-
-                    <button
-                      onClick={() => setExpandedWorkerId(isExpanded ? null : st.worker.uid)}
-                      className="w-full text-center py-1 text-[11px] font-semibold text-slate-500 hover:text-emerald-700 dark:hover:text-emerald-400 underline cursor-pointer"
-                    >
-                      {isExpanded ? 'Nascondi elenco giornate ▲' : `Vedi giornate lavorate (${st.days.length}) ▼`}
-                    </button>
-
-                    {/* Accordion Elenco Giornate Operaio */}
-                    {isExpanded && (
-                      <div className="p-2 bg-slate-100 dark:bg-slate-800/80 rounded-[7px] space-y-[3px] max-h-48 overflow-y-auto text-[11px]">
-                        {st.days.length === 0 ? (
-                          <div className="text-slate-400 text-center py-2">
-                            Nessuna giornata inserita in questo mese.
-                          </div>
-                        ) : (
-                          st.days.map((d) => (
-                            <div
-                              key={d.id}
-                              className="p-1.5 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2"
-                            >
-                              <div className="min-w-0 flex-1">
-                                <div className="font-mono font-bold text-slate-800 dark:text-slate-200 truncate">
-                                  {formatShortDateItalian(d.date)}
-                                </div>
-                                {d.cantiereName && (
-                                  <div className="text-[10px] text-slate-500 truncate" title={d.cantiereName}>
-                                    {d.cantiereName}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                                <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
-                                  € {d.amount.toFixed(2)}
-                                </span>
-                                <button
-                                  onClick={() => deleteWorkedDay(d.id)}
-                                  className="p-1 text-slate-400 hover:text-rose-600 rounded shrink-0 cursor-pointer"
-                                  title="Elimina giornata"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
                   </div>
+
+                  {/* Accordion Elenco Giornate Operaio */}
+                  {isExpanded && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-2 bg-slate-50 dark:bg-slate-950/80 rounded-[7px] border border-slate-200 dark:border-slate-800 space-y-1 max-h-48 overflow-y-auto text-[11px]"
+                    >
+                      {st.days.length === 0 ? (
+                        <div className="text-slate-400 text-center py-2 text-xs">
+                          Nessuna giornata inserita in questo mese.
+                        </div>
+                      ) : (
+                        st.days.map((d) => (
+                          <div
+                            key={d.id}
+                            className="p-1.5 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 shadow-2xs"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="font-mono font-bold text-slate-800 dark:text-slate-200 truncate">
+                                {formatShortDateItalian(d.date)}
+                              </div>
+                              {d.cantiereName && (
+                                <div className="text-[10px] text-slate-500 truncate" title={d.cantiereName}>
+                                  {d.cantiereName}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                              <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
+                                € {d.amount.toFixed(2)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updateWorkedDay({ ...d, paid: !d.paid })}
+                                className={`px-1.5 py-0.5 text-[9px] font-bold rounded-[3px] border cursor-pointer transition-colors shrink-0 whitespace-nowrap ${
+                                  d.paid
+                                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800'
+                                    : 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800'
+                                }`}
+                                title={d.paid ? 'Clicca per annullare pagamento' : 'Clicca per segnare pagato'}
+                              >
+                                {d.paid ? '✓ Pagato' : 'Da Saldare'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteWorkedDay(d.id)}
+                                className="p-1 text-slate-400 hover:text-rose-600 rounded shrink-0 cursor-pointer"
+                                title="Elimina giornata"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

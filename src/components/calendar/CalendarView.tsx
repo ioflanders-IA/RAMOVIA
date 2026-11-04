@@ -501,39 +501,23 @@ export const CalendarView: React.FC = () => {
           {/* Top Controls Box: Clean, Non-chaotic on both Mobile and Desktop */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[3px] sm:p-2 shadow-xs space-y-[3px]">
             
-            {/* ROW 1 (Mobile & Desktop): Search + New Job */}
-            <div className="flex items-center gap-[3px]">
-              <div className="relative flex-1 min-w-0">
+            {/* ROW 1: Search + Filters (Operai & Stati) + Nuovo all on the SAME row, with dashed line below */}
+            <div className="flex items-center gap-[3px] pb-1.5 border-b border-dashed border-slate-300 dark:border-slate-700">
+              <div className="relative flex-1 min-w-[90px]">
                 <Search className="w-3.5 h-3.5 absolute left-2 top-2 text-slate-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Cerca cantiere..."
-                  className="w-full pl-7 pr-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[5px] text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
+                  className="w-full pl-7 pr-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[5px] text-slate-900 dark:text-slate-100 focus:outline-emerald-600 truncate"
                 />
               </div>
 
-              {currentUser?.role === 'admin' && (
-                <button
-                  onClick={() => {
-                    setNewJobDate(todayStr);
-                    setIsCreatingNew(true);
-                  }}
-                  className="flex items-center gap-1 px-3 py-1 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-[5px] shadow-xs transition-colors shrink-0 cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Nuovo</span>
-                </button>
-              )}
-            </div>
-
-            {/* ROW 2: Filters side by side (Operai & Stati, both 50% on mobile, compact on desktop) */}
-            <div className="grid grid-cols-2 sm:flex sm:items-center gap-[3px]">
               <select
                 value={workerFilter}
                 onChange={(e) => setWorkerFilter(e.target.value)}
-                className="w-full sm:w-auto bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[5px] px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-emerald-600"
+                className="w-auto max-w-[120px] sm:max-w-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[5px] px-1.5 sm:px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-emerald-600 truncate shrink-0"
               >
                 <option value="all">Tutti gli Operai</option>
                 {currentUser && (
@@ -553,17 +537,30 @@ export const CalendarView: React.FC = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full sm:w-auto bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[5px] px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-emerald-600"
+                className="w-auto max-w-[110px] sm:max-w-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[5px] px-1.5 sm:px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-emerald-600 truncate shrink-0"
               >
                 <option value="all">Tutti gli stati</option>
                 <option value="scheduled">Programmati</option>
                 <option value="in_progress">In corso</option>
                 <option value="completed">Completati</option>
               </select>
+
+              {currentUser?.role === 'admin' && (
+                <button
+                  onClick={() => {
+                    setNewJobDate(todayStr);
+                    setIsCreatingNew(true);
+                  }}
+                  className="flex items-center gap-1 px-2.5 sm:px-3 py-1 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-[5px] shadow-xs transition-colors shrink-0 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Nuovo</span>
+                </button>
+              )}
             </div>
 
-            {/* ROW 3: Period Navigation (< Oggi > + Month Title + Dropdown) */}
-            <div className="flex items-center justify-between gap-[3px] pt-1 border-t border-slate-100 dark:border-slate-800">
+            {/* ROW 2: Period Navigation (< Oggi > + Month Title + Dropdown) */}
+            <div className="flex items-center justify-between gap-[3px] pt-1">
               <div className="flex items-center gap-[3px]">
                 <button
                   onClick={handlePrev}

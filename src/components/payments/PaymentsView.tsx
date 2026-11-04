@@ -293,30 +293,75 @@ export const PaymentsView: React.FC = () => {
   );
 
   const { totalWorkerPaidAll, totalWorkerPendingAll } = useMemo(() => {
-    // Total payouts actually paid out
-    const totalPaidPayouts = payouts
-      .filter((p) => workerUids.has(p.workerId) && p.status === 'paid')
-      .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+    // 1. Collect all distinct months (YYYY-MM) across workedDays and payouts
+    const allMonths = new Set<string>();
+    const currentMonthStr = new Date().toISOString().substring(0, 7);
+    allMonths.add(currentMonthStr);
 
-    // Sum of pending amounts computed strictly per worker
+    validWorkedDays.forEach((wd) => {
+      if (wd.date && wd.date.length >= 7) {
+        allMonths.add(wd.date.substring(0, 7));
+      }
+    });
+
+    payouts.forEach((p) => {
+      if (workerUids.has(p.workerId) && p.status === 'paid') {
+        const pDate = p.paymentDate || p.createdAt?.split('T')[0];
+        if (p.period && p.period.length >= 7) {
+          allMonths.add(p.period.substring(0, 7));
+        } else if (pDate && pDate.length >= 7) {
+          allMonths.add(pDate.substring(0, 7));
+        }
+      }
+    });
+
     let pendingTotal = 0;
-    workers.forEach((worker) => {
-      const days = validWorkedDays.filter((wd) => wd.workerId === worker.uid);
-      const totalEarned = days.reduce((sum, d) => sum + (d.amount || 0), 0);
+    let paidTotalFromPeriods = 0;
 
+    // 2. Compute month-by-month for each worker to align strictly with SquadWorkersRegistry
+    // and prevent historical payouts (e.g. October) from zeroing out current unpaid wages (e.g. November)
+    workers.forEach((worker) => {
+      const workerDays = validWorkedDays.filter((wd) => wd.workerId === worker.uid);
       const workerPayouts = payouts.filter(
         (p) => p.workerId === worker.uid && p.status === 'paid'
       );
-      const workerPaidFromPayouts = workerPayouts.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
-      const workerPaidFromDays = days.filter((d) => d.paid).reduce((sum, d) => sum + (d.amount || 0), 0);
-      const totalPaid = Math.max(workerPaidFromPayouts, workerPaidFromDays);
 
-      const workerPending = Math.max(0, totalEarned - totalPaid);
-      pendingTotal += workerPending;
+      const processedDayIds = new Set<string>();
+
+      allMonths.forEach((m) => {
+        const mDays = workerDays.filter((d) => d.date && d.date.startsWith(m));
+        mDays.forEach((d) => processedDayIds.add(d.id));
+
+        const mEarned = mDays.reduce((sum, d) => sum + (d.amount || 0), 0);
+
+        const mPayouts = workerPayouts.filter((p) => {
+          const pDate = p.paymentDate || p.createdAt?.split('T')[0];
+          return p.period === m || (pDate && pDate.startsWith(m));
+        });
+
+        const mPaidPayouts = mPayouts.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+        const mPaidDays = mDays.filter((d) => d.paid).reduce((sum, d) => sum + (d.amount || 0), 0);
+        const rawPaid = Math.max(mPaidPayouts, mPaidDays);
+        const mPaid = mEarned > 0 ? Math.min(mEarned, rawPaid) : rawPaid;
+
+        const mPending = Math.max(0, mEarned - mPaid);
+        pendingTotal += mPending;
+        paidTotalFromPeriods += mPaid;
+      });
+
+      // Handle any non-dated or unzoned worked days if any
+      const unzonedDays = workerDays.filter((d) => !processedDayIds.has(d.id));
+      if (unzonedDays.length > 0) {
+        const unzonedEarned = unzonedDays.reduce((sum, d) => sum + (d.amount || 0), 0);
+        const unzonedPaid = unzonedDays.filter((d) => d.paid).reduce((sum, d) => sum + (d.amount || 0), 0);
+        const cappedUnzonedPaid = unzonedEarned > 0 ? Math.min(unzonedEarned, unzonedPaid) : unzonedPaid;
+        pendingTotal += Math.max(0, unzonedEarned - cappedUnzonedPaid);
+        paidTotalFromPeriods += cappedUnzonedPaid;
+      }
     });
 
     return {
-      totalWorkerPaidAll: totalPaidPayouts,
+      totalWorkerPaidAll: paidTotalFromPeriods,
       totalWorkerPendingAll: pendingTotal,
     };
   }, [workers, workerUids, validWorkedDays, payouts]);
