@@ -976,7 +976,7 @@ export const PaymentsView: React.FC = () => {
             </button>
           </div>
 
-          <div className="space-y-[3px] max-h-[500px] overflow-y-auto">
+          <div className="space-y-[3px]">
             {jobs.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-400">
                 Nessun cantiere o intervento ancora registrato.
@@ -1359,7 +1359,7 @@ export const PaymentsView: React.FC = () => {
             </button>
           </div>
 
-          <div className="space-y-[7px] max-h-[520px] overflow-y-auto">
+          <div className="space-y-[3px]">
             {expenses.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-400">
                 Nessuna spesa registrata. Clicca su "Aggiungi Spesa" per registrarne una.
@@ -1860,7 +1860,7 @@ export const PaymentsView: React.FC = () => {
           </div>
 
           {/* Lista Commesse Naturando */}
-          <div className="space-y-[3px] max-h-[550px] overflow-y-auto">
+          <div className="space-y-[3px]">
             {filteredNaturandoJobs.length === 0 ? (
               <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-[7px] border border-slate-200 dark:border-slate-800 space-y-2">
                 <img

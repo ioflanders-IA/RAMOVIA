@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useApp } from '../../context/AppContext';
 import { Job } from '../../types';
 import { JobModal } from '../jobs/JobModal';
+import { JobDetailViewModal } from '../jobs/JobDetailViewModal';
 import { SquadWorkersRegistry } from './SquadWorkersRegistry';
 import { formatLocalDate, parseLocalDate, formatItalianDate } from '../../utils/dateUtils';
 import { getClientColor } from '../../utils/clientColors';
@@ -140,6 +141,7 @@ export const CalendarView: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedJobForEdit, setSelectedJobForEdit] = useState<Job | null>(null);
+  const [selectedJobForView, setSelectedJobForView] = useState<Job | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [newJobDate, setNewJobDate] = useState<string>(() => formatLocalDate(new Date()));
   const [selectedDateISO, setSelectedDateISO] = useState<string>(() => formatLocalDate(new Date()));
@@ -527,7 +529,7 @@ export const CalendarView: React.FC = () => {
         pressTimer = null;
       }
       if (triggerClick && !didLongPress && !hasMovedDuringTouch && activeDeleteJobId !== job.id) {
-        setSelectedJobForEdit(job);
+        setSelectedJobForView(job);
       }
     };
 
@@ -1173,7 +1175,7 @@ export const CalendarView: React.FC = () => {
                           <div
                             key={job.id}
                             {...pressProps}
-                            onClick={() => setSelectedJobForEdit(job)}
+                            onClick={() => setSelectedJobForView(job)}
                             style={{ borderLeftColor: clientColor, borderLeftWidth: '4px' }}
                             className={`p-2 sm:p-2.5 rounded-[5px] border flex items-center justify-between gap-2 cursor-pointer transition-all select-none relative ${
                               isDeleteActive
@@ -1204,11 +1206,8 @@ export const CalendarView: React.FC = () => {
                                   <span className="w-2 h-2 rounded-full shrink-0 shadow-2xs" style={{ backgroundColor: clientColor }} />
                                   <span className="truncate">{job.clientName}</span>
                                 </div>
-                                <div className="text-[11px] text-slate-600 dark:text-slate-300 truncate">
-                                  {job.title}
-                                  {job.assignedWorkerName && (
-                                    <span className="opacity-80"> · {job.assignedWorkerName}</span>
-                                  )}
+                                <div className="text-[11px] text-slate-600 dark:text-slate-300 truncate font-medium">
+                                  {job.assignedWorkerName || 'Nessun operaio assegnato'}
                                 </div>
                               </div>
                             </div>
@@ -1806,6 +1805,20 @@ export const CalendarView: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Read-Only Job Detail View Modal */}
+      {selectedJobForView && (
+        <JobDetailViewModal
+          job={selectedJobForView}
+          selectedDateISO={selectedDateISO}
+          onClose={() => setSelectedJobForView(null)}
+          onEdit={() => {
+            const current = selectedJobForView;
+            setSelectedJobForView(null);
+            setSelectedJobForEdit(current);
+          }}
+        />
       )}
 
       {/* Job Edit / Create Modal */}
