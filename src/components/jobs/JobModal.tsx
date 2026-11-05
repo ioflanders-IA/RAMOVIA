@@ -132,7 +132,19 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
     job?.date || initialDate || formatLocalDate(new Date())
   );
   const [timeSlot, setTimeSlot] = useState<string>(job?.timeSlot || '08:30 - 12:30');
-  const [status, setStatus] = useState<JobStatus>(job?.status || 'scheduled');
+  const [status, setStatus] = useState<JobStatus>(() => {
+    if (!job) return 'scheduled';
+    if (Array.isArray(job.plannedDates) && job.plannedDates.length > 1) {
+      const targetDate = initialDate || job.date || formatLocalDate(new Date());
+      if (Array.isArray(job.completedDates) && job.completedDates.includes(targetDate)) {
+        return 'completed';
+      }
+      if (targetDate > formatLocalDate(new Date())) {
+        return 'scheduled';
+      }
+    }
+    return job.status || 'scheduled';
+  });
   const [title, setTitle] = useState<string>(job?.title || '');
   const [description, setDescription] = useState<string>(job?.description || '');
   const [notes, setNotes] = useState<string>(job?.notes || '');
@@ -355,6 +367,27 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
       : [primaryWorker.displayName];
     const combinedWorkerName = workerNames.join(', ');
 
+    const todayStr = formatLocalDate(new Date());
+    let effectiveStatus = status;
+    let nextCompletedDates: string[] = job?.completedDates ? [...job.completedDates] : [];
+
+    if (interventionType === 'generale' && plannedDates.length > 1) {
+      const activeDate = date || (job?.date) || todayStr;
+      if (status === 'completed') {
+        // Segna come ultimata solo la data attiva/odierna, mantenendo le future programmate
+        const targetDateToComplete = (activeDate && plannedDates.includes(activeDate) && activeDate <= todayStr) ? activeDate : todayStr;
+        if (!nextCompletedDates.includes(targetDateToComplete)) {
+          nextCompletedDates.push(targetDateToComplete);
+        }
+        const hasFutureDates = plannedDates.some((d) => d > todayStr && !nextCompletedDates.includes(d));
+        if (hasFutureDates) {
+          effectiveStatus = 'scheduled';
+        }
+      } else if (status === 'scheduled') {
+        nextCompletedDates = nextCompletedDates.filter((d) => d !== activeDate && d !== todayStr);
+      }
+    }
+
     onSave({
       clientId: selectedClient.id,
       clientName: selectedClient.name,
@@ -368,7 +401,8 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
       assignedWorkerNames: workerNames,
       date: interventionType === 'generale' ? (plannedDates[0] || date) : (date || plannedDates[0] || formatLocalDate(new Date())),
       timeSlot,
-      status,
+      status: effectiveStatus,
+      completedDates: nextCompletedDates.length > 0 ? nextCompletedDates : undefined,
       title,
       description,
       notes,

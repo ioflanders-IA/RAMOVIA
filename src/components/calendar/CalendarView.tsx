@@ -60,6 +60,50 @@ export const isJobInYear = (job: Job, year: number): boolean => {
   return false;
 };
 
+// Helper: calcola lo stato effettivo di un intervento per una data specifica.
+// Per interventi periodici con date multiple: solo la data odierna/passata completata risulta ultimata; quelle future rimangono programmate.
+export const getEffectiveJobStatusOnDate = (job: Job, targetDateISO: string, todayISO?: string): Job['status'] => {
+  if (!job) return 'scheduled';
+  const cleanTarget = targetDateISO ? targetDateISO.split('T')[0] : '';
+  const nowStr = todayISO || formatLocalDate(new Date());
+
+  // Se l'intervento ha date pianificate multiple (periodico)
+  if (Array.isArray(job.plannedDates) && job.plannedDates.length > 1) {
+    // 1. Se la data specifica è segnata in completedDates, è completata
+    if (Array.isArray(job.completedDates) && job.completedDates.includes(cleanTarget)) {
+      return 'completed';
+    }
+
+    // 2. Le date future rispetto ad oggi rimangono TASSATIVAMENTE programmate
+    if (cleanTarget > nowStr) {
+      return 'scheduled';
+    }
+
+    // 3. Per la data odierna:
+    if (cleanTarget === nowStr) {
+      if (job.status === 'completed' || (Array.isArray(job.completedDates) && job.completedDates.includes(cleanTarget))) {
+        return 'completed';
+      }
+      return job.status;
+    }
+
+    // 4. Per date passate (< nowStr):
+    if (Array.isArray(job.completedDates) && job.completedDates.length > 0) {
+      return job.completedDates.includes(cleanTarget) ? 'completed' : 'scheduled';
+    }
+
+    // 5. Se il job generale è segnato completed, solo le date passate o oggi risultano completed, mai quelle future
+    if (job.status === 'completed') {
+      return cleanTarget <= nowStr ? 'completed' : 'scheduled';
+    }
+
+    return job.status;
+  }
+
+  // Intervento singolo
+  return job.status;
+};
+
 const ITALIAN_MONTHS = [
   'Gennaio',
   'Febbraio',
@@ -140,8 +184,18 @@ export const CalendarView: React.FC = () => {
         if (!matchesWorker) return false;
       }
       // Status filter
-      if (statusFilter !== 'all' && job.status !== statusFilter) {
-        return false;
+      if (statusFilter !== 'all') {
+        if (Array.isArray(job.plannedDates) && job.plannedDates.length > 1) {
+          const hasScheduledDate = job.plannedDates.some((d) => d > todayStr);
+          const hasCompletedDate =
+            job.status === 'completed' ||
+            (Array.isArray(job.completedDates) && job.completedDates.length > 0) ||
+            job.plannedDates.some((d) => d <= todayStr && job.status === 'completed');
+          if (statusFilter === 'scheduled' && !hasScheduledDate && job.status !== 'scheduled') return false;
+          if (statusFilter === 'completed' && !hasCompletedDate) return false;
+        } else if (job.status !== statusFilter) {
+          return false;
+        }
       }
       // Search query
       if (searchQuery.trim()) {
@@ -154,15 +208,21 @@ export const CalendarView: React.FC = () => {
       }
       return true;
     });
-  }, [jobs, workerFilter, statusFilter, searchQuery, currentUser]);
+  }, [jobs, workerFilter, statusFilter, searchQuery, currentUser, todayStr]);
 
   const selectedDateObj = useMemo(() => {
     return parseLocalDate(selectedDateISO);
   }, [selectedDateISO]);
 
   const selectedDayJobs = useMemo(() => {
-    return filteredJobs.filter((job) => isJobScheduledOnDate(job, selectedDateISO));
-  }, [filteredJobs, selectedDateISO]);
+    return filteredJobs.filter((job) => {
+      if (!isJobScheduledOnDate(job, selectedDateISO)) return false;
+      if (statusFilter !== 'all') {
+        return getEffectiveJobStatusOnDate(job, selectedDateISO, todayStr) === statusFilter;
+      }
+      return true;
+    });
+  }, [filteredJobs, selectedDateISO, statusFilter, todayStr]);
 
   // WEEK NAVIGATION & DATES (computed with midday hour to avoid DST shifts)
   const getWeekDates = (baseDate: Date) => {
@@ -726,7 +786,13 @@ export const CalendarView: React.FC = () => {
                   const dateISO = formatLocalDate(dayDate);
                   const isToday = dateISO === todayStr;
                   const isWeekRed = isRedDay(dateISO);
-                  const dayJobs = filteredJobs.filter((job) => isJobScheduledOnDate(job, dateISO));
+                  const dayJobs = filteredJobs.filter((job) => {
+                    if (!isJobScheduledOnDate(job, dateISO)) return false;
+                    if (statusFilter !== 'all') {
+                      return getEffectiveJobStatusOnDate(job, dateISO, todayStr) === statusFilter;
+                    }
+                    return true;
+                  });
 
                   const isSelected = selectedDateISO === dateISO;
 
@@ -796,7 +862,8 @@ export const CalendarView: React.FC = () => {
                         {/* Day Jobs List with Long-Press Delete Support */}
                         <div className="space-y-[3px]">
                           {dayJobs.map((job) => {
-                            const badge = getStatusBadge(job.status);
+                            const effectiveStatus = getEffectiveJobStatusOnDate(job, dateISO, todayStr);
+                            const badge = getStatusBadge(effectiveStatus);
                             const isDeleteActive = activeDeleteJobId === job.id;
                             const pressProps = createLongPressCardProps(job);
                             const clientColor = getJobClientColor(job);
@@ -895,7 +962,13 @@ export const CalendarView: React.FC = () => {
                 {/* 7-Column Days Matrix: gap-[3px] everywhere */}
                 <div className="grid grid-cols-7 gap-[3px]">
                   {monthMatrix.map((cell) => {
-                    const dayJobs = filteredJobs.filter((job) => isJobScheduledOnDate(job, cell.dateISO));
+                    const dayJobs = filteredJobs.filter((job) => {
+                      if (!isJobScheduledOnDate(job, cell.dateISO)) return false;
+                      if (statusFilter !== 'all') {
+                        return getEffectiveJobStatusOnDate(job, cell.dateISO, todayStr) === statusFilter;
+                      }
+                      return true;
+                    });
                     const isSelected = selectedDateISO === cell.dateISO;
                     const isRed = isRedDay(cell.dateISO);
 
@@ -965,7 +1038,8 @@ export const CalendarView: React.FC = () => {
                         {/* Job Pills List inside Day with Long-Press Delete (gap a 3px) */}
                         <div className="space-y-[3px] flex-1 overflow-hidden">
                           {dayJobs.slice(0, 3).map((job) => {
-                            const badge = getStatusBadge(job.status);
+                            const effectiveStatus = getEffectiveJobStatusOnDate(job, cell.dateISO, todayStr);
+                            const badge = getStatusBadge(effectiveStatus);
                             const isDeleteActive = activeDeleteJobId === job.id;
                             const pressProps = createLongPressCardProps(job);
                             const clientColor = getJobClientColor(job);
@@ -1089,7 +1163,8 @@ export const CalendarView: React.FC = () => {
                       </div>
                     ) : (
                       selectedDayJobs.map((job) => {
-                        const badge = getStatusBadge(job.status);
+                        const effectiveStatus = getEffectiveJobStatusOnDate(job, selectedDateISO, todayStr);
+                        const badge = getStatusBadge(effectiveStatus);
                         const isDeleteActive = activeDeleteJobId === job.id;
                         const pressProps = createLongPressCardProps(job);
                         const clientColor = getJobClientColor(job);
@@ -1476,7 +1551,8 @@ export const CalendarView: React.FC = () => {
                   return (
                     <div className="space-y-[3px]">
                       {dayJobs.map((job) => {
-                        const badge = getStatusBadge(job.status);
+                        const effectiveStatus = getEffectiveJobStatusOnDate(job, targetDayISO, todayStr);
+                        const badge = getStatusBadge(effectiveStatus);
                         const isDeleteActive = activeDeleteJobId === job.id;
                         const pressProps = createLongPressCardProps(job);
                         const clientColor = getJobClientColor(job);

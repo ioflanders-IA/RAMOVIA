@@ -139,6 +139,7 @@ export interface Job {
   hourlyRate?: number; // tariffa oraria (€/h)
   estimatedHoursPerSession?: number; // stima ore per uscita
   plannedDates?: string[]; // elenco date scelte liberamente dall'utente
+  completedDates?: string[]; // elenco date effettivamente completate per interventi periodici
   equipmentHoursApplied?: boolean;
   materialsDeducted?: boolean;
   // Gestione Lavori per Naturando (Provvigione concordata)

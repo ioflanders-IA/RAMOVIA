@@ -28,6 +28,7 @@ import {
   Edit2,
   RotateCcw,
   BarChart3,
+  Settings,
 } from 'lucide-react';
 
 import { ClientDirectoryView } from './ClientDirectoryView';
@@ -63,6 +64,7 @@ export const PaymentsView: React.FC = () => {
   // Naturando tab states
   const [naturandoFilter, setNaturandoFilter] = useState<'all' | 'pending' | 'paid'>('all');
   const [naturandoDefaultPercentage, setNaturandoDefaultPercentage] = useState<number>(20);
+  const [showNaturandoQuotaSettings, setShowNaturandoQuotaSettings] = useState<boolean>(false);
   const [editingNaturandoJobId, setEditingNaturandoJobId] = useState<string | null>(null);
   const [editNaturandoAmount, setEditNaturandoAmount] = useState<number>(0);
   const [editNaturandoPct, setEditNaturandoPct] = useState<number>(20);
@@ -886,34 +888,31 @@ export const PaymentsView: React.FC = () => {
           {/* Scheda Naturando (dopo Bilancio) */}
           <button
             onClick={() => setActiveSubTab('naturando')}
-            className={`flex items-center justify-center gap-1 py-1.5 px-1 rounded-[6px] transition-colors cursor-pointer text-center ${
+            className={`flex items-center justify-center py-1.5 px-2 rounded-[6px] transition-colors cursor-pointer text-center font-bold text-xs ${
               activeSubTab === 'naturando'
                 ? 'bg-emerald-800 text-white dark:bg-emerald-700 shadow-xs ring-1 ring-emerald-500/50'
                 : 'bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}
           >
-            <img
-              src={NATURANDO_LOGO_URL}
-              alt="Naturando"
-              className="h-3.5 max-w-[38px] object-contain shrink-0"
-            />
             <span className="truncate">Naturando</span>
           </button>
         </div>
 
-        {/* Tasto Registra Nuova Spesa spostato al rigo sotto */}
-        <div className="flex items-center justify-end pt-0.5">
-          <button
-            type="button"
-            onClick={() => setShowExpenseModal(true)}
-            title="Registra Nuova Spesa"
-            aria-label="Registra Nuova Spesa"
-            className="flex items-center gap-1.5 px-3 py-1 rounded-[6px] bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs transition-colors cursor-pointer shadow-xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Nuova Spesa</span>
-          </button>
-        </div>
+        {/* Tasto Registra Nuova Spesa appare solo nella pagina spese */}
+        {activeSubTab === 'spese' && (
+          <div className="flex items-center justify-end pt-0.5">
+            <button
+              type="button"
+              onClick={() => setShowExpenseModal(true)}
+              title="Registra Nuova Spesa"
+              aria-label="Registra Nuova Spesa"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-[6px] bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs transition-colors cursor-pointer shadow-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Nuova Spesa</span>
+            </button>
+          </div>
+        )}
       </div>
 
 
@@ -1682,33 +1681,36 @@ export const PaymentsView: React.FC = () => {
       {/* TAB 5: NATURANDO - RIEPILOGO COMMESSE E QUOTE SPETTANTI */}
       {activeSubTab === 'naturando' && (
         <div className="space-y-[7px]">
-          {/* Header Card con Logo Naturando e Regolatore Percentuale */}
-          <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] shadow-xs space-y-2.5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2.5">
-                <div className="p-1.5 bg-slate-50 dark:bg-slate-800 rounded-[6px] border border-slate-200 dark:border-slate-700 shrink-0">
+          {/* Header Card senza bordo né sfondo: Logo Naturando centrale + Regolatore Percentuale con Ingranaggio */}
+          <div className="space-y-2">
+            <div className="flex flex-col items-center justify-center gap-1.5 py-1">
+              <div className="flex items-center justify-center gap-3">
+                {/* Logo: senza sfondo e senza bordo nel tema chiaro, solo sfondo bianco nel tema scuro */}
+                <div className="p-1 bg-transparent dark:bg-white rounded-[6px] border-0 shrink-0 inline-flex items-center justify-center">
                   <img
                     src={NATURANDO_LOGO_URL}
                     alt="Logo Naturando"
-                    className="h-7 max-w-[110px] object-contain"
+                    className="h-8 sm:h-9 max-w-[130px] object-contain"
                   />
                 </div>
-                <div>
-                  <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-slate-100 uppercase tracking-wider">
-                    Riepilogo Commesse Naturando
-                  </h3>
-                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
-                    Calcolo quota spettante a Naturando e ricavo netto d'impresa
-                  </p>
-                </div>
+
+                {/* Quota Base con rotella ingranaggio vicino */}
+                <button
+                  type="button"
+                  onClick={() => setShowNaturandoQuotaSettings((prev) => !prev)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-2xs"
+                  title="Modifica percentuale quota base"
+                >
+                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Quota:</span>
+                  <span className="font-mono font-black text-emerald-700 dark:text-emerald-400">{naturandoDefaultPercentage}%</span>
+                  <Settings className={`w-3.5 h-3.5 text-slate-500 dark:text-slate-400 transition-transform ${showNaturandoQuotaSettings ? 'rotate-90 text-emerald-600 dark:text-emerald-400' : ''}`} />
+                </button>
               </div>
 
-              {/* Regolatore Percentuale Globale / Rapida */}
-              <div className="flex items-center gap-1.5 p-1.5 bg-emerald-50/70 dark:bg-emerald-950/40 rounded-[6px] border border-emerald-200 dark:border-emerald-800/60 self-start sm:self-auto">
-                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                  Quota Base:
-                </span>
-                <div className="flex items-center gap-1">
+              {/* Percentuali a comparsa quando si clicca sull'ingranaggio */}
+              {showNaturandoQuotaSettings && (
+                <div className="flex flex-wrap items-center justify-center gap-1 p-1.5 bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-700 rounded-[7px] shadow-sm animate-in fade-in zoom-in-95 duration-150">
+                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 mr-1 uppercase">Quota Base:</span>
                   {[10, 15, 20, 25, 30].map((pct) => (
                     <button
                       key={pct}
@@ -1717,7 +1719,7 @@ export const PaymentsView: React.FC = () => {
                       className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border transition-colors cursor-pointer ${
                         naturandoDefaultPercentage === pct
                           ? 'bg-emerald-700 text-white border-emerald-800 shadow-2xs'
-                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
                       }`}
                     >
                       {pct}%
@@ -1730,78 +1732,92 @@ export const PaymentsView: React.FC = () => {
                       max="100"
                       value={naturandoDefaultPercentage}
                       onChange={(e) => setNaturandoDefaultPercentage(parseFloat(e.target.value) || 0)}
-                      className="w-12 p-0.5 text-center font-mono font-bold text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-emerald-700 dark:text-emerald-400 focus:outline-emerald-600"
+                      className="w-12 p-0.5 text-center font-mono font-bold text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-emerald-700 dark:text-emerald-400 focus:outline-emerald-600"
                     />
                     <span className="text-[10px] font-bold text-slate-500 ml-0.5">%</span>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* KPI Summary Grid per Naturando */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 pt-1 border-t border-slate-100 dark:border-slate-800">
-              <div className="p-2 bg-slate-50 dark:bg-slate-800/60 rounded-[6px] border border-slate-200 dark:border-slate-800">
+            {/* KPI Summary Grid per Naturando - 3 colonne su ogni rigo */}
+            <div className="grid grid-cols-3 gap-1.5 pt-0.5">
+              {/* 1. Lavori Naturando */}
+              <div className="p-1.5 sm:p-2 bg-slate-50 dark:bg-slate-800/60 rounded-[6px] border border-slate-200 dark:border-slate-800">
                 <span className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400 block truncate">
                   Lavori Naturando
                 </span>
-                <span className="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100">
+                <span className="text-sm sm:text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 block leading-tight">
                   {naturandoJobs.length}
                 </span>
-                <span className="text-[9.5px] text-slate-400 block truncate">
+                <span className="text-[8.5px] sm:text-[9.5px] text-slate-400 block truncate">
                   interventi collegati
                 </span>
               </div>
 
-              <div className="p-2 bg-slate-50 dark:bg-slate-800/60 rounded-[6px] border border-slate-200 dark:border-slate-800">
+              {/* 2. Totale Comunicato */}
+              <div className="p-1.5 sm:p-2 bg-slate-50 dark:bg-slate-800/60 rounded-[6px] border border-slate-200 dark:border-slate-800">
                 <span className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400 block truncate">
                   Totale Comunicato
                 </span>
-                <span className="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100">
+                <span className="text-sm sm:text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 block leading-tight">
                   € {formatAmountNoCents(naturandoTotals.totalCommunicated)}
                 </span>
-                <span className="text-[9.5px] text-slate-400 block truncate">
+                <span className="text-[8.5px] sm:text-[9.5px] text-slate-400 block truncate">
                   importo concordato
                 </span>
               </div>
 
-              <div className="p-2 bg-rose-50/70 dark:bg-rose-950/30 rounded-[6px] border border-rose-200 dark:border-rose-900/60">
+              {/* 3. Spettante a Naturando */}
+              <div className="p-1.5 sm:p-2 bg-rose-50/70 dark:bg-rose-950/30 rounded-[6px] border border-rose-200 dark:border-rose-900/60">
                 <span className="text-[9px] uppercase font-bold text-rose-700 dark:text-rose-400 block truncate">
                   Spettante a Naturando
                 </span>
-                <span className="text-base font-extrabold font-mono text-rose-700 dark:text-rose-400">
+                <span className="text-sm sm:text-base font-extrabold font-mono text-rose-700 dark:text-rose-400 block leading-tight">
                   € {formatAmountNoCents(naturandoTotals.totalDue)}
                 </span>
-                <span className="text-[9.5px] text-rose-600/80 dark:text-rose-400/80 block truncate">
+                <span className="text-[8.5px] sm:text-[9.5px] text-rose-600/80 dark:text-rose-400/80 block truncate">
                   quota provvigione
                 </span>
               </div>
 
-              <div className="p-2 bg-emerald-50/70 dark:bg-emerald-950/30 rounded-[6px] border border-emerald-200 dark:border-emerald-800/60">
+              {/* 4. Tuo Ricavo Netto */}
+              <div className="p-1.5 sm:p-2 bg-emerald-50/70 dark:bg-emerald-950/30 rounded-[6px] border border-emerald-200 dark:border-emerald-800/60">
                 <span className="text-[9px] uppercase font-bold text-emerald-800 dark:text-emerald-300 block truncate">
                   Tuo Ricavo Netto
                 </span>
-                <span className="text-base font-extrabold font-mono text-emerald-700 dark:text-emerald-400">
+                <span className="text-sm sm:text-base font-extrabold font-mono text-emerald-700 dark:text-emerald-400 block leading-tight">
                   € {formatAmountNoCents(naturandoTotals.totalNet)}
                 </span>
-                <span className="text-[9.5px] text-emerald-600/80 dark:text-emerald-400/80 block truncate">
+                <span className="text-[8.5px] sm:text-[9.5px] text-emerald-600/80 dark:text-emerald-400/80 block truncate">
                   al netto della quota
                 </span>
               </div>
 
-              <div className="col-span-2 sm:col-span-1 p-2 bg-amber-50/70 dark:bg-amber-950/30 rounded-[6px] border border-amber-200 dark:border-amber-900/60 flex sm:flex-col justify-between sm:justify-start">
-                <div>
-                  <span className="text-[9px] uppercase font-bold text-amber-700 dark:text-amber-400 block truncate">
-                    Ancora da Saldare
-                  </span>
-                  <span className="text-base font-extrabold font-mono text-amber-700 dark:text-amber-400">
-                    € {formatAmountNoCents(naturandoTotals.totalPending)}
-                  </span>
-                </div>
-                <div className="text-right sm:text-left sm:pt-0.5">
-                  <span className="text-[9.5px] font-mono text-emerald-700 dark:text-emerald-400 font-bold block truncate">
-                    Già saldati: € {formatAmountNoCents(naturandoTotals.totalPaid)}
-                  </span>
-                </div>
+              {/* 5. Ancora da Saldare */}
+              <div className="p-1.5 sm:p-2 bg-amber-50/70 dark:bg-amber-950/30 rounded-[6px] border border-amber-200 dark:border-amber-900/60">
+                <span className="text-[9px] uppercase font-bold text-amber-700 dark:text-amber-400 block truncate">
+                  Ancora da Saldare
+                </span>
+                <span className="text-sm sm:text-base font-extrabold font-mono text-amber-700 dark:text-amber-400 block leading-tight">
+                  € {formatAmountNoCents(naturandoTotals.totalPending)}
+                </span>
+                <span className="text-[8.5px] sm:text-[9.5px] text-amber-600/80 dark:text-amber-400/80 block truncate">
+                  da versare
+                </span>
+              </div>
+
+              {/* 6. Già Saldati */}
+              <div className="p-1.5 sm:p-2 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-[6px] border border-emerald-200/80 dark:border-emerald-800/60">
+                <span className="text-[9px] uppercase font-bold text-emerald-700 dark:text-emerald-400 block truncate">
+                  Già Saldati
+                </span>
+                <span className="text-sm sm:text-base font-extrabold font-mono text-emerald-700 dark:text-emerald-400 block leading-tight">
+                  € {formatAmountNoCents(naturandoTotals.totalPaid)}
+                </span>
+                <span className="text-[8.5px] sm:text-[9.5px] text-emerald-600/80 dark:text-emerald-400/80 block truncate">
+                  quote saldate
+                </span>
               </div>
             </div>
           </div>

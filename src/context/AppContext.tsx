@@ -1535,10 +1535,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateJob = async (updated: Job) => {
     const prevJob = jobs.find((j) => j.id === updated.id);
-    const isCompleted = updated.status === 'completed';
+    let processedStatus = updated.status;
+    let nextCompletedDates: string[] = Array.isArray(updated.completedDates) ? [...updated.completedDates] : [];
+
+    if (Array.isArray(updated.plannedDates) && updated.plannedDates.length > 1) {
+      const todayISO = new Date().toISOString().split('T')[0];
+      if (updated.status === 'completed') {
+        const targetDate = (updated.date && updated.plannedDates.includes(updated.date)) ? updated.date : todayISO;
+        if (!nextCompletedDates.includes(targetDate)) {
+          nextCompletedDates.push(targetDate);
+        }
+        const hasFutureDates = updated.plannedDates.some((d) => d > todayISO && !nextCompletedDates.includes(d));
+        if (hasFutureDates) {
+          processedStatus = 'scheduled';
+        }
+      }
+    }
+
+    const isCompleted = processedStatus === 'completed';
 
     const processedJob: Job = {
       ...updated,
+      status: processedStatus,
+      completedDates: nextCompletedDates.length > 0 ? nextCompletedDates : undefined,
       equipmentHoursApplied: isCompleted,
       materialsDeducted: isCompleted,
     };
