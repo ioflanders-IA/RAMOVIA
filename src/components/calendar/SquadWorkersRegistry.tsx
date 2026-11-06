@@ -90,6 +90,14 @@ export const SquadWorkersRegistry: React.FC = () => {
   const [confirmDeleteWorkerId, setConfirmDeleteWorkerId] = useState<string | null>(null);
   const [isMonthDaysOpen, setIsMonthDaysOpen] = useState(false);
   const [isMonthPayoutsOpen, setIsMonthPayoutsOpen] = useState(false);
+  const [selectedDayForDaysFilter, setSelectedDayForDaysFilter] = useState<string | null>(null);
+  const [selectedDayForPayoutsFilter, setSelectedDayForPayoutsFilter] = useState<string | null>(null);
+
+  // Reset date filters when changing month
+  React.useEffect(() => {
+    setSelectedDayForDaysFilter(null);
+    setSelectedDayForPayoutsFilter(null);
+  }, [selectedMonth]);
 
   // New Worker Form
   const [newWorkerName, setNewWorkerName] = useState('');
@@ -146,6 +154,82 @@ export const SquadWorkersRegistry: React.FC = () => {
       return isWorkerValid && isMonthMatch;
     });
   }, [payouts, selectedMonth, workers]);
+
+  // Filtered worked days list based on selected calendar date
+  const filteredWorkedDaysList = useMemo(() => {
+    if (!selectedDayForDaysFilter) return monthWorkedDays;
+    return monthWorkedDays.filter((d) => d.date === selectedDayForDaysFilter);
+  }, [monthWorkedDays, selectedDayForDaysFilter]);
+
+  // Filtered payouts list based on selected calendar date
+  const filteredPayoutsList = useMemo(() => {
+    if (!selectedDayForPayoutsFilter) return monthPayouts;
+    return monthPayouts.filter((p) => {
+      const pDate = p.paymentDate || p.createdAt?.split('T')[0];
+      return pDate === selectedDayForPayoutsFilter;
+    });
+  }, [monthPayouts, selectedDayForPayoutsFilter]);
+
+  // Calendar month matrix for the selected month (Mon to Sun)
+  const summaryCalendarMatrix = useMemo(() => {
+    const [yearStr, monthStr] = selectedMonth.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const firstDayOfWeek = (new Date(year, month - 1, 1).getDay() + 6) % 7; // 0 = Lun, 6 = Dom
+
+    const cells: Array<{
+      dateISO: string;
+      dayNum: number;
+      isCurrentMonth: boolean;
+    }> = [];
+
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      cells.push({
+        dateISO: `empty-${i}`,
+        dayNum: 0,
+        isCurrentMonth: false,
+      });
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const padDay = day.toString().padStart(2, '0');
+      const dateISO = `${selectedMonth}-${padDay}`;
+      cells.push({
+        dateISO,
+        dayNum: day,
+        isCurrentMonth: true,
+      });
+    }
+
+    return cells;
+  }, [selectedMonth]);
+
+  // Worked days grouped by date
+  const workedDaysByDateMap = useMemo(() => {
+    const map = new Map<string, typeof monthWorkedDays>();
+    for (const d of monthWorkedDays) {
+      if (!d.date) continue;
+      const existing = map.get(d.date) || [];
+      existing.push(d);
+      map.set(d.date, existing);
+    }
+    return map;
+  }, [monthWorkedDays]);
+
+  // Payouts grouped by date
+  const payoutsByDateMap = useMemo(() => {
+    const map = new Map<string, typeof monthPayouts>();
+    for (const p of monthPayouts) {
+      const pDate = p.paymentDate || p.createdAt?.split('T')[0];
+      if (!pDate) continue;
+      const existing = map.get(pDate) || [];
+      existing.push(p);
+      map.set(pDate, existing);
+    }
+    return map;
+  }, [monthPayouts]);
 
   // Calculate worker stats for this month
   const workerStats = useMemo(() => {
@@ -933,12 +1017,12 @@ export const SquadWorkersRegistry: React.FC = () => {
         )}
       </div>
 
-      {/* REGISTRO COMPLETO DELLE GIORNATE LAVORATE DEL MESE - Chiuso di default, cliccabile, gap a 3px */}
-      <div className={`bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs transition-all ${isMonthDaysOpen ? 'space-y-[3px]' : ''}`}>
+      {/* REGISTRO COMPLETO DELLE GIORNATE LAVORATE DEL MESE con Calendario Filtro */}
+      <div className={`bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-[3px] shadow-xs transition-all ${isMonthDaysOpen ? 'space-y-[3px]' : ''}`}>
         <button
           type="button"
           onClick={() => setIsMonthDaysOpen((prev) => !prev)}
-          className={`w-full flex items-center justify-between text-left cursor-pointer select-none ${isMonthDaysOpen ? 'pb-1 border-b border-slate-800' : ''}`}
+          className="w-full flex items-center justify-between text-left cursor-pointer select-none p-1"
           aria-expanded={isMonthDaysOpen}
         >
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-100 flex items-center gap-1.5">
@@ -958,62 +1042,144 @@ export const SquadWorkersRegistry: React.FC = () => {
         </button>
 
         {isMonthDaysOpen && (
-          monthWorkedDays.length === 0 ? (
-            <div className="p-3 text-center text-xs text-slate-400">
-              Nessuna giornata di lavoro inserita per {formattedMonthLabel}.
-            </div>
-          ) : (
-            <div className="space-y-[3px] max-h-56 overflow-y-auto pr-0.5 animate-in fade-in duration-150">
-              {monthWorkedDays
-                .sort((a, b) => b.date.localeCompare(a.date))
-                .map((d) => (
-                  <div
-                    key={d.id}
-                    className="p-1 px-1.5 sm:p-1.5 sm:px-2 bg-slate-800/60 border border-slate-700/60 rounded-md flex items-center justify-between gap-[3px] text-xs"
+          <div className="space-y-[3px]">
+            {/* Calendario 1: Giornate Lavorate */}
+            <div className="bg-slate-950/70 p-[3px] rounded-lg border border-slate-800 space-y-[3px]">
+              <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-slate-300 p-1">
+                <span className="flex items-center gap-1 text-emerald-400">
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>Calendario Operai al Lavoro</span>
+                </span>
+                {selectedDayForDaysFilter ? (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDayForDaysFilter(null)}
+                    className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 text-[10px] rounded font-bold transition-colors cursor-pointer"
                   >
-                    <div className="flex items-center gap-[3px] min-w-0 flex-1">
-                      <span className="font-mono text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/80 shrink-0">
-                        {formatShortDateItalian(d.date)}
-                      </span>
-                      <span className="font-bold text-slate-100 text-xs shrink-0 pl-1">
-                        {d.workerName}
-                      </span>
-                      <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-700 text-emerald-300 shrink-0">
-                        {d.dayType === 'full' ? '1 GG' : d.dayType === 'half' ? '0.5 GG' : `${d.hours}h`}
-                      </span>
-                      {d.cantiereName && (
-                        <span className="text-[10px] text-slate-400 truncate hidden sm:inline">
-                          · {d.cantiereName}
-                        </span>
-                      )}
-                    </div>
+                    Mostra tutti ({monthWorkedDays.length})
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-slate-400 font-normal">
+                    Clicca un giorno per filtrare
+                  </span>
+                )}
+              </div>
 
-                    <div className="flex items-center gap-[3px] shrink-0">
-                      <span className="font-mono font-bold text-xs sm:text-sm text-emerald-400 mr-1">
-                        € {d.amount.toFixed(0)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => deleteWorkedDay(d.id)}
-                        className="p-1 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
-                        title="Elimina registrazione giornata"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              {/* Weekday headers */}
+              <div className="grid grid-cols-7 gap-[3px] text-center text-[9px] font-bold text-slate-400 uppercase py-0.5">
+                <span>Lun</span>
+                <span>Mar</span>
+                <span>Mer</span>
+                <span>Gio</span>
+                <span>Ven</span>
+                <span>Sab</span>
+                <span>Dom</span>
+              </div>
+
+              {/* Month Grid */}
+              <div className="grid grid-cols-7 gap-[3px]">
+                {summaryCalendarMatrix.map((cell, idx) => {
+                  if (!cell.isCurrentMonth) {
+                    return <div key={`empty-days-${idx}`} className="h-8 sm:h-10" />;
+                  }
+
+                  const dayEntries = workedDaysByDateMap.get(cell.dateISO) || [];
+                  const isSelected = selectedDayForDaysFilter === cell.dateISO;
+                  const count = dayEntries.length;
+
+                  return (
+                    <button
+                      key={cell.dateISO}
+                      type="button"
+                      onClick={() => setSelectedDayForDaysFilter(isSelected ? null : cell.dateISO)}
+                      className={`h-8 sm:h-10 p-0.5 sm:p-1 rounded-[5px] border flex flex-col justify-between items-center transition-all cursor-pointer select-none ${
+                        isSelected
+                          ? 'bg-emerald-600 border-emerald-400 text-white font-extrabold ring-2 ring-emerald-400/60 shadow-xs'
+                          : count > 0
+                          ? 'bg-emerald-950/80 border-emerald-700/80 text-emerald-300 font-bold hover:bg-emerald-900/80'
+                          : 'bg-slate-800/40 border-slate-800/60 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                      }`}
+                      title={
+                        count > 0
+                          ? `Giorno ${cell.dayNum}: ${count} giornate`
+                          : `Giorno ${cell.dayNum}`
+                      }
+                    >
+                      <span className="text-[10px] sm:text-[11px] font-mono leading-none">{cell.dayNum}</span>
+                      {count > 0 && (
+                        <div className="w-full truncate text-center">
+                          <span className={`text-[8px] font-bold px-1 rounded block truncate leading-tight ${
+                            isSelected
+                              ? 'bg-white/20 text-white'
+                              : 'bg-emerald-500/20 text-emerald-300'
+                          }`}>
+                            {count} op.
+                          </span>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          )
+
+            {/* List of Worked Days - SENZA SFONDO NÉ BORDO */}
+            {filteredWorkedDaysList.length === 0 ? (
+              <div className="p-3 text-center text-xs text-slate-400">
+                {selectedDayForDaysFilter
+                  ? `Nessuna giornata registrata per il ${formatShortDateItalian(selectedDayForDaysFilter)}.`
+                  : `Nessuna giornata di lavoro inserita per ${formattedMonthLabel}.`}
+              </div>
+            ) : (
+              <div className="space-y-[3px] max-h-56 overflow-y-auto pr-0.5 animate-in fade-in duration-150 p-[3px]">
+                {filteredWorkedDaysList
+                  .sort((a, b) => b.date.localeCompare(a.date))
+                  .map((d) => (
+                    <div
+                      key={d.id}
+                      className="p-1 px-1 flex items-center justify-between gap-[3px] text-xs"
+                    >
+                      <div className="flex items-center gap-[3px] min-w-0 flex-1">
+                        <span className="font-mono text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/80 shrink-0">
+                          {formatShortDateItalian(d.date)}
+                        </span>
+                        <span className="font-bold text-slate-100 text-xs shrink-0 pl-1">
+                          {d.workerName}
+                        </span>
+                        {d.cantiereName && (
+                          <span className="text-[10px] text-slate-400 truncate hidden sm:inline">
+                            · {d.cantiereName}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-[3px] shrink-0">
+                        <span className="font-mono font-bold text-xs sm:text-sm text-emerald-400 mr-1">
+                          € {d.amount.toFixed(0)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => deleteWorkedDay(d.id)}
+                          className="p-1 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+                          title="Elimina registrazione giornata"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
-      {/* STORICO PAGAMENTI STIPENDI OPERAI - Chiuso di default, cliccabile, gap a 3px */}
-      <div className={`bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs transition-all ${isMonthPayoutsOpen ? 'space-y-[3px]' : ''}`}>
+      {/* STORICO PAGAMENTI STIPENDI OPERAI con Calendario Filtro */}
+      <div className={`bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-[3px] shadow-xs transition-all ${isMonthPayoutsOpen ? 'space-y-[3px]' : ''}`}>
         <button
           type="button"
           onClick={() => setIsMonthPayoutsOpen((prev) => !prev)}
-          className={`w-full flex items-center justify-between text-left cursor-pointer select-none ${isMonthPayoutsOpen ? 'pb-1 border-b border-slate-800' : ''}`}
+          className="w-full flex items-center justify-between text-left cursor-pointer select-none p-1"
           aria-expanded={isMonthPayoutsOpen}
         >
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-100 flex items-center gap-1.5">
@@ -1033,56 +1199,143 @@ export const SquadWorkersRegistry: React.FC = () => {
         </button>
 
         {isMonthPayoutsOpen && (
-          monthPayouts.length === 0 ? (
-            <div className="p-3 text-center text-xs text-slate-400">
-              Nessun pagamento di stipendio o acconto registrato per {formattedMonthLabel}.
-            </div>
-          ) : (
-            <div className="space-y-[3px] max-h-56 overflow-y-auto pr-0.5 animate-in fade-in duration-150">
-              {monthPayouts
-                .sort((a, b) => (b.paymentDate || b.createdAt).localeCompare(a.paymentDate || a.createdAt))
-                .map((p) => (
-                  <div
-                    key={p.id}
-                    className="p-1 px-1.5 sm:p-1.5 sm:px-2 bg-slate-800/60 border border-slate-700/60 rounded-md flex items-center justify-between gap-[3px] text-xs"
+          <div className="space-y-[3px]">
+            {/* Calendario 2: Pagamenti Stipendi */}
+            <div className="bg-slate-950/70 p-[3px] rounded-lg border border-slate-800 space-y-[3px]">
+              <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-slate-300 p-1">
+                <span className="flex items-center gap-1 text-sky-400">
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>Calendario Operai Pagati</span>
+                </span>
+                {selectedDayForPayoutsFilter ? (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDayForPayoutsFilter(null)}
+                    className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-sky-300 text-[10px] rounded font-bold transition-colors cursor-pointer"
                   >
-                    <div className="flex items-center gap-[3px] min-w-0 flex-1">
-                      <span className="font-mono text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/80 shrink-0">
-                        {formatShortDateItalian(p.paymentDate || p.createdAt?.split('T')[0])}
-                      </span>
-                      <span className="font-bold text-slate-100 text-xs shrink-0 pl-1">
-                        {p.workerName}
-                      </span>
-                      <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 shrink-0">
-                        {p.paymentMethod}
-                      </span>
-                      {p.notes && (
-                        <span className="text-[10px] text-slate-400 truncate hidden sm:inline italic">
-                          · {p.notes}
-                        </span>
-                      )}
-                    </div>
+                    Mostra tutti ({monthPayouts.length})
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-slate-400 font-normal">
+                    Clicca un giorno per filtrare
+                  </span>
+                )}
+              </div>
 
-                    <div className="flex items-center gap-[3px] shrink-0">
-                      <span className="font-mono font-bold text-xs sm:text-sm text-emerald-400 mr-1">
-                        € {p.totalAmount.toFixed(0)}
-                      </span>
-                      <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800 uppercase shrink-0">
-                        LIQUIDATO
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => deleteWorkerPayout(p.id)}
-                        className="p-1 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer shrink-0"
-                        title="Elimina registrazione pagamento"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              {/* Weekday headers */}
+              <div className="grid grid-cols-7 gap-[3px] text-center text-[9px] font-bold text-slate-400 uppercase py-0.5">
+                <span>Lun</span>
+                <span>Mar</span>
+                <span>Mer</span>
+                <span>Gio</span>
+                <span>Ven</span>
+                <span>Sab</span>
+                <span>Dom</span>
+              </div>
+
+              {/* Month Grid */}
+              <div className="grid grid-cols-7 gap-[3px]">
+                {summaryCalendarMatrix.map((cell, idx) => {
+                  if (!cell.isCurrentMonth) {
+                    return <div key={`empty-payouts-${idx}`} className="h-8 sm:h-10" />;
+                  }
+
+                  const dayPayoutsList = payoutsByDateMap.get(cell.dateISO) || [];
+                  const isSelected = selectedDayForPayoutsFilter === cell.dateISO;
+                  const count = dayPayoutsList.length;
+                  const totalAmountDay = dayPayoutsList.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+                  const uniquePaidWorkers = Array.from(new Set(dayPayoutsList.map((p) => p.workerName)));
+
+                  return (
+                    <button
+                      key={cell.dateISO}
+                      type="button"
+                      onClick={() => setSelectedDayForPayoutsFilter(isSelected ? null : cell.dateISO)}
+                      className={`h-8 sm:h-10 p-0.5 sm:p-1 rounded-[5px] border flex flex-col justify-between items-center transition-all cursor-pointer select-none ${
+                        isSelected
+                          ? 'bg-sky-600 border-sky-400 text-white font-extrabold ring-2 ring-sky-400/60 shadow-xs'
+                          : count > 0
+                          ? 'bg-sky-950/80 border-sky-700/80 text-sky-300 font-bold hover:bg-sky-900/80'
+                          : 'bg-slate-800/40 border-slate-800/60 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                      }`}
+                      title={
+                        count > 0
+                          ? `Giorno ${cell.dayNum}: ${uniquePaidWorkers.join(', ')} (€${totalAmountDay.toFixed(0)})`
+                          : `Giorno ${cell.dayNum}`
+                      }
+                    >
+                      <span className="text-[10px] sm:text-[11px] font-mono leading-none">{cell.dayNum}</span>
+                      {count > 0 && (
+                        <div className="w-full truncate text-center">
+                          <span className={`text-[8px] font-bold px-1 rounded block truncate leading-tight ${
+                            isSelected
+                              ? 'bg-white/20 text-white'
+                              : 'bg-sky-500/20 text-sky-300'
+                          }`}>
+                            €{totalAmountDay.toFixed(0)}
+                          </span>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          )
+
+            {/* List of Payouts - SENZA SFONDO NÉ BORDO */}
+            {filteredPayoutsList.length === 0 ? (
+              <div className="p-3 text-center text-xs text-slate-400">
+                {selectedDayForPayoutsFilter
+                  ? `Nessun pagamento registrato per il ${formatShortDateItalian(selectedDayForPayoutsFilter)}.`
+                  : `Nessun pagamento di stipendio o acconto registrato per ${formattedMonthLabel}.`}
+              </div>
+            ) : (
+              <div className="space-y-[3px] max-h-56 overflow-y-auto pr-0.5 animate-in fade-in duration-150 p-[3px]">
+                {filteredPayoutsList
+                  .sort((a, b) => (b.paymentDate || b.createdAt).localeCompare(a.paymentDate || a.createdAt))
+                  .map((p) => (
+                    <div
+                      key={p.id}
+                      className="p-1 px-1 flex items-center justify-between gap-[3px] text-xs"
+                    >
+                      <div className="flex items-center gap-[3px] min-w-0 flex-1">
+                        <span className="font-mono text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/80 shrink-0">
+                          {formatShortDateItalian(p.paymentDate || p.createdAt?.split('T')[0])}
+                        </span>
+                        <span className="font-bold text-slate-100 text-xs shrink-0 pl-1">
+                          {p.workerName}
+                        </span>
+                        <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 shrink-0">
+                          {p.paymentMethod}
+                        </span>
+                        {p.notes && (
+                          <span className="text-[10px] text-slate-400 truncate hidden sm:inline italic">
+                            · {p.notes}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-[3px] shrink-0">
+                        <span className="font-mono font-bold text-xs sm:text-sm text-emerald-400 mr-1">
+                          € {p.totalAmount.toFixed(0)}
+                        </span>
+                        <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800 uppercase shrink-0">
+                          LIQUIDATO
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => deleteWorkerPayout(p.id)}
+                          className="p-1 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer shrink-0"
+                          title="Elimina registrazione pagamento"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
         </>

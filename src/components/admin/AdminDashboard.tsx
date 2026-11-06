@@ -4,6 +4,7 @@ import { fetchWeatherForClients, fetchWeatherForLocation } from '../../services/
 import { Job, WorkReport, WeatherData } from '../../types';
 import { JobModal } from '../jobs/JobModal';
 import { JobDetailViewModal } from '../jobs/JobDetailViewModal';
+import { JobCostManagerModal } from '../jobs/JobCostManagerModal';
 import { WorkReportModal } from '../report/WorkReportModal';
 import { ExpenseModal } from '../payments/ExpenseModal';
 import { isJobTimeExpired, isJobCurrentlyInProgress } from '../../utils/jobTimeUtils';
@@ -19,6 +20,7 @@ import {
   Users,
   Plus,
   ArrowRight,
+  Fuel,
   FileCheck2,
   ShoppingCart,
   Wrench,
@@ -47,6 +49,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
 
   const [selectedJobForModal, setSelectedJobForModal] = useState<Job | null>(null);
   const [selectedJobForView, setSelectedJobForView] = useState<{ job: Job; dateISO: string } | null>(null);
+  const [costJob, setCostJob] = useState<Job | null>(null);
   const [isCreatingJob, setIsCreatingJob] = useState(false);
   const [isCreatingExpense, setIsCreatingExpense] = useState(false);
   const [selectedReportForModal, setSelectedReportForModal] = useState<WorkReport | null>(null);
@@ -751,6 +754,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
             setSelectedJobForView(null);
             setSelectedJobForModal(current);
           }}
+        />
+      )}
+
+      {/* Interactive Cost Manager Modal */}
+      {costJob && (
+        <JobCostManagerModal
+          job={costJob}
+          onClose={() => setCostJob(null)}
         />
       )}
 

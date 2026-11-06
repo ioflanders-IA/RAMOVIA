@@ -819,33 +819,28 @@ export const CalendarView: React.FC = () => {
                             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                               {dayDate.toLocaleDateString('it-IT', { weekday: 'short' })}
                             </div>
-                            <div
-                              className={`text-sm sm:text-base font-bold font-mono ${
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (currentUser?.role === 'admin') {
+                                  handleToggleRedDay(dateISO, dayJobs);
+                                }
+                              }}
+                              className={`text-sm sm:text-base font-bold font-mono transition-colors text-left ${
                                 isWeekRed
                                   ? 'text-rose-700 dark:text-rose-400 font-extrabold'
                                   : isToday
                                   ? 'text-emerald-700 dark:text-emerald-400'
                                   : 'text-slate-900 dark:text-slate-100'
-                              }`}
+                              } ${currentUser?.role === 'admin' ? 'hover:text-rose-600 dark:hover:text-rose-400 cursor-pointer' : ''}`}
+                              title={currentUser?.role === 'admin' ? (isWeekRed ? 'Giornata rossa (clicca per disattivare)' : 'Giornata rossa (clicca per attivare)') : undefined}
                             >
                               {dayDate.getDate()}
-                            </div>
+                            </button>
                           </div>
 
                           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                            {currentUser?.role === 'admin' && (
-                              <button
-                                type="button"
-                                onClick={() => handleToggleRedDay(dateISO, dayJobs)}
-                                className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full transition-all cursor-pointer shrink-0 ${
-                                  isWeekRed
-                                    ? 'bg-rose-600 ring-2 ring-rose-300 dark:ring-rose-800 shadow-xs'
-                                    : 'border border-rose-400 dark:border-rose-500/70 hover:bg-rose-500 hover:border-rose-500'
-                                }`}
-                                title={isWeekRed ? 'Giornata rossa attiva' : 'Giornata rossa'}
-                              />
-                            )}
-
                             {currentUser?.role === 'admin' && (
                               <button
                                 onClick={() => {
@@ -992,8 +987,15 @@ export const CalendarView: React.FC = () => {
                       >
                         {/* Top Row: Day Number (plain text without circle background) + Red button + Add button */}
                         <div className="flex items-center justify-between mb-0.5">
-                          <span
-                            className={`text-xs sm:text-sm font-mono font-bold ${
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (currentUser?.role === 'admin') {
+                                handleToggleRedDay(cell.dateISO, dayJobs);
+                              }
+                            }}
+                            className={`text-xs sm:text-sm font-mono font-bold transition-colors text-left ${
                               isSelected
                                 ? 'text-emerald-900 dark:text-emerald-200 font-extrabold'
                                 : isRed
@@ -1003,25 +1005,13 @@ export const CalendarView: React.FC = () => {
                                 : cell.isCurrentMonth
                                 ? 'text-slate-800 dark:text-slate-200'
                                 : 'text-slate-400'
-                            }`}
+                            } ${currentUser?.role === 'admin' ? 'hover:text-rose-600 dark:hover:text-rose-400 cursor-pointer' : ''}`}
+                            title={currentUser?.role === 'admin' ? (isRed ? 'Giornata rossa (clicca per disattivare)' : 'Giornata rossa (clicca per attivare)') : undefined}
                           >
                             {cell.date.getDate()}
-                          </span>
+                          </button>
 
                           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                            {currentUser?.role === 'admin' && (
-                              <button
-                                type="button"
-                                onClick={() => handleToggleRedDay(cell.dateISO, dayJobs)}
-                                className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full transition-all cursor-pointer shrink-0 ${
-                                  isRed
-                                    ? 'bg-rose-600 ring-2 ring-rose-300 dark:ring-rose-800 shadow-xs'
-                                    : 'border border-rose-400 dark:border-rose-500/70 hover:bg-rose-500 hover:border-rose-500'
-                                }`}
-                                title={isRed ? 'Giornata rossa attiva' : 'Giornata rossa'}
-                              />
-                            )}
-
                             {currentUser?.role === 'admin' && (
                               <button
                                 onClick={() => {

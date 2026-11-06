@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Job } from '../../types';
 import { useApp } from '../../context/AppContext';
+import { JobCostManagerModal } from './JobCostManagerModal';
 import {
   X,
   Edit2,
@@ -40,6 +41,7 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
   onEdit,
 }) => {
   const { clients, currentUser, jobs, users } = useApp();
+  const [showCostManager, setShowCostManager] = useState(false);
 
   const todayStr = formatLocalDate(new Date());
   const activeDateISO = selectedDateISO || job.date || todayStr;
@@ -129,22 +131,10 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
         {/* Scrollable Content Body with 6px padding from borders and 6px gap between cards */}
         <div className="p-[6px] space-y-[6px] overflow-y-auto flex-1 text-xs text-slate-700 dark:text-slate-300">
           
-          {/* Status & Type Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200/80 dark:border-slate-700/60">
-            <div className="flex items-center gap-1.5">
-              <span
-                className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${
-                  isCompleted
-                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800'
-                    : effectiveStatus === 'in_progress'
-                    ? 'bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-950/80 dark:text-sky-300 dark:border-sky-800'
-                    : 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800'
-                }`}
-              >
-                {isCompleted ? 'FATTO' : effectiveStatus === 'in_progress' ? 'IN CORSO' : 'IN PROGRAMMA'}
-              </span>
-
-              <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+          {/* Status & Type Bar - 3px padding, badge on the right */}
+          <div className="flex items-center justify-between gap-2 p-[3px] bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200/80 dark:border-slate-700/60">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 truncate">
                 {job.interventionType === 'generale' ? (
                   <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-bold">
                     <Repeat className="w-3 h-3" />
@@ -154,20 +144,32 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
                   'Intervento Singolo'
                 )}
               </span>
+
+              {job.isNaturando && (
+                <div className="flex items-center gap-1.5 px-1.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/80 rounded border border-emerald-200 dark:border-emerald-800 shrink-0">
+                  <img src={NATURANDO_LOGO_URL} alt="Naturando" className="h-3 max-w-[40px] object-contain" />
+                  <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300">
+                    {job.naturandoPercentage || 20}%
+                  </span>
+                </div>
+              )}
             </div>
 
-            {job.isNaturando && (
-              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/80 rounded border border-emerald-200 dark:border-emerald-800">
-                <img src={NATURANDO_LOGO_URL} alt="Naturando" className="h-3.5 max-w-[45px] object-contain" />
-                <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300">
-                  {job.naturandoPercentage || 20}%
-                </span>
-              </div>
-            )}
+            <span
+              className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border shrink-0 ${
+                isCompleted
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800'
+                  : effectiveStatus === 'in_progress'
+                  ? 'bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-950/80 dark:text-sky-300 dark:border-sky-800'
+                  : 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800'
+              }`}
+            >
+              {isCompleted ? 'FATTO' : effectiveStatus === 'in_progress' ? 'IN CORSO' : 'IN PROGRAMMA'}
+            </span>
           </div>
 
-          {/* Lavorazione / Titolo e Descrizione - gap a 3px dentro la card */}
-          <div className="space-y-[3px] p-2 sm:p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200/80 dark:border-slate-700/60">
+          {/* Lavorazione / Titolo e Descrizione - senza sfondo né bordo */}
+          <div className="space-y-[3px] p-[3px]">
             <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">
               Lavorazione da Svolgere
             </span>
@@ -188,8 +190,8 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
             )}
           </div>
 
-          {/* Squadra / Operai Assegnati - gap a 3px dentro la card */}
-          <div className="space-y-[3px] p-2 sm:p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200/80 dark:border-slate-700/60">
+          {/* Squadra / Operai Assegnati - senza sfondo né bordo */}
+          <div className="space-y-[3px] p-[3px]">
             <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider flex items-center gap-1">
               <Users className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
               <span>Squadra Assegnata</span>
@@ -203,28 +205,30 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
           {(job.clientAddress || job.clientPhone) && (
             <div className="space-y-[3px] p-2 sm:p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200/80 dark:border-slate-700/60">
               <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">
-                Recapito Cantiere
+                Recapiti
               </span>
-              {job.clientAddress && (
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.clientAddress)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200 hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline"
-                >
-                  <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span className="truncate">{job.clientAddress}</span>
-                </a>
-              )}
-              {job.clientPhone && (
-                <a
-                  href={`tel:${job.clientPhone}`}
-                  className="flex items-center gap-1.5 text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400 hover:underline"
-                >
-                  <Phone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span>{job.clientPhone}</span>
-                </a>
-              )}
+              <div className="flex items-center justify-between gap-2">
+                {job.clientAddress && (
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.clientAddress)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200 hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline min-w-0"
+                  >
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span className="truncate">{job.clientAddress}</span>
+                  </a>
+                )}
+                {job.clientPhone && (
+                  <a
+                    href={`tel:${job.clientPhone}`}
+                    className="flex items-center gap-1.5 text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400 hover:underline shrink-0 ml-auto"
+                  >
+                    <Phone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>{job.clientPhone}</span>
+                  </a>
+                )}
+              </div>
             </div>
           )}
 
@@ -292,58 +296,48 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
             </div>
           )}
 
-          {/* Monitoraggio Costi & Manodopera & Naturando (per Admin) */}
+          {/* Monitoraggio Costi (per Admin) - senza sfondo né bordo */}
           {currentUser?.role === 'admin' && (
-            <div className="space-y-[3px] p-2 sm:p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200/80 dark:border-slate-700/60 text-xs">
-              {/* Financial KPI Strip */}
-              <div className="grid grid-cols-3 gap-[3px] text-center">
-                <div className="bg-white dark:bg-slate-900 p-1 px-1.5 rounded border border-slate-200/70 dark:border-slate-800">
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                    Prezzo
-                  </div>
-                  <div className="text-xs font-mono font-bold text-slate-900 dark:text-slate-100">
-                    € {price.toFixed(2)}
-                  </div>
+            <div className="space-y-[3px] p-[3px] text-xs">
+              <div className="flex items-center justify-between pb-1">
+                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider flex items-center gap-1">
+                  <Fuel className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span>Monitoraggio Costi</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowCostManager(true)}
+                  className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 rounded-[5px] font-bold text-[10px] flex items-center gap-1 transition-colors cursor-pointer shrink-0 shadow-2xs"
+                  title="Gestisci e inserisci spese e manodopera per questo cantiere"
+                >
+                  <Fuel className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>Gestisci Costi</span>
+                </button>
+              </div>
+
+              {/* Financial KPI Strip - su un rigo solo */}
+              <div className="grid grid-cols-3 gap-[3px] text-center text-[11px] sm:text-xs">
+                <div className="bg-white dark:bg-slate-900 p-1 px-1.5 rounded border border-slate-200/70 dark:border-slate-800 flex items-center justify-center font-mono font-bold text-slate-900 dark:text-slate-100 truncate">
+                  <span>tot € {price.toFixed(price % 1 === 0 ? 0 : 2)}</span>
                 </div>
 
-                <div className="bg-rose-50/40 dark:bg-rose-950/20 p-1 px-1.5 rounded border border-rose-100 dark:border-rose-950/60">
-                  <div className="flex items-center justify-center gap-1 text-[9px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">
-                    <span>Costi</span>
-                    <span className="text-[8px] font-semibold opacity-80">
-                      ({totalCostCount})
-                    </span>
-                  </div>
-                  <div className="text-xs font-mono font-bold text-rose-600 dark:text-rose-400">
-                    -€ {totalAllCost.toFixed(2)}
-                  </div>
+                <div className="bg-rose-50/40 dark:bg-rose-950/20 p-1 px-1.5 rounded border border-rose-100 dark:border-rose-950/60 flex items-center justify-center font-mono font-bold text-rose-600 dark:text-rose-400 truncate">
+                  <span>costi -€ {totalAllCost.toFixed(totalAllCost % 1 === 0 ? 0 : 2)}</span>
                 </div>
 
                 <div
-                  className={`p-1 px-1.5 rounded border ${
+                  className={`p-1 px-1.5 rounded border flex items-center justify-center gap-1 truncate ${
                     margin >= 0
-                      ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-950/60'
-                      : 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-100 dark:border-amber-950/60'
+                      ? 'bg-emerald-950/40 border-emerald-900/60 text-emerald-400'
+                      : 'bg-rose-950/40 border-rose-900/60 text-rose-400'
                   }`}
                 >
-                  <div
-                    className={`flex items-center justify-center gap-1 text-[9px] font-bold uppercase tracking-wider ${
-                      margin >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
-                    }`}
-                  >
-                    <span>Margine</span>
-                    {price > 0 && (
-                      <span className="text-[8px] font-mono font-semibold">
-                        {marginPct}%
-                      </span>
-                    )}
-                  </div>
-                  <div
-                    className={`text-xs font-mono font-bold ${
-                      margin >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'
-                    }`}
-                  >
-                    € {margin.toFixed(2)}
-                  </div>
+                  <span className="text-[10px] font-sans font-bold opacity-90">
+                    utile {marginPct}%
+                  </span>
+                  <span className="text-white text-sm sm:text-base font-extrabold font-mono ml-0.5">
+                    € {margin.toFixed(margin % 1 === 0 ? 0 : 2)}
+                  </span>
                 </div>
               </div>
 
@@ -468,9 +462,9 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
             </div>
           )}
 
-          {/* Note Intervento - gap a 3px dentro la card */}
+          {/* Note Intervento */}
           {job.notes && (
-            <div className="space-y-[3px] p-2 sm:p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200/80 dark:border-slate-700/60">
+            <div className="space-y-[3px] p-[3px]">
               <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider flex items-center gap-1">
                 <FileText className="w-3 h-3 text-slate-400" />
                 <span>Note</span>
@@ -489,27 +483,46 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
           )}
         </div>
 
-        {/* Modal Footer */}
-        <div className="p-2.5 px-[6px] bg-slate-50 dark:bg-slate-950/80 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2 shrink-0">
+        {/* Modal Footer: Icon action buttons without text, backgrounds or borders */}
+        <div className="p-2 px-[6px] flex items-center justify-end gap-3 shrink-0">
+          {currentUser?.role === 'admin' && (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowCostManager(true)}
+                className="p-1.5 text-amber-600 dark:text-amber-400 hover:opacity-80 transition-opacity cursor-pointer"
+                title="Gestisci Costi"
+              >
+                <Fuel className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={onEdit}
+                className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:opacity-80 transition-opacity cursor-pointer"
+                title="Modifica Intervento"
+              >
+                <Edit2 className="w-5 h-5" />
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={onClose}
-            className="px-3.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+            title="Chiudi"
           >
-            Chiudi
+            <X className="w-5 h-5" />
           </button>
-          {currentUser?.role === 'admin' && (
-            <button
-              type="button"
-              onClick={onEdit}
-              className="px-4 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
-            >
-              <Edit2 className="w-3.5 h-3.5" />
-              <span>Modifica Intervento</span>
-            </button>
-          )}
         </div>
       </div>
+
+      {/* Interactive Cost Management Modal */}
+      {showCostManager && (
+        <JobCostManagerModal
+          job={job}
+          onClose={() => setShowCostManager(false)}
+        />
+      )}
     </div>
   );
 };

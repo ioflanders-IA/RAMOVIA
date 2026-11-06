@@ -4,6 +4,7 @@ import { Client, Job, CantiereSite, GardenNotes, JobCostItem, JobCostCategory, U
 import { ClientModal } from './ClientModal';
 import { JobModal, NATURANDO_LOGO_URL } from '../jobs/JobModal';
 import { JobDetailViewModal } from '../jobs/JobDetailViewModal';
+import { JobCostManagerModal } from '../jobs/JobCostManagerModal';
 import { FormattedNote } from '../common/FormattedNote';
 import {
   Users,
@@ -294,10 +295,6 @@ export const ClientsView: React.FC = () => {
 
   // Modal State: Cost management for a specific Job
   const [costJob, setCostJob] = useState<Job | null>(null);
-  const [costCategory, setCostCategory] = useState<JobCostCategory>('benzina');
-  const [costName, setCostName] = useState('');
-  const [costAmount, setCostAmount] = useState<number>(20);
-  const [costNotes, setCostNotes] = useState('');
 
   // Modal State: Create job for selected client
   const [creatingJobForClient, setCreatingJobForClient] = useState<Client | null>(null);
@@ -416,50 +413,6 @@ export const ClientsView: React.FC = () => {
   // Handler: Remove additional garden
   const handleDeleteAdditionalGarden = (site: { id: string; name: string }) => {
     setGardenToDelete(site);
-  };
-
-  // Handler: Add cost to Job
-  const handleAddJobCostSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!costJob || costAmount <= 0 || !costName.trim()) return;
-
-    await addJobCost(costJob.id, {
-      category: costCategory,
-      name: costName.trim(),
-      amount: Number(costAmount),
-      notes: costNotes.trim() || undefined,
-    });
-
-    // Refresh current costJob reference from updated jobs
-    setCostName('');
-    setCostAmount(20);
-    setCostNotes('');
-  };
-
-  // Keep costJob updated when jobs change
-  const currentCostJob = useMemo(() => {
-    if (!costJob) return null;
-    return jobs.find((j) => j.id === costJob.id) || costJob;
-  }, [jobs, costJob]);
-
-  // Category labels for costs
-  const getCostCategoryLabel = (cat: JobCostCategory) => {
-    switch (cat) {
-      case 'benzina':
-        return 'Benzina / Carburante';
-      case 'sacchi':
-        return 'Sacchi Smaltimento';
-      case 'materiale':
-        return 'Materiali & Concimi';
-      case 'manodopera':
-        return 'Manodopera Esterna';
-      case 'smaltimento':
-        return 'Discarica Verde';
-      case 'noleggio':
-        return 'Noleggio Mezzi';
-      default:
-        return 'Altro Costo';
-    }
   };
 
   // State for collapsible Clienti Passati section
@@ -1065,7 +1018,7 @@ export const ClientsView: React.FC = () => {
                             title="Gestisci e monitora spese e manodopera per questo cantiere"
                           >
                             <Fuel className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
-                            <span>Gestisci Costi {costs.length > 0 ? `(${costs.length})` : ''}</span>
+                            <span>Gestisci Costi</span>
                           </button>
                         </div>
                       </div>
@@ -1082,55 +1035,29 @@ export const ClientsView: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Financial KPI Strip: Prezzo | Costi (Spese + Manodopera + Naturando) | Margine */}
-                      <div className="grid grid-cols-3 gap-[3px] text-center">
-                        <div className="bg-slate-50 dark:bg-slate-800/40 p-1 px-2 rounded-[5px] border border-slate-200/70 dark:border-slate-800">
-                          <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                            Prezzo
-                          </div>
-                          <div className="text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-slate-100">
-                            € {price.toFixed(2)}
-                          </div>
+                      {/* Financial KPI Strip: Prezzo | Costi | Margine - su un rigo solo */}
+                      <div className="grid grid-cols-3 gap-[3px] text-center text-[11px] sm:text-xs">
+                        <div className="bg-slate-50 dark:bg-slate-800/40 p-1 px-1.5 rounded-[5px] border border-slate-200/70 dark:border-slate-800 flex items-center justify-center font-mono font-bold text-slate-900 dark:text-slate-100 truncate">
+                          <span>tot € {price.toFixed(price % 1 === 0 ? 0 : 2)}</span>
                         </div>
 
-                        <div className="bg-rose-50/40 dark:bg-rose-950/20 p-1 px-2 rounded-[5px] border border-rose-100 dark:border-rose-950/60">
-                          <div className="flex items-center justify-center gap-1 text-[9px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">
-                            <span>Costi</span>
-                            <span className="text-[8px] font-semibold opacity-80">
-                              ({totalCostCount})
-                            </span>
-                          </div>
-                          <div className="text-xs sm:text-sm font-mono font-bold text-rose-600 dark:text-rose-400">
-                            -€ {totalAllCost.toFixed(2)}
-                          </div>
+                        <div className="bg-rose-50/40 dark:bg-rose-950/20 p-1 px-1.5 rounded-[5px] border border-rose-100 dark:border-rose-950/60 flex items-center justify-center font-mono font-bold text-rose-600 dark:text-rose-400 truncate">
+                          <span>costi -€ {totalAllCost.toFixed(totalAllCost % 1 === 0 ? 0 : 2)}</span>
                         </div>
 
                         <div
-                          className={`p-1 px-2 rounded-[5px] border ${
+                          className={`p-1 px-1.5 rounded-[5px] border flex items-center justify-center gap-1 truncate ${
                             margin >= 0
-                              ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-950/60'
-                              : 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-100 dark:border-amber-950/60'
+                              ? 'bg-emerald-950/40 border-emerald-900/60 text-emerald-400'
+                              : 'bg-rose-950/40 border-rose-900/60 text-rose-400'
                           }`}
                         >
-                          <div
-                            className={`flex items-center justify-center gap-1 text-[9px] font-bold uppercase tracking-wider ${
-                              margin >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
-                            }`}
-                          >
-                            <span>Margine</span>
-                            {price > 0 && (
-                              <span className="text-[8px] font-mono font-semibold">
-                                {marginPct}%
-                              </span>
-                            )}
-                          </div>
-                          <div
-                            className={`text-xs sm:text-sm font-mono font-bold ${
-                              margin >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'
-                            }`}
-                          >
-                            € {margin.toFixed(2)}
-                          </div>
+                          <span className="text-[10px] font-sans font-bold opacity-90">
+                            utile {marginPct}%
+                          </span>
+                          <span className="text-white text-xs sm:text-sm font-extrabold font-mono ml-0.5">
+                            € {margin.toFixed(margin % 1 === 0 ? 0 : 2)}
+                          </span>
                         </div>
                       </div>
 
@@ -1390,293 +1317,12 @@ export const ClientsView: React.FC = () => {
       )}
 
       {/* MODAL: GESTIONE & INSERIMENTO COSTI INTERVENTO (SPESE + MANODOPERA + NATURANDO) */}
-      {currentCostJob && (() => {
-        const currentCosts = currentCostJob.costs || [];
-        const currentExpensesTotal = currentCosts.reduce((s, c) => s + (c.amount || 0), 0);
-        const currentJobLabor = getJobLaborSummary(currentCostJob, jobs, users);
-        const currentIsNaturando = !!currentCostJob.isNaturando;
-        const currentNaturandoBase = currentCostJob.naturandoAmount !== undefined && currentCostJob.naturandoAmount > 0
-          ? currentCostJob.naturandoAmount
-          : (currentCostJob.price || 0);
-        const currentNaturandoPct = currentCostJob.naturandoPercentage !== undefined && currentCostJob.naturandoPercentage > 0
-          ? currentCostJob.naturandoPercentage
-          : 20;
-        const currentNaturandoCost = currentIsNaturando
-          ? Math.round(((currentNaturandoBase * currentNaturandoPct) / 100) * 100) / 100
-          : 0;
-
-        const currentAllCosts = currentExpensesTotal + currentJobLabor.totalLaborCost + currentNaturandoCost;
-        const currentPrice = currentCostJob.price || 0;
-        const currentNetMargin = currentPrice - currentAllCosts;
-
-        return (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 p-2 sm:p-3 backdrop-blur-xs">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] max-w-lg w-full p-2.5 sm:p-3 space-y-[3px] shadow-2xl max-h-[90vh] overflow-y-auto">
-              <div className="bg-slate-900 text-white p-2 px-3 rounded-[6px] flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Fuel className="w-4 h-4 text-amber-400 shrink-0" />
-                  <h3 className="font-bold text-xs truncate">
-                    Costi & Manodopera: {currentCostJob.title}
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCostJob(null)}
-                  className="text-slate-400 hover:text-white p-1 shrink-0 cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Financial monitor for this specific intervention */}
-              <div className={`grid ${currentIsNaturando ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-4'} gap-[3px] bg-slate-100 dark:bg-slate-800/60 p-2 rounded-[6px] text-xs text-center`}>
-                <div>
-                  <span className="text-[9px] text-slate-500 block uppercase font-bold">Prezzo</span>
-                  <strong className="font-mono text-xs sm:text-sm text-slate-900 dark:text-slate-100">
-                    € {currentPrice.toFixed(2)}
-                  </strong>
-                </div>
-
-                <div>
-                  <span className="text-[9px] text-slate-500 block uppercase font-bold">Spese Materiali</span>
-                  <strong className="font-mono text-xs sm:text-sm text-rose-600 dark:text-rose-400">
-                    -€ {currentExpensesTotal.toFixed(2)}
-                  </strong>
-                </div>
-
-                <div>
-                  <span className="text-[9px] text-slate-500 block uppercase font-bold">Manodopera</span>
-                  <strong className="font-mono text-xs sm:text-sm text-amber-600 dark:text-amber-400">
-                    -€ {currentJobLabor.totalLaborCost.toFixed(2)}
-                  </strong>
-                </div>
-
-                {currentIsNaturando && (
-                  <div>
-                    <span className="text-[9px] text-slate-500 block uppercase font-bold">Naturando</span>
-                    <strong className="font-mono text-xs sm:text-sm text-emerald-700 dark:text-emerald-400">
-                      -€ {currentNaturandoCost.toFixed(2)}
-                    </strong>
-                  </div>
-                )}
-
-                <div>
-                  <span className="text-[9px] text-slate-500 block uppercase font-bold">Margine Netto</span>
-                  <strong className={`font-mono text-xs sm:text-sm ${currentNetMargin >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600'}`}>
-                    € {currentNetMargin.toFixed(2)}
-                  </strong>
-                </div>
-              </div>
-
-              {/* SEZIONE MANODOPERA PER QUESTO CANTIERE */}
-              <div className="bg-slate-50 dark:bg-slate-800/40 p-2 rounded-[6px] border border-slate-200 dark:border-slate-700 space-y-[3px]">
-                <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                  <div className="flex items-center gap-1.5">
-                    <HardHat className="w-4 h-4 text-amber-500 shrink-0" />
-                    <span>Manodopera Cantiere ({currentJobLabor.workers.length} operai)</span>
-                  </div>
-                  <span className="font-mono text-xs font-bold text-rose-600 dark:text-rose-400">
-                    -€ {currentJobLabor.totalLaborCost.toFixed(2)}
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-500 italic pb-0.5">
-                  Calcolo automatico uscite: se l'operaio svolge 2 interventi nello stesso giorno, il costo è ripartito a metà (mezza giornata).
-                </p>
-
-                {currentJobLabor.workers.length > 0 ? (
-                  <div className="space-y-[3px]">
-                    {currentJobLabor.workers.map((w) => (
-                      <div
-                        key={w.workerId || w.workerName}
-                        className="p-1 px-2 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs"
-                      >
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className="font-semibold text-slate-900 dark:text-slate-100">{w.workerName}</span>
-                          <span
-                            className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase border shrink-0 ${
-                              w.dayType === 'mezza giornata'
-                                ? 'bg-sky-50 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800'
-                                : 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                            }`}
-                          >
-                            {w.dayType === 'mezza giornata' ? 'Mezza Giornata (2 cantieri oggi)' : 'Giornata Intera (1 cantiere oggi)'}
-                          </span>
-                        </div>
-                        <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 shrink-0 text-right">
-                          -€ {w.cost.toFixed(2)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-[11px] text-slate-400 py-1">Nessun operaio assegnato a questo intervento.</div>
-                )}
-              </div>
-
-              {/* SEZIONE SPESE REGISTRATE */}
-              <div className="bg-slate-50 dark:bg-slate-800/40 p-2 rounded-[6px] border border-slate-200 dark:border-slate-700 space-y-[3px]">
-                <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                  <span>Spese Registrate ({currentCosts.length})</span>
-                  <span className="font-mono text-xs font-bold text-rose-600 dark:text-rose-400">
-                    -€ {currentExpensesTotal.toFixed(2)}
-                  </span>
-                </div>
-
-                {currentCosts.length === 0 ? (
-                  <div className="p-3 text-center text-xs text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded">
-                    Nessuna spesa di materiali o carburante registrata.
-                  </div>
-                ) : (
-                  <div className="space-y-[3px] max-h-36 overflow-y-auto">
-                    {currentCosts.map((c) => (
-                      <div
-                        key={c.id}
-                        className="p-1 px-2 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs"
-                      >
-                        <div className="min-w-0 pr-2">
-                          <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
-                            <span className="truncate">{c.name}</span>
-                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 uppercase font-mono text-slate-600 dark:text-slate-300 shrink-0">
-                              {c.category}
-                            </span>
-                          </div>
-                          {c.notes && <div className="text-[10px] text-slate-400 truncate">{c.notes}</div>}
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 text-right">
-                            -€ {c.amount.toFixed(2)}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => deleteJobCost(currentCostJob.id, c.id)}
-                            className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
-                            title="Elimina costo"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* SEZIONE QUOTA COMMESSA NATURANDO */}
-              {currentIsNaturando && (
-                <div className="bg-slate-50 dark:bg-slate-800/40 p-2 rounded-[6px] border border-slate-200 dark:border-slate-700 space-y-[3px]">
-                  <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                    <div className="flex items-center gap-1.5">
-                      <img
-                        src={NATURANDO_LOGO_URL}
-                        alt="Naturando"
-                        className="h-3.5 max-w-[55px] object-contain rounded"
-                      />
-                      <span>Quota Dovuta a Naturando ({currentNaturandoPct}%)</span>
-                    </div>
-                    <span className="font-mono text-xs font-bold text-rose-600 dark:text-rose-400">
-                      -€ {currentNaturandoCost.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="p-1 px-2 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase border bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 shrink-0">
-                        Naturando {currentNaturandoPct}%
-                      </span>
-                      <span className="text-slate-700 dark:text-slate-300 truncate">
-                        Importo: € {(currentCostJob.naturandoAmount !== undefined && currentCostJob.naturandoAmount > 0 ? currentCostJob.naturandoAmount : currentPrice).toFixed(2)}
-                      </span>
-                    </div>
-                    <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 shrink-0 text-right">
-                      -€ {currentNaturandoCost.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Form: Add Cost to Intervention */}
-              <form onSubmit={handleAddJobCostSubmit} className="bg-slate-50 dark:bg-slate-800/50 p-2 rounded-[6px] border border-slate-200 dark:border-slate-700 space-y-[3px] text-xs">
-                <div className="font-bold text-slate-800 dark:text-slate-200 pb-0.5 border-b border-slate-200 dark:border-slate-700">
-                  + Inserisci Nuova Spesa per l'Intervento
-                </div>
-
-                <div className="grid grid-cols-2 gap-[3px]">
-                  <div>
-                    <label className="font-semibold block text-[11px] mb-0.5">Categoria *</label>
-                    <select
-                      value={costCategory}
-                      onChange={(e) => setCostCategory(e.target.value as JobCostCategory)}
-                      className="w-full p-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs"
-                    >
-                      <option value="benzina">Benzina / Carburante</option>
-                      <option value="sacchi">Sacchi Smaltimento</option>
-                      <option value="materiale">Materiale & Concimi</option>
-                      <option value="smaltimento">Smaltimento Verde</option>
-                      <option value="noleggio">Noleggio Mezzi</option>
-                      <option value="manodopera">Altra Manodopera</option>
-                      <option value="altro">Altro Costo</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="font-semibold block text-[11px] mb-0.5">Importo (€) *</label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      required
-                      value={costAmount}
-                      onChange={(e) => setCostAmount(parseFloat(e.target.value) || 0)}
-                      className="w-full p-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs font-mono font-bold text-rose-600"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="font-semibold block text-[11px] mb-0.5">Descrizione Spesa *</label>
-                  <input
-                    type="text"
-                    required
-                    value={costName}
-                    onChange={(e) => setCostName(e.target.value)}
-                    placeholder="es. 10L Benzina decespugliatore, 15 sacchi sfalcio"
-                    className="w-full p-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-semibold block text-[11px] mb-0.5">Note Aggiuntive</label>
-                  <input
-                    type="text"
-                    value={costNotes}
-                    onChange={(e) => setCostNotes(e.target.value)}
-                    placeholder="es. Fornitore Eni / Agraria"
-                    className="w-full p-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs"
-                  />
-                </div>
-
-                <div className="flex justify-end pt-0.5">
-                  <button
-                    type="submit"
-                    className="px-3 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded font-bold text-xs shadow-xs cursor-pointer"
-                  >
-                    Aggiungi Spesa
-                  </button>
-                </div>
-              </form>
-
-              <div className="pt-1 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setCostJob(null)}
-                  className="px-3.5 py-1 bg-slate-900 text-white font-bold rounded text-xs cursor-pointer"
-                >
-                  Chiudi
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {costJob && (
+        <JobCostManagerModal
+          job={costJob}
+          onClose={() => setCostJob(null)}
+        />
+      )}
 
       {/* Modal: Job Creation for this Client */}
       {creatingJobForClient && (
