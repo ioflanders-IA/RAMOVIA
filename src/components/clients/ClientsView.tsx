@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Client, Job, CantiereSite, GardenNotes, JobCostItem, JobCostCategory } from '../../types';
+import { Client, Job, CantiereSite, GardenNotes, JobCostItem, JobCostCategory, User } from '../../types';
 import { ClientModal } from './ClientModal';
-import { JobModal } from '../jobs/JobModal';
+import { JobModal, NATURANDO_LOGO_URL } from '../jobs/JobModal';
+import { JobDetailViewModal } from '../jobs/JobDetailViewModal';
 import { FormattedNote } from '../common/FormattedNote';
 import {
   Users,
@@ -32,10 +33,190 @@ import {
   Receipt,
   RotateCcw,
   Palette,
+  HardHat,
 } from 'lucide-react';
 import { getClientColor, CLIENT_COLOR_OPTIONS } from '../../utils/clientColors';
 
-const getCostCategoryInfo = (category: JobCostCategory | string) => {
+export interface WorkerLaborItem {
+  workerId: string;
+  workerName: string;
+  dayType: 'mezza giornata' | 'giornata intera';
+  rate: number;
+  cost: number;
+  totalJobsToday: number;
+}
+
+export interface JobLaborSummary {
+  workers: WorkerLaborItem[];
+  totalLaborCost: number;
+}
+
+const cleanHtmlText = (str?: string): string => {
+  if (!str) return '';
+  return str
+    .replace(/<br\s*[\/]?>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .trim();
+};
+
+export const isUserAdminHelper = (u?: User | null, nameOrId?: string, allUsers?: User[]): boolean => {
+  if (u) {
+    if (u.role?.toLowerCase() === 'admin') return true;
+    const dn = (u.displayName || '').toLowerCase();
+    const em = (u.email || '').toLowerCase();
+    if (
+      dn.includes('admin') ||
+      dn.includes('alvaro') ||
+      dn.includes('fazi') ||
+      dn.includes('andrea blasi') ||
+      dn.includes('andblasi') ||
+      dn.includes('amministratore') ||
+      dn.includes('titolare')
+    ) {
+      return true;
+    }
+    if (em.includes('admin') || em.includes('alvaro') || em.includes('fazi') || em.includes('andblasi')) {
+      return true;
+    }
+  }
+  if (nameOrId) {
+    const s = nameOrId.toLowerCase().trim();
+    if (
+      s.includes('admin') ||
+      s.includes('alvaro') ||
+      s.includes('fazi') ||
+      s.includes('andrea blasi') ||
+      s.includes('andblasi') ||
+      s.includes('amministratore') ||
+      s.includes('titolare')
+    ) {
+      return true;
+    }
+    if (allUsers) {
+      const match = allUsers.find(
+        (usr) => usr.uid === nameOrId || usr.displayName.toLowerCase() === s
+      );
+      if (match && isUserAdminHelper(match)) return true;
+    }
+  }
+  return false;
+};
+
+export const getJobLaborSummary = (
+  job: Job,
+  allJobs: Job[],
+  allUsers: User[]
+): JobLaborSummary => {
+  const targetDate = (job.date || '').split('T')[0];
+  if (!targetDate) {
+    return { workers: [], totalLaborCost: 0 };
+  }
+
+  // 1. Resolve assigned workers (strictly excluding admin users from labor cost)
+  const assignedWorkerMap = new Map<string, { id: string; name: string; rate: number }>();
+
+  if (Array.isArray(job.assignedWorkerIds) && job.assignedWorkerIds.length > 0) {
+    job.assignedWorkerIds.forEach((wId) => {
+      if (!wId) return;
+      const u = allUsers.find((usr) => usr.uid === wId);
+      if (isUserAdminHelper(u, wId, allUsers)) return; // L'operaio admin non deve essere contabilizzato nella manodopera
+      const name = u?.displayName || 'Operaio';
+      if (isUserAdminHelper(u, name, allUsers)) return;
+      const rate = u?.dailyRate || 90;
+      assignedWorkerMap.set(wId, { id: wId, name, rate });
+    });
+  }
+
+  if (job.assignedWorkerId && !assignedWorkerMap.has(job.assignedWorkerId)) {
+    const u = allUsers.find((usr) => usr.uid === job.assignedWorkerId);
+    if (!isUserAdminHelper(u, job.assignedWorkerId, allUsers)) {
+      const name = u?.displayName || job.assignedWorkerName || 'Operaio';
+      if (!isUserAdminHelper(u, name, allUsers)) {
+        const rate = u?.dailyRate || 90;
+        assignedWorkerMap.set(job.assignedWorkerId, { id: job.assignedWorkerId, name, rate });
+      }
+    }
+  }
+
+  const rawNames: string[] = [];
+  if (Array.isArray(job.assignedWorkerNames)) {
+    rawNames.push(...job.assignedWorkerNames);
+  }
+  if (job.assignedWorkerName) {
+    job.assignedWorkerName.split(',').forEach((n) => rawNames.push(n.trim()));
+  }
+
+  rawNames.forEach((n) => {
+    if (!n) return;
+    if (isUserAdminHelper(undefined, n, allUsers)) return; // L'operaio admin non deve essere contabilizzato nella manodopera
+    const lowerName = n.toLowerCase();
+    const alreadyMapped = Array.from(assignedWorkerMap.values()).some(
+      (w) => w.name.toLowerCase() === lowerName
+    );
+    if (!alreadyMapped) {
+      const u = allUsers.find((usr) => usr.displayName.toLowerCase() === lowerName);
+      if (isUserAdminHelper(u, n, allUsers)) return; // L'operaio admin non deve essere contabilizzato nella manodopera
+
+      if (u) {
+        assignedWorkerMap.set(u.uid, { id: u.uid, name: u.displayName, rate: u.dailyRate || 90 });
+      } else {
+        assignedWorkerMap.set(n, { id: n, name: n, rate: 90 });
+      }
+    }
+  });
+
+  const assignedWorkers = Array.from(assignedWorkerMap.values());
+  if (assignedWorkers.length === 0) {
+    return { workers: [], totalLaborCost: 0 };
+  }
+
+  // 2. Count jobs for each worker on this date
+  const workers: WorkerLaborItem[] = assignedWorkers.map((w) => {
+    const workerJobsOnDate = allJobs.filter((otherJob) => {
+      const otherDate = (otherJob.date || '').split('T')[0];
+      const isDateMatch =
+        otherDate === targetDate ||
+        (Array.isArray(otherJob.plannedDates) && otherJob.plannedDates.includes(targetDate));
+      if (!isDateMatch) return false;
+
+      const hasId =
+        (Array.isArray(otherJob.assignedWorkerIds) && otherJob.assignedWorkerIds.includes(w.id)) ||
+        otherJob.assignedWorkerId === w.id;
+      const hasName =
+        (Array.isArray(otherJob.assignedWorkerNames) &&
+          otherJob.assignedWorkerNames.some((nm) => nm.toLowerCase() === w.name.toLowerCase())) ||
+        (otherJob.assignedWorkerName &&
+          otherJob.assignedWorkerName.toLowerCase().includes(w.name.toLowerCase()));
+
+      return hasId || hasName;
+    });
+
+    const totalJobsToday = Math.max(1, workerJobsOnDate.length);
+    // Se un operaio durante la giornata fa due o più interventi: mezza giornata (costo a metà)
+    // Se fa un solo intervento: giornata intera (costo intero su quel cantiere)
+    const isHalfDay = totalJobsToday >= 2;
+    const dayType: 'mezza giornata' | 'giornata intera' = isHalfDay ? 'mezza giornata' : 'giornata intera';
+    const cost = isHalfDay ? Math.round((w.rate / 2) * 100) / 100 : w.rate;
+
+    return {
+      workerId: w.id,
+      workerName: w.name,
+      dayType,
+      rate: w.rate,
+      cost,
+      totalJobsToday,
+    };
+  });
+
+  const totalLaborCost = workers.reduce((sum, w) => sum + w.cost, 0);
+
+  return {
+    workers,
+    totalLaborCost,
+  };
+};
+
+export const getCostCategoryInfo = (category: JobCostCategory | string) => {
   switch (category) {
     case 'benzina':
       return {
@@ -79,6 +260,8 @@ export const ClientsView: React.FC = () => {
   const {
     clients,
     jobs,
+    users,
+    workedDays,
     addClient,
     updateClient,
     deleteClient,
@@ -120,6 +303,11 @@ export const ClientsView: React.FC = () => {
   const [creatingJobForClient, setCreatingJobForClient] = useState<Client | null>(null);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
 
+  // Accordion state: both closed by default
+  const [showGardensSection, setShowGardensSection] = useState(false);
+  const [showJobsSection, setShowJobsSection] = useState(false);
+  const [viewingJob, setViewingJob] = useState<Job | null>(null);
+
   // Selected client object
   const activeClient = useMemo(() => {
     return clients.find((c) => c.id === selectedClientId) || null;
@@ -144,26 +332,40 @@ export const ClientsView: React.FC = () => {
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [jobs, activeClient]);
 
-  // Financial summary for active client
+  // Financial summary for active client (Spese + Manodopera + Naturando)
   const clientFinancials = useMemo(() => {
     let revenue = 0;
-    let totalCosts = 0;
+    let totalExpenses = 0;
+    let totalLabor = 0;
+    let totalNaturando = 0;
 
     clientJobs.forEach((j) => {
       revenue += j.price || 0;
       if (j.costs && j.costs.length > 0) {
-        totalCosts += j.costs.reduce((sum, c) => sum + (c.amount || 0), 0);
+        totalExpenses += j.costs.reduce((sum, c) => sum + (c.amount || 0), 0);
+      }
+      const labor = getJobLaborSummary(j, jobs, users);
+      totalLabor += labor.totalLaborCost;
+
+      if (j.isNaturando) {
+        const base = j.naturandoAmount !== undefined && j.naturandoAmount > 0 ? j.naturandoAmount : (j.price || 0);
+        const pct = j.naturandoPercentage !== undefined && j.naturandoPercentage > 0 ? j.naturandoPercentage : 20;
+        totalNaturando += Math.round(((base * pct) / 100) * 100) / 100;
       }
     });
 
+    const totalCosts = totalExpenses + totalLabor + totalNaturando;
     const netProfit = revenue - totalCosts;
 
     return {
       revenue,
+      totalExpenses,
+      totalLabor,
+      totalNaturando,
       totalCosts,
       netProfit,
     };
-  }, [clientJobs]);
+  }, [clientJobs, jobs, users]);
 
   // Handlers for Client
   const handleSaveClientModal = (clientData: any) => {
@@ -535,38 +737,38 @@ export const ClientsView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-[7px]">
+    <div className="space-y-[3px]">
       
       {/* Back Button and Client Header Card */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-[7px]">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-2 sm:p-2.5 shadow-xs space-y-[3px]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-[3px]">
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => setSelectedClientId(null)}
-              className="p-1.5 rounded-[7px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer"
+              className="p-1 px-2 rounded-[5px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer shrink-0"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-3.5 h-3.5" />
               <span>Rubrica Clienti</span>
             </button>
 
-            <div className="flex items-center gap-2">
-              <div>
-                <h1 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <span>{activeClient.name}</span>
-                  <span className="text-[10px] font-semibold text-slate-500 font-normal">
-                    ({allGardens.length} {allGardens.length === 1 ? 'giardino' : 'giardini'})
-                  </span>
-                </h1>
-              </div>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <h1 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 truncate">
+                <span>{activeClient.name}</span>
+                <span className="text-[10px] text-slate-500 font-normal shrink-0">
+                  ({allGardens.length} {allGardens.length === 1 ? 'giardino' : 'giardini'})
+                </span>
+              </h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-[7px]">
+          <div className="flex items-center gap-[3px] shrink-0">
             <button
+              type="button"
               onClick={() => {
                 setCreatingJobForClient(activeClient);
               }}
-              className="flex items-center gap-1 p-[7px] px-3 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] font-bold text-xs shadow-xs transition-colors cursor-pointer shrink-0"
+              className="flex items-center gap-1 p-1 px-2.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[5px] font-bold text-xs shadow-xs transition-colors cursor-pointer shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Nuovo Intervento</span>
@@ -575,18 +777,20 @@ export const ClientsView: React.FC = () => {
             {currentUser?.role === 'admin' && (
               <>
                 <button
+                  type="button"
                   onClick={() => setEditingClient(activeClient)}
-                  className="p-[7px] px-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-[7px] font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                  className="p-1 px-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-[5px] font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer shrink-0"
                 >
-                  <Edit2 className="w-3.5 h-3.5" />
+                  <Edit2 className="w-3 h-3" />
                   <span>Modifica</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setClientToDelete(activeClient)}
-                  className="p-[7px] px-2.5 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900 rounded-[7px] font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                  className="p-1 px-2 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900 rounded-[5px] font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer shrink-0"
                   title="Elimina questo cliente"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-3 h-3" />
                   <span>Elimina</span>
                 </button>
               </>
@@ -595,7 +799,7 @@ export const ClientsView: React.FC = () => {
         </div>
 
         {/* Contact Info Strip */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-[7px] pt-1 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-[3px] pt-1 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
           <div className="flex items-center gap-1.5 truncate">
             <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <span className="truncate">{activeClient.address}</span>
@@ -618,151 +822,160 @@ export const ClientsView: React.FC = () => {
       </div>
 
       {/* Financial Overview for this client */}
-      <div className="grid grid-cols-3 gap-[7px]">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
+      <div className="grid grid-cols-3 gap-[3px]">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-2 shadow-xs space-y-[3px]">
           <div className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">
             Fatturato Lavori
           </div>
           <div className="text-xl font-bold font-mono text-slate-900 dark:text-slate-100">
             € {clientFinancials.revenue.toFixed(2)}
           </div>
-          <div className="text-[10px] text-slate-500">
+          <div className="text-[10px] text-slate-500 truncate">
             {clientJobs.length} interventi totali
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-2 shadow-xs space-y-[3px]">
           <div className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">
-            Costi Interventi (Benzina/Sacchi)
+            Costi Interventi
           </div>
           <div className="text-xl font-bold font-mono text-rose-600 dark:text-rose-400">
-            € {clientFinancials.totalCosts.toFixed(2)}
+            -€ {clientFinancials.totalCosts.toFixed(2)}
           </div>
-          <div className="text-[10px] text-slate-500">
-            Spese a carico dei cantieri
+          <div className="text-[10px] text-slate-500 truncate">
+            Spese €{clientFinancials.totalExpenses.toFixed(0)} · Manodopera €{clientFinancials.totalLabor.toFixed(0)}{clientFinancials.totalNaturando > 0 ? ` · Naturando €${clientFinancials.totalNaturando.toFixed(0)}` : ''}
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-2 shadow-xs space-y-[3px]">
           <div className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">
             Margine Netto
           </div>
           <div className={`text-xl font-bold font-mono ${clientFinancials.netProfit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600'}`}>
             € {clientFinancials.netProfit.toFixed(2)}
           </div>
-          <div className="text-[10px] text-slate-500">
-            Guadagno reale sul cliente
+          <div className="text-[10px] text-slate-500 truncate">
+            {clientFinancials.revenue > 0 ? Math.round((clientFinancials.netProfit / clientFinancials.revenue) * 100) : 0}% sul fatturato
           </div>
         </div>
       </div>
 
-      {/* SECTION 1: I GIARDINI DEL CLIENTE (anche più di uno) */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-        <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+      {/* SECTION 1: GIARDINI (accordion, closed by default) */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-2 shadow-xs space-y-[3px]">
+        <div
+          onClick={() => setShowGardensSection(!showGardensSection)}
+          className="flex items-center justify-between cursor-pointer select-none py-0.5"
+        >
           <div className="flex items-center gap-1.5">
-            <Sprout className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+            <Sprout className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-              I Giardini di {activeClient.name} ({allGardens.length})
+              Giardini
             </h2>
+            <ChevronRight
+              className={`w-4 h-4 text-slate-400 transition-transform ${showGardensSection ? 'rotate-90' : ''}`}
+            />
           </div>
 
           <button
-            onClick={() => setIsAddingGarden(true)}
-            className="flex items-center gap-1 p-[7px] px-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 rounded-[7px] font-bold text-xs transition-colors cursor-pointer"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsAddingGarden(true);
+            }}
+            className="p-1 px-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 rounded-[5px] font-bold text-xs transition-colors cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5 text-emerald-600" />
-            <span>+ Aggiungi Altro Giardino</span>
+            + Aggiungi Giardino
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-[7px]">
-          {allGardens.map((garden, idx) => (
-            <div
-              key={garden.id}
-              className="p-[7px] rounded-[7px] border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 space-y-[7px] text-xs"
-            >
-              <div className="flex items-start justify-between gap-[7px]">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-slate-900 dark:text-slate-100">
-                      {garden.name}
-                    </span>
+        {showGardensSection && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-[3px] pt-1">
+            {allGardens.map((garden) => (
+              <div
+                key={garden.id}
+                className="p-2 rounded-[6px] border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 space-y-1 text-xs"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-bold text-slate-900 dark:text-slate-100 truncate">
+                    {garden.name}
+                  </span>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
                     {garden.isPrimary && (
-                      <span className="px-1.5 py-0.2 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold text-[9px] rounded uppercase">
+                      <span className="px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold text-[9px] rounded uppercase">
                         Sede Principale
                       </span>
                     )}
+
+                    {!garden.isPrimary && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAdditionalGarden({ id: garden.id, name: garden.name })}
+                        className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer shrink-0"
+                        title="Elimina questo giardino"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                    <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                    <span>{garden.address}</span>
+                </div>
+
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                  <span className="truncate">{garden.address}</span>
+                </div>
+
+                {/* Informazioni a mo di testo continuo senza card interna, note rimosse */}
+                <div className="text-[11px] text-slate-600 dark:text-slate-300 flex flex-wrap items-center gap-x-3 gap-y-0.5 pt-0.5">
+                  <div>
+                    <span className="text-slate-400 text-[10px]">Superficie: </span>
+                    <strong className="font-mono text-emerald-700 dark:text-emerald-400">
+                      {garden.notes?.squareMeters || 300} mq
+                    </strong>
                   </div>
-                </div>
-
-                {!garden.isPrimary && (
-                  <button
-                    onClick={() => handleDeleteAdditionalGarden({ id: garden.id, name: garden.name })}
-                    className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
-                    title="Elimina questo giardino"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* Garden specs */}
-              <div className="grid grid-cols-2 gap-1.5 bg-white dark:bg-slate-900 p-2 rounded border border-slate-200 dark:border-slate-800 text-[11px]">
-                <div>
-                  <span className="text-slate-400 block text-[10px]">Superficie:</span>
-                  <strong className="font-mono text-emerald-700 dark:text-emerald-400">
-                    {garden.notes?.squareMeters || 300} mq
-                  </strong>
-                </div>
-
-                <div>
-                  <span className="text-slate-400 block text-[10px]">Codice Cancello:</span>
-                  <strong className="font-mono text-slate-700 dark:text-slate-300">
-                    {garden.notes?.gateCode || 'Nessuno'}
-                  </strong>
-                </div>
-
-                <div>
-                  <span className="text-slate-400 block text-[10px]">Irrigazione:</span>
-                  <span className="text-slate-700 dark:text-slate-300">
-                    {garden.notes?.irrigationDetails || 'Manuale'}
-                  </span>
-                </div>
-
-                <div>
-                  <span className="text-slate-400 block text-[10px]">Cane Presente:</span>
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">
-                    {garden.notes?.dogPresent ? 'Sì 🐕' : 'No'}
-                  </span>
+                  <div>
+                    <span className="text-slate-400 text-[10px]">Codice Cancello: </span>
+                    <strong className="font-mono text-slate-700 dark:text-slate-300">
+                      {garden.notes?.gateCode || 'Nessuno'}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-[10px]">Irrigazione: </span>
+                    <span>{cleanHtmlText(garden.notes?.irrigationDetails) || 'Manuale'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-[10px]">Cane: </span>
+                    <span>{garden.notes?.dogPresent ? 'Sì 🐕' : 'No'}</span>
+                  </div>
                 </div>
               </div>
-
-              {garden.notes?.notes && (
-                <div className="text-[11px] text-slate-600 dark:text-slate-300 italic">
-                  Note: {garden.notes.notes}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* SECTION 2: STORICO INTERVENTI & MONITORAGGIO COSTI */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[3px] shadow-xs space-y-[3px]">
-        <div className="flex items-center justify-between px-1.5 pt-1 pb-1 border-b border-slate-100 dark:border-slate-800">
+      {/* SECTION 2: STORICO INTERVENTI & MONITORAGGIO COSTI (accordion, closed by default) */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-2 shadow-xs space-y-[3px]">
+        <div
+          onClick={() => setShowJobsSection(!showJobsSection)}
+          className="flex items-center justify-between cursor-pointer select-none py-0.5"
+        >
           <div className="flex items-center gap-1.5">
             <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
               Storico Interventi
             </h2>
+            <ChevronRight
+              className={`w-4 h-4 text-slate-400 transition-transform ${showJobsSection ? 'rotate-90' : ''}`}
+            />
           </div>
 
           <button
-            onClick={() => setCreatingJobForClient(activeClient)}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setCreatingJobForClient(activeClient);
+            }}
             className="w-7 h-7 sm:w-8 sm:h-8 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[5px] flex items-center justify-center transition-colors cursor-pointer shadow-xs shrink-0"
             title="Nuovo Intervento"
           >
@@ -770,174 +983,292 @@ export const ClientsView: React.FC = () => {
           </button>
         </div>
 
-        {clientJobs.length === 0 ? (
-          <div className="p-8 text-center text-xs text-slate-400">
-            Nessun intervento ancora registrato per i giardini di {activeClient.name}. Clicca su "+" per pianificare il primo intervento.
-          </div>
-        ) : (
-          <div className="space-y-[3px]">
-            {clientJobs.map((job) => {
-              const isCompleted = job.status === 'completed';
-              const price = job.price || 0;
-              const costs = job.costs || [];
-              const totalCost = costs.reduce((sum, c) => sum + (c.amount || 0), 0);
-              const margin = price - totalCost;
+        {showJobsSection && (
+          <>
+            {clientJobs.length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-400">
+                Nessun intervento ancora registrato per i giardini di {activeClient.name}. Clicca su "+" per pianificare il primo intervento.
+              </div>
+            ) : (
+              <div className="space-y-[3px] pt-1">
+                {clientJobs.map((job) => {
+                  const isCompleted = job.status === 'completed';
+                  const price = job.price || 0;
+                  const costs = job.costs || [];
+                  const expensesCost = costs.reduce((sum, c) => sum + (c.amount || 0), 0);
+                  const laborSummary = getJobLaborSummary(job, jobs, users);
 
-              return (
-                <div
-                  key={job.id}
-                  className="p-[3px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] space-y-[3px] text-xs hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-2xs"
-                >
-                  {/* Job Header: Titolo, Data, Orario, Gestisci Costi e Stato (Top Right) */}
-                  <div className="p-1.5 px-2 bg-slate-50/70 dark:bg-slate-800/40 rounded-[5px] border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                      <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate">
-                        {job.title}
-                      </span>
-                      <span className="font-mono text-[10px] bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 shrink-0">
-                        {job.date} {job.timeSlot ? `· ${job.timeSlot}` : ''}
-                      </span>
-                    </div>
+                  // Quota spettante a Naturando se l'intervento è marcato per Naturando
+                  const isJobNaturando = !!job.isNaturando;
+                  const naturandoBase = job.naturandoAmount !== undefined && job.naturandoAmount > 0
+                    ? job.naturandoAmount
+                    : price;
+                  const naturandoPct = job.naturandoPercentage !== undefined && job.naturandoPercentage > 0
+                    ? job.naturandoPercentage
+                    : 20;
+                  const naturandoCost = isJobNaturando ? Math.round(((naturandoBase * naturandoPct) / 100) * 100) / 100 : 0;
 
-                    <div className="shrink-0 flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setCostJob(job)}
-                        className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 rounded-[5px] font-bold text-[10px] flex items-center gap-1 transition-colors cursor-pointer shrink-0 shadow-2xs"
-                        title="Inserisci e monitora i costi sostenuti per questo intervento (benzina, sacchi, ecc.)"
-                      >
-                        <Fuel className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                        <span>Gestisci Costi {costs.length > 0 ? `(${costs.length})` : ''}</span>
-                      </button>
+                  const totalAllCost = expensesCost + laborSummary.totalLaborCost + naturandoCost;
+                  const margin = price - totalAllCost;
+                  const marginPct = price > 0 ? Math.round((margin / price) * 100) : 0;
+                  const totalCostCount = costs.length + laborSummary.workers.length + (isJobNaturando ? 1 : 0);
 
-                      <span
-                        className={`px-2 py-0.5 rounded font-bold text-[9px] uppercase tracking-wider ${
-                          isCompleted
-                            ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300'
-                            : job.status === 'in_progress'
-                            ? 'bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300'
-                            : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300'
-                        }`}
-                      >
-                        {isCompleted ? 'Ultimato' : job.status === 'in_progress' ? 'In Corso' : 'Programmato'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Descrizione & Assegnazione Operaio */}
-                  <div className="p-1.5 px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px]">
-                    <div className="space-y-0.5 min-w-0">
-                      {job.description && (
-                        <div className="text-slate-600 dark:text-slate-300 line-clamp-2">
-                          {job.description}
-                        </div>
-                      )}
-                      <div className="text-[10px] text-slate-500">
-                        Operaio: <strong className="text-slate-700 dark:text-slate-300">{job.assignedWorkerName || 'Non assegnato'}</strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Financial KPI Strip: Prezzo | Costi | Margine (compact 3-col grid with gap-[3px]) */}
-                  <div className="grid grid-cols-3 gap-[3px] text-center">
-                    <div className="bg-slate-50 dark:bg-slate-800/40 p-1.5 px-2 rounded-[5px] border border-slate-200/70 dark:border-slate-800">
-                      <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                        Prezzo
-                      </div>
-                      <div className="text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-slate-100">
-                        € {price.toFixed(2)}
-                      </div>
-                    </div>
-
-                    <div className="bg-rose-50/40 dark:bg-rose-950/20 p-1.5 px-2 rounded-[5px] border border-rose-100 dark:border-rose-950/60">
-                      <div className="flex items-center justify-center gap-1 text-[9px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">
-                        <span>Costi</span>
-                        {costs.length > 0 && (
-                          <span className="text-[8px] font-semibold opacity-80">({costs.length})</span>
-                        )}
-                      </div>
-                      <div className="text-xs sm:text-sm font-mono font-bold text-rose-600 dark:text-rose-400">
-                        -€ {totalCost.toFixed(2)}
-                      </div>
-                    </div>
-
+                  return (
                     <div
-                      className={`p-1.5 px-2 rounded-[5px] border ${
-                        margin >= 0
-                          ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-950/60'
-                          : 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-100 dark:border-amber-950/60'
-                      }`}
+                      key={job.id}
+                      onClick={() => setViewingJob(job)}
+                      className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] space-y-[3px] text-xs hover:border-emerald-500/60 dark:hover:border-emerald-500/60 transition-colors shadow-2xs cursor-pointer"
                     >
-                      <div
-                        className={`flex items-center justify-center gap-1 text-[9px] font-bold uppercase tracking-wider ${
-                          margin >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
-                        }`}
-                      >
-                        <span>Margine</span>
-                        {price > 0 && (
-                          <span className="text-[8px] font-mono font-semibold">
-                            {((margin / price) * 100).toFixed(0)}%
+                      {/* Job Header: 2 righe pulite per eliminare qualsiasi sovrapposizione in mobile */}
+                      <div className="p-1.5 px-2 bg-slate-50/70 dark:bg-slate-800/40 rounded-[5px] border border-slate-100 dark:border-slate-800 space-y-1">
+                        {/* Riga 1: Titolo a sinistra, Badge Naturando e Stato a destra */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate">
+                              {job.title}
+                            </span>
+                            {isJobNaturando && (
+                              <div className="inline-flex items-center gap-1 px-1.5 py-0.2 bg-emerald-50 dark:bg-emerald-950/80 rounded border border-emerald-200 dark:border-emerald-800 shrink-0" title={`Quota Naturando: ${naturandoPct}% (€ ${naturandoCost.toFixed(2)})`}>
+                                <img src={NATURANDO_LOGO_URL} alt="Naturando" className="h-2.5 max-w-[40px] object-contain" />
+                                <span className="text-[8px] font-bold text-emerald-800 dark:text-emerald-300">
+                                  {naturandoPct}%
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <span
+                            className={`px-2 py-0.5 rounded font-bold text-[9px] uppercase tracking-wider shrink-0 ${
+                              isCompleted
+                                ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300'
+                                : job.status === 'in_progress'
+                                ? 'bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300'
+                                : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300'
+                            }`}
+                          >
+                            {isCompleted ? 'Ultimato' : job.status === 'in_progress' ? 'In Corso' : 'Programmato'}
                           </span>
+                        </div>
+
+                        {/* Riga 2: Data e orario a sinistra, Gestisci Costi a destra */}
+                        <div className="flex items-center justify-between gap-2 pt-0.5">
+                          <span className="font-mono text-[10px] bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 shrink-0">
+                            {job.date} {job.timeSlot ? `· ${job.timeSlot}` : ''}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCostJob(job);
+                            }}
+                            className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 rounded-[5px] font-bold text-[10px] flex items-center gap-1 transition-colors cursor-pointer shrink-0 shadow-2xs"
+                            title="Gestisci e monitora spese e manodopera per questo cantiere"
+                          >
+                            <Fuel className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                            <span>Gestisci Costi {costs.length > 0 ? `(${costs.length})` : ''}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Descrizione & Assegnazione Operaio */}
+                      <div className="px-1 text-[11px] space-y-0.5">
+                        {job.description && (
+                          <div className="text-slate-600 dark:text-slate-300 line-clamp-2">
+                            {job.description}
+                          </div>
+                        )}
+                        <div className="text-[10px] text-slate-500">
+                          Operai Assegnati: <strong className="text-slate-700 dark:text-slate-300">{job.assignedWorkerName || 'Non assegnato'}</strong>
+                        </div>
+                      </div>
+
+                      {/* Financial KPI Strip: Prezzo | Costi (Spese + Manodopera + Naturando) | Margine */}
+                      <div className="grid grid-cols-3 gap-[3px] text-center">
+                        <div className="bg-slate-50 dark:bg-slate-800/40 p-1 px-2 rounded-[5px] border border-slate-200/70 dark:border-slate-800">
+                          <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                            Prezzo
+                          </div>
+                          <div className="text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-slate-100">
+                            € {price.toFixed(2)}
+                          </div>
+                        </div>
+
+                        <div className="bg-rose-50/40 dark:bg-rose-950/20 p-1 px-2 rounded-[5px] border border-rose-100 dark:border-rose-950/60">
+                          <div className="flex items-center justify-center gap-1 text-[9px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">
+                            <span>Costi</span>
+                            <span className="text-[8px] font-semibold opacity-80">
+                              ({totalCostCount})
+                            </span>
+                          </div>
+                          <div className="text-xs sm:text-sm font-mono font-bold text-rose-600 dark:text-rose-400">
+                            -€ {totalAllCost.toFixed(2)}
+                          </div>
+                        </div>
+
+                        <div
+                          className={`p-1 px-2 rounded-[5px] border ${
+                            margin >= 0
+                              ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-950/60'
+                              : 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-100 dark:border-amber-950/60'
+                          }`}
+                        >
+                          <div
+                            className={`flex items-center justify-center gap-1 text-[9px] font-bold uppercase tracking-wider ${
+                              margin >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
+                            }`}
+                          >
+                            <span>Margine</span>
+                            {price > 0 && (
+                              <span className="text-[8px] font-mono font-semibold">
+                                {marginPct}%
+                              </span>
+                            )}
+                          </div>
+                          <div
+                            className={`text-xs sm:text-sm font-mono font-bold ${
+                              margin >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'
+                            }`}
+                          >
+                            € {margin.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* SEZIONE 1: MANODOPERA CANTIERE */}
+                      <div className="px-1 py-1 space-y-[3px]">
+                        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          <div className="flex items-center gap-1.5">
+                            <HardHat className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                            <span>Manodopera Cantiere</span>
+                          </div>
+                          <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
+                            -€ {laborSummary.totalLaborCost.toFixed(2)}
+                          </span>
+                        </div>
+
+                        {laborSummary.workers.length > 0 ? (
+                          <div className="space-y-[3px] pt-0.5">
+                            {laborSummary.workers.map((w) => (
+                              <div
+                                key={w.workerId || w.workerName}
+                                className="flex items-center justify-between gap-2 text-xs py-0.5"
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                    {w.workerName}
+                                  </span>
+                                  <span
+                                    className={`px-1.5 py-0.2 rounded text-[8px] font-bold uppercase border shrink-0 ${
+                                      w.dayType === 'mezza giornata'
+                                        ? 'bg-sky-50 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800'
+                                        : 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                    }`}
+                                  >
+                                    {w.dayType === 'mezza giornata' ? 'Mezza giornata' : 'Giornata intera'}
+                                  </span>
+                                </div>
+                                <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 shrink-0 text-right">
+                                  -€ {w.cost.toFixed(2)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-slate-400 italic">
+                            Nessun operaio assegnato a questo intervento.
+                          </div>
                         )}
                       </div>
-                      <div
-                        className={`text-xs sm:text-sm font-mono font-bold ${
-                          margin >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'
-                        }`}
-                      >
-                        € {margin.toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Dettaglio Voci di Costo o Aggiungi Spesa */}
-                  {costs.length > 0 ? (
-                    <div className="p-1.5 px-2 bg-slate-50/50 dark:bg-slate-800/30 rounded-[5px] border border-slate-100 dark:border-slate-800/80 space-y-1">
-                      <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                        <span>Voci di Spesa Registrate</span>
-                        <span className="font-mono text-slate-400 lowercase">
-                          {costs.length} {costs.length === 1 ? 'voce' : 'voci'}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {costs.map((c) => {
-                          const catInfo = getCostCategoryInfo(c.category);
-                          return (
-                            <div
-                              key={c.id}
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[10px]"
+                      {/* SEZIONE 2: VOCI DI SPESA REGISTRATE */}
+                      <div className="px-1 py-1 space-y-[3px]">
+                        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          <span>Voci di Spesa Registrate</span>
+                          <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
+                            -€ {expensesCost.toFixed(2)}
+                          </span>
+                        </div>
+
+                        {costs.length > 0 ? (
+                          <div className="space-y-[3px] pt-0.5">
+                            {costs.map((c) => {
+                              const catInfo = getCostCategoryInfo(c.category);
+                              return (
+                                <div
+                                  key={c.id}
+                                  className="flex items-center justify-between gap-2 text-xs py-0.5"
+                                >
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold uppercase border shrink-0 ${catInfo.badgeClass}`}>
+                                      {catInfo.label}
+                                    </span>
+                                    <span className="font-medium text-slate-700 dark:text-slate-200 truncate">
+                                      {c.name}
+                                    </span>
+                                  </div>
+                                  <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 shrink-0 text-right">
+                                    -€ {c.amount.toFixed(2)}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
+                            <span className="italic">Nessuna spesa extra registrata.</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCostJob(job);
+                              }}
+                              className="text-amber-600 hover:text-amber-700 dark:text-amber-400 font-semibold text-[10px] flex items-center gap-1 hover:underline cursor-pointer"
                             >
-                              <span className={`px-1 py-0.2 rounded text-[8px] font-bold uppercase border ${catInfo.badgeClass}`}>
-                                {catInfo.label}
+                              <Plus className="w-3 h-3" />
+                              <span>Aggiungi spesa (carburante, sacchi...)</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* SEZIONE 3: QUOTA SPETTANTE A NATURANDO */}
+                      {isJobNaturando && (
+                        <div className="px-1 py-1 space-y-[3px]">
+                          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            <div className="flex items-center gap-1.5">
+                              <img
+                                src={NATURANDO_LOGO_URL}
+                                alt="Naturando"
+                                className="h-3 max-w-[50px] object-contain rounded"
+                              />
+                              <span>Quota Dovuta a Naturando</span>
+                            </div>
+                            <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
+                              -€ {naturandoCost.toFixed(2)}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2 text-xs py-0.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase border shrink-0 bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
+                                Naturando {naturandoPct}%
                               </span>
-                              <span className="font-medium text-slate-700 dark:text-slate-200">
-                                {c.name}
-                              </span>
-                              <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
-                                -€ {c.amount.toFixed(2)}
+                              <span className="font-medium text-slate-700 dark:text-slate-200 truncate">
+                                Importo: € {(job.naturandoAmount !== undefined && job.naturandoAmount > 0 ? job.naturandoAmount : price).toFixed(2)}
                               </span>
                             </div>
-                          );
-                        })}
-                      </div>
+                            <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 shrink-0 text-right">
+                              -€ {naturandoCost.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="px-2 py-0.5 flex items-center justify-between text-[10px] text-slate-400">
-                      <span className="italic">Nessuna spesa sostenuta registrata.</span>
-                      <button
-                        type="button"
-                        onClick={() => setCostJob(job)}
-                        className="text-amber-600 hover:text-amber-700 dark:text-amber-400 font-semibold text-[10px] flex items-center gap-1 hover:underline cursor-pointer"
-                      >
-                        <Plus className="w-3 h-3" />
-                        <span>Aggiungi spesa (carburante, sacchi...)</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -1058,173 +1389,294 @@ export const ClientsView: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL: GESTIONE & INSERIMENTO COSTI INTERVENTO (BENZINA, SACCHI, ETC) */}
-      {currentCostJob && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 p-[7px] backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] max-w-lg w-full p-[7px] space-y-[7px] shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="bg-slate-900 text-white p-[7px] px-3 rounded-[7px] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Fuel className="w-4 h-4 text-amber-400" />
-                <h3 className="font-bold text-xs">
-                  Costi Sostenuti: {currentCostJob.title}
-                </h3>
-              </div>
-              <button onClick={() => setCostJob(null)} className="text-slate-400 hover:text-white">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      {/* MODAL: GESTIONE & INSERIMENTO COSTI INTERVENTO (SPESE + MANODOPERA + NATURANDO) */}
+      {currentCostJob && (() => {
+        const currentCosts = currentCostJob.costs || [];
+        const currentExpensesTotal = currentCosts.reduce((s, c) => s + (c.amount || 0), 0);
+        const currentJobLabor = getJobLaborSummary(currentCostJob, jobs, users);
+        const currentIsNaturando = !!currentCostJob.isNaturando;
+        const currentNaturandoBase = currentCostJob.naturandoAmount !== undefined && currentCostJob.naturandoAmount > 0
+          ? currentCostJob.naturandoAmount
+          : (currentCostJob.price || 0);
+        const currentNaturandoPct = currentCostJob.naturandoPercentage !== undefined && currentCostJob.naturandoPercentage > 0
+          ? currentCostJob.naturandoPercentage
+          : 20;
+        const currentNaturandoCost = currentIsNaturando
+          ? Math.round(((currentNaturandoBase * currentNaturandoPct) / 100) * 100) / 100
+          : 0;
 
-            {/* Financial monitor for this specific intervention */}
-            <div className="grid grid-cols-3 gap-2 bg-slate-100 dark:bg-slate-800/60 p-2.5 rounded-[7px] text-xs">
-              <div>
-                <span className="text-[10px] text-slate-500 block uppercase">Prezzo Intervento:</span>
-                <strong className="font-mono text-sm text-slate-900 dark:text-slate-100">
-                  € {(currentCostJob.price || 0).toFixed(2)}
-                </strong>
-              </div>
+        const currentAllCosts = currentExpensesTotal + currentJobLabor.totalLaborCost + currentNaturandoCost;
+        const currentPrice = currentCostJob.price || 0;
+        const currentNetMargin = currentPrice - currentAllCosts;
 
-              <div>
-                <span className="text-[10px] text-slate-500 block uppercase">Totale Costi:</span>
-                <strong className="font-mono text-sm text-rose-600 dark:text-rose-400">
-                  - € {(currentCostJob.costs?.reduce((s, c) => s + (c.amount || 0), 0) || 0).toFixed(2)}
-                </strong>
-              </div>
-
-              <div>
-                <span className="text-[10px] text-slate-500 block uppercase">Margine Netto:</span>
-                <strong className="font-mono text-sm text-emerald-700 dark:text-emerald-400">
-                  € {((currentCostJob.price || 0) - (currentCostJob.costs?.reduce((s, c) => s + (c.amount || 0), 0) || 0)).toFixed(2)}
-                </strong>
-              </div>
-            </div>
-
-            {/* List of existing costs */}
-            <div className="space-y-[7px]">
-              <h4 className="font-bold text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Spese Registrate ({currentCostJob.costs?.length || 0})
-              </h4>
-
-              {(!currentCostJob.costs || currentCostJob.costs.length === 0) ? (
-                <div className="p-4 text-center text-xs text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded">
-                  Nessun costo registrato per questo intervento. Usa il modulo sotto per inserire benzina, sacchi, ecc.
+        return (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 p-2 sm:p-3 backdrop-blur-xs">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] max-w-lg w-full p-2.5 sm:p-3 space-y-[3px] shadow-2xl max-h-[90vh] overflow-y-auto">
+              <div className="bg-slate-900 text-white p-2 px-3 rounded-[6px] flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Fuel className="w-4 h-4 text-amber-400 shrink-0" />
+                  <h3 className="font-bold text-xs truncate">
+                    Costi & Manodopera: {currentCostJob.title}
+                  </h3>
                 </div>
-              ) : (
-                <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                  {currentCostJob.costs.map((c) => (
-                    <div
-                      key={c.id}
-                      className="p-2 bg-slate-50 dark:bg-slate-800/80 rounded border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs"
-                    >
-                      <div>
-                        <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                          <span>{c.name}</span>
-                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-700 uppercase font-mono">
-                            {c.category}
-                          </span>
-                        </div>
-                        {c.notes && <div className="text-[10px] text-slate-400">{c.notes}</div>}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
-                          € {c.amount.toFixed(2)}
-                        </span>
-                        <button
-                          onClick={() => deleteJobCost(currentCostJob.id, c.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded"
-                          title="Elimina costo"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Form: Add Cost to Intervention */}
-            <form onSubmit={handleAddJobCostSubmit} className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-[7px] border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
-              <div className="font-bold text-slate-800 dark:text-slate-200 pb-1 border-b border-slate-200 dark:border-slate-700">
-                + Inserisci Nuovo Costo per l'Intervento
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="font-semibold block mb-0.5">Categoria Costo *</label>
-                  <select
-                    value={costCategory}
-                    onChange={(e) => setCostCategory(e.target.value as JobCostCategory)}
-                    className="w-full p-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs"
-                  >
-                    <option value="benzina">Benzina / Carburante</option>
-                    <option value="sacchi">Sacchi Smaltimento</option>
-                    <option value="materiale">Materiale & Concimi</option>
-                    <option value="smaltimento">Smaltimento Verde</option>
-                    <option value="noleggio">Noleggio Mezzi</option>
-                    <option value="manodopera">Manodopera</option>
-                    <option value="altro">Altro Costo</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-semibold block mb-0.5">Importo Sostenuto (€) *</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    required
-                    value={costAmount}
-                    onChange={(e) => setCostAmount(parseFloat(e.target.value) || 0)}
-                    className="w-full p-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs font-mono font-bold text-rose-600"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold block mb-0.5">Descrizione Spesa *</label>
-                <input
-                  type="text"
-                  required
-                  value={costName}
-                  onChange={(e) => setCostName(e.target.value)}
-                  placeholder="es. 10L Benzina decespugliatore, 15 sacchi sfalcio"
-                  className="w-full p-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold block mb-0.5">Note Aggiuntive</label>
-                <input
-                  type="text"
-                  value={costNotes}
-                  onChange={(e) => setCostNotes(e.target.value)}
-                  placeholder="es. Fornitore Eni / Agraria"
-                  className="w-full p-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs"
-                />
-              </div>
-
-              <div className="flex justify-end pt-1">
                 <button
-                  type="submit"
-                  className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded font-bold text-xs shadow-xs"
+                  type="button"
+                  onClick={() => setCostJob(null)}
+                  className="text-slate-400 hover:text-white p-1 shrink-0 cursor-pointer"
                 >
-                  Aggiungi Costo
+                  <X className="w-4 h-4" />
                 </button>
               </div>
-            </form>
 
-            <div className="pt-2 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setCostJob(null)}
-                className="px-4 py-1.5 bg-slate-900 text-white font-bold rounded text-xs"
-              >
-                Chiudi Gestione Costi
-              </button>
+              {/* Financial monitor for this specific intervention */}
+              <div className={`grid ${currentIsNaturando ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-4'} gap-[3px] bg-slate-100 dark:bg-slate-800/60 p-2 rounded-[6px] text-xs text-center`}>
+                <div>
+                  <span className="text-[9px] text-slate-500 block uppercase font-bold">Prezzo</span>
+                  <strong className="font-mono text-xs sm:text-sm text-slate-900 dark:text-slate-100">
+                    € {currentPrice.toFixed(2)}
+                  </strong>
+                </div>
+
+                <div>
+                  <span className="text-[9px] text-slate-500 block uppercase font-bold">Spese Materiali</span>
+                  <strong className="font-mono text-xs sm:text-sm text-rose-600 dark:text-rose-400">
+                    -€ {currentExpensesTotal.toFixed(2)}
+                  </strong>
+                </div>
+
+                <div>
+                  <span className="text-[9px] text-slate-500 block uppercase font-bold">Manodopera</span>
+                  <strong className="font-mono text-xs sm:text-sm text-amber-600 dark:text-amber-400">
+                    -€ {currentJobLabor.totalLaborCost.toFixed(2)}
+                  </strong>
+                </div>
+
+                {currentIsNaturando && (
+                  <div>
+                    <span className="text-[9px] text-slate-500 block uppercase font-bold">Naturando</span>
+                    <strong className="font-mono text-xs sm:text-sm text-emerald-700 dark:text-emerald-400">
+                      -€ {currentNaturandoCost.toFixed(2)}
+                    </strong>
+                  </div>
+                )}
+
+                <div>
+                  <span className="text-[9px] text-slate-500 block uppercase font-bold">Margine Netto</span>
+                  <strong className={`font-mono text-xs sm:text-sm ${currentNetMargin >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600'}`}>
+                    € {currentNetMargin.toFixed(2)}
+                  </strong>
+                </div>
+              </div>
+
+              {/* SEZIONE MANODOPERA PER QUESTO CANTIERE */}
+              <div className="bg-slate-50 dark:bg-slate-800/40 p-2 rounded-[6px] border border-slate-200 dark:border-slate-700 space-y-[3px]">
+                <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                  <div className="flex items-center gap-1.5">
+                    <HardHat className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span>Manodopera Cantiere ({currentJobLabor.workers.length} operai)</span>
+                  </div>
+                  <span className="font-mono text-xs font-bold text-rose-600 dark:text-rose-400">
+                    -€ {currentJobLabor.totalLaborCost.toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-500 italic pb-0.5">
+                  Calcolo automatico uscite: se l'operaio svolge 2 interventi nello stesso giorno, il costo è ripartito a metà (mezza giornata).
+                </p>
+
+                {currentJobLabor.workers.length > 0 ? (
+                  <div className="space-y-[3px]">
+                    {currentJobLabor.workers.map((w) => (
+                      <div
+                        key={w.workerId || w.workerName}
+                        className="p-1 px-2 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs"
+                      >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="font-semibold text-slate-900 dark:text-slate-100">{w.workerName}</span>
+                          <span
+                            className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase border shrink-0 ${
+                              w.dayType === 'mezza giornata'
+                                ? 'bg-sky-50 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800'
+                                : 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                            }`}
+                          >
+                            {w.dayType === 'mezza giornata' ? 'Mezza Giornata (2 cantieri oggi)' : 'Giornata Intera (1 cantiere oggi)'}
+                          </span>
+                        </div>
+                        <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 shrink-0 text-right">
+                          -€ {w.cost.toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-slate-400 py-1">Nessun operaio assegnato a questo intervento.</div>
+                )}
+              </div>
+
+              {/* SEZIONE SPESE REGISTRATE */}
+              <div className="bg-slate-50 dark:bg-slate-800/40 p-2 rounded-[6px] border border-slate-200 dark:border-slate-700 space-y-[3px]">
+                <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                  <span>Spese Registrate ({currentCosts.length})</span>
+                  <span className="font-mono text-xs font-bold text-rose-600 dark:text-rose-400">
+                    -€ {currentExpensesTotal.toFixed(2)}
+                  </span>
+                </div>
+
+                {currentCosts.length === 0 ? (
+                  <div className="p-3 text-center text-xs text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded">
+                    Nessuna spesa di materiali o carburante registrata.
+                  </div>
+                ) : (
+                  <div className="space-y-[3px] max-h-36 overflow-y-auto">
+                    {currentCosts.map((c) => (
+                      <div
+                        key={c.id}
+                        className="p-1 px-2 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs"
+                      >
+                        <div className="min-w-0 pr-2">
+                          <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
+                            <span className="truncate">{c.name}</span>
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 uppercase font-mono text-slate-600 dark:text-slate-300 shrink-0">
+                              {c.category}
+                            </span>
+                          </div>
+                          {c.notes && <div className="text-[10px] text-slate-400 truncate">{c.notes}</div>}
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 text-right">
+                            -€ {c.amount.toFixed(2)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => deleteJobCost(currentCostJob.id, c.id)}
+                            className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
+                            title="Elimina costo"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* SEZIONE QUOTA COMMESSA NATURANDO */}
+              {currentIsNaturando && (
+                <div className="bg-slate-50 dark:bg-slate-800/40 p-2 rounded-[6px] border border-slate-200 dark:border-slate-700 space-y-[3px]">
+                  <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    <div className="flex items-center gap-1.5">
+                      <img
+                        src={NATURANDO_LOGO_URL}
+                        alt="Naturando"
+                        className="h-3.5 max-w-[55px] object-contain rounded"
+                      />
+                      <span>Quota Dovuta a Naturando ({currentNaturandoPct}%)</span>
+                    </div>
+                    <span className="font-mono text-xs font-bold text-rose-600 dark:text-rose-400">
+                      -€ {currentNaturandoCost.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="p-1 px-2 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase border bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 shrink-0">
+                        Naturando {currentNaturandoPct}%
+                      </span>
+                      <span className="text-slate-700 dark:text-slate-300 truncate">
+                        Importo: € {(currentCostJob.naturandoAmount !== undefined && currentCostJob.naturandoAmount > 0 ? currentCostJob.naturandoAmount : currentPrice).toFixed(2)}
+                      </span>
+                    </div>
+                    <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 shrink-0 text-right">
+                      -€ {currentNaturandoCost.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Form: Add Cost to Intervention */}
+              <form onSubmit={handleAddJobCostSubmit} className="bg-slate-50 dark:bg-slate-800/50 p-2 rounded-[6px] border border-slate-200 dark:border-slate-700 space-y-[3px] text-xs">
+                <div className="font-bold text-slate-800 dark:text-slate-200 pb-0.5 border-b border-slate-200 dark:border-slate-700">
+                  + Inserisci Nuova Spesa per l'Intervento
+                </div>
+
+                <div className="grid grid-cols-2 gap-[3px]">
+                  <div>
+                    <label className="font-semibold block text-[11px] mb-0.5">Categoria *</label>
+                    <select
+                      value={costCategory}
+                      onChange={(e) => setCostCategory(e.target.value as JobCostCategory)}
+                      className="w-full p-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs"
+                    >
+                      <option value="benzina">Benzina / Carburante</option>
+                      <option value="sacchi">Sacchi Smaltimento</option>
+                      <option value="materiale">Materiale & Concimi</option>
+                      <option value="smaltimento">Smaltimento Verde</option>
+                      <option value="noleggio">Noleggio Mezzi</option>
+                      <option value="manodopera">Altra Manodopera</option>
+                      <option value="altro">Altro Costo</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-semibold block text-[11px] mb-0.5">Importo (€) *</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      required
+                      value={costAmount}
+                      onChange={(e) => setCostAmount(parseFloat(e.target.value) || 0)}
+                      className="w-full p-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs font-mono font-bold text-rose-600"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="font-semibold block text-[11px] mb-0.5">Descrizione Spesa *</label>
+                  <input
+                    type="text"
+                    required
+                    value={costName}
+                    onChange={(e) => setCostName(e.target.value)}
+                    placeholder="es. 10L Benzina decespugliatore, 15 sacchi sfalcio"
+                    className="w-full p-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold block text-[11px] mb-0.5">Note Aggiuntive</label>
+                  <input
+                    type="text"
+                    value={costNotes}
+                    onChange={(e) => setCostNotes(e.target.value)}
+                    placeholder="es. Fornitore Eni / Agraria"
+                    className="w-full p-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs"
+                  />
+                </div>
+
+                <div className="flex justify-end pt-0.5">
+                  <button
+                    type="submit"
+                    className="px-3 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded font-bold text-xs shadow-xs cursor-pointer"
+                  >
+                    Aggiungi Spesa
+                  </button>
+                </div>
+              </form>
+
+              <div className="pt-1 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setCostJob(null)}
+                  className="px-3.5 py-1 bg-slate-900 text-white font-bold rounded text-xs cursor-pointer"
+                >
+                  Chiudi
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Modal: Job Creation for this Client */}
       {creatingJobForClient && (
@@ -1239,6 +1691,31 @@ export const ClientsView: React.FC = () => {
               clientAddress: creatingJobForClient.address,
             });
             setCreatingJobForClient(null);
+          }}
+        />
+      )}
+
+      {/* Modal: Job Detail View Modal (with financial costs) */}
+      {viewingJob && (
+        <JobDetailViewModal
+          job={viewingJob}
+          onClose={() => setViewingJob(null)}
+          onEdit={() => {
+            const j = viewingJob;
+            setViewingJob(null);
+            setEditingJob(j);
+          }}
+        />
+      )}
+
+      {/* Modal: Modifica Intervento */}
+      {editingJob && (
+        <JobModal
+          job={editingJob}
+          onClose={() => setEditingJob(null)}
+          onSave={(jobData) => {
+            updateJob({ ...editingJob, ...jobData });
+            setEditingJob(null);
           }}
         />
       )}

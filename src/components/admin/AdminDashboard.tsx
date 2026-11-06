@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useApp, consolidateWorkedDays } from '../../context/AppContext';
 import { fetchWeatherForClients, fetchWeatherForLocation } from '../../services/weatherService';
 import { Job, WorkReport, WeatherData } from '../../types';
 import { JobModal } from '../jobs/JobModal';
+import { JobDetailViewModal } from '../jobs/JobDetailViewModal';
 import { WorkReportModal } from '../report/WorkReportModal';
 import { ExpenseModal } from '../payments/ExpenseModal';
 import { isJobTimeExpired, isJobCurrentlyInProgress } from '../../utils/jobTimeUtils';
+import { getEffectiveJobStatusOnDate } from '../calendar/CalendarView';
 import {
   WeatherVectorIcon,
   ExpenseWalletVectorIcon,
@@ -30,6 +32,10 @@ import {
   Check,
   RotateCcw,
   Receipt,
+  ChevronDown,
+  ChevronUp,
+  CalendarCheck,
+  Wallet,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -37,12 +43,14 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab }) => {
-  const { jobs, users, inventory, reports, clients, shoppingList, addJob, updateJob } = useApp();
+  const { jobs, users, inventory, reports, clients, shoppingList, workedDays, payouts, addJob, updateJob } = useApp();
 
   const [selectedJobForModal, setSelectedJobForModal] = useState<Job | null>(null);
+  const [selectedJobForView, setSelectedJobForView] = useState<{ job: Job; dateISO: string } | null>(null);
   const [isCreatingJob, setIsCreatingJob] = useState(false);
   const [isCreatingExpense, setIsCreatingExpense] = useState(false);
   const [selectedReportForModal, setSelectedReportForModal] = useState<WorkReport | null>(null);
+  const [isWeatherAlertOpen, setIsWeatherAlertOpen] = useState(false);
 
   // Clock ticker to refresh time-based statuses (in corso, orario scaduto) automatically every 30s
   const [, setClockTick] = useState(0);
@@ -133,6 +141,130 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
       : users.filter((u) => u.role === 'worker' && u.active).length;
   }, [todayJobs, users]);
 
+  // 1. Cantieri questo mese: quanti interventi completati nel mese corrente
+  const completedJobsThisMonthCount = useMemo(() => {
+    const now = new Date();
+    const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const todayISO = now.toISOString().split('T')[0];
+
+    let count = 0;
+    jobs.forEach((job) => {
+      if (Array.isArray(job.plannedDates) && job.plannedDates.length > 1) {
+        // Intervento periodico: conta le uscite completate nel mese corrente
+        job.plannedDates.forEach((d) => {
+          if (d && d.startsWith(currentMonthPrefix)) {
+            if (getEffectiveJobStatusOnDate(job, d, todayISO) === 'completed') {
+              count += 1;
+            }
+          }
+        });
+      } else {
+        // Intervento singolo
+        const jDate = (job.date || '').split('T')[0];
+        if (jDate.startsWith(currentMonthPrefix) && job.status === 'completed') {
+          count += 1;
+        }
+      }
+    });
+    return count;
+  }, [jobs]);
+
+  // 2. Incassi da riscuotere (totale ancora da incassare)
+  const totalJobPending = useMemo(() => {
+    const totalRev = jobs.reduce((sum, j) => sum + (j.price || 0), 0);
+    const totalColl = jobs.reduce((sum, j) => {
+      if (j.paymentStatus === 'paid') return sum + (j.price || 0);
+      if (j.installments && j.installments.length > 0) {
+        return sum + j.installments.reduce((s, it) => s + (it.amount || 0), 0);
+      }
+      if (j.paidAmount) return sum + j.paidAmount;
+      if (j.paymentStatus === 'partial') return sum + ((j.price || 0) / 2);
+      return sum;
+    }, 0);
+    return Math.max(0, totalRev - totalColl);
+  }, [jobs]);
+
+  // 3. Stipendi da pagare (totale 'DA DARE' agli operai)
+  const workers = useMemo(() => users.filter((u) => u.role === 'worker'), [users]);
+  const workerUids = useMemo(() => new Set(workers.map((w) => w.uid)), [workers]);
+  const validWorkedDays = useMemo(
+    () => consolidateWorkedDays((workedDays || []).filter((wd) => workerUids.has(wd.workerId))),
+    [workedDays, workerUids]
+  );
+
+  const totalWorkerPendingAll = useMemo(() => {
+    const allMonths = new Set<string>();
+    const currentMonthStr = new Date().toISOString().substring(0, 7);
+    allMonths.add(currentMonthStr);
+
+    validWorkedDays.forEach((wd) => {
+      if (wd.date && wd.date.length >= 7) {
+        allMonths.add(wd.date.substring(0, 7));
+      }
+    });
+
+    (payouts || []).forEach((p) => {
+      if (workerUids.has(p.workerId) && p.status === 'paid') {
+        const pDate = p.paymentDate || p.createdAt?.split('T')[0];
+        if (p.period && p.period.length >= 7) {
+          allMonths.add(p.period.substring(0, 7));
+        } else if (pDate && pDate.length >= 7) {
+          allMonths.add(pDate.substring(0, 7));
+        }
+      }
+    });
+
+    let pendingTotal = 0;
+
+    workers.forEach((worker) => {
+      const workerDays = validWorkedDays.filter((wd) => wd.workerId === worker.uid);
+      const workerPayouts = (payouts || []).filter(
+        (p) => p.workerId === worker.uid && p.status === 'paid'
+      );
+
+      const processedDayIds = new Set<string>();
+
+      allMonths.forEach((m) => {
+        const mDays = workerDays.filter((d) => d.date && d.date.startsWith(m));
+        mDays.forEach((d) => processedDayIds.add(d.id));
+
+        const mEarned = mDays.reduce((sum, d) => sum + (d.amount || 0), 0);
+
+        const mPayouts = workerPayouts.filter((p) => {
+          const pDate = p.paymentDate || p.createdAt?.split('T')[0];
+          return p.period === m || (pDate && pDate.startsWith(m));
+        });
+
+        const mPaidPayouts = mPayouts.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+        const mPaidDays = mDays.filter((d) => d.paid).reduce((sum, d) => sum + (d.amount || 0), 0);
+        const rawPaid = Math.max(mPaidPayouts, mPaidDays);
+        const mPaid = mEarned > 0 ? Math.min(mEarned, rawPaid) : rawPaid;
+
+        const mPending = Math.max(0, mEarned - mPaid);
+        pendingTotal += mPending;
+      });
+
+      const unzonedDays = workerDays.filter((d) => !processedDayIds.has(d.id));
+      if (unzonedDays.length > 0) {
+        const unzonedEarned = unzonedDays.reduce((sum, d) => sum + (d.amount || 0), 0);
+        const unzonedPaid = unzonedDays.filter((d) => d.paid).reduce((sum, d) => sum + (d.amount || 0), 0);
+        const cappedUnzonedPaid = unzonedEarned > 0 ? Math.min(unzonedEarned, unzonedPaid) : unzonedPaid;
+        pendingTotal += Math.max(0, unzonedEarned - cappedUnzonedPaid);
+      }
+    });
+
+    return pendingTotal;
+  }, [workers, workerUids, validWorkedDays, payouts]);
+
+  // 4. Totale operai
+  const totalWorkersCount = useMemo(() => {
+    return users.filter((u) => u.role === 'worker').length;
+  }, [users]);
+
+  const formatAmountNoCents = (amount: number): string => {
+    return Math.round(amount || 0).toLocaleString('it-IT');
+  };
+
   const handleSaveJob = (jobData: any) => {
     if (selectedJobForModal) {
       updateJob({ ...selectedJobForModal, ...jobData });
@@ -199,75 +331,62 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
 
       </div>
 
-      {/* KPI STAT CARDS: 4 cards with high-contrast, non-truncated text */}
-      <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+      {/* KPI STAT CARDS: 4 card senza titolo, senza sfondo e senza bordo, solo icona e valore */}
+      <div className="grid grid-cols-4 gap-1 sm:gap-2">
         
-        {/* 1. Cantieri Oggi */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Cantieri</span>
-            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+        {/* 1. Cantieri questo mese (interventi completati) */}
+        <div
+          onClick={() => onNavigateTab('calendar')}
+          title="Cantieri completati questo mese"
+          className="py-1 px-0.5 sm:px-1 flex flex-col justify-between space-y-1 cursor-pointer hover:opacity-80 transition-opacity select-none"
+        >
+          <div className="flex items-center text-slate-500 dark:text-slate-400">
+            <CalendarCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           </div>
           <div className="text-xl sm:text-2xl font-black font-mono text-slate-900 dark:text-white leading-tight">
-            {todayJobs.length}
-          </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-none">
-            <span className="text-emerald-700 dark:text-emerald-400 font-bold">{completedToday.length} fatti</span>
-            <span className="mx-1 text-slate-300 dark:text-slate-600">·</span>
-            <span className="text-sky-700 dark:text-sky-400 font-bold">{inProgressToday.length} in corso</span>
+            {completedJobsThisMonthCount}
           </div>
         </div>
 
-        {/* 2. Squadre Attive */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Squadra</span>
-            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+        {/* 2. Incassi da riscuotere */}
+        <div
+          onClick={() => onNavigateTab('payments')}
+          title="Incassi da riscuotere"
+          className="py-1 px-0.5 sm:px-1 flex flex-col justify-between space-y-1 cursor-pointer hover:opacity-80 transition-opacity select-none"
+        >
+          <div className="flex items-center text-slate-500 dark:text-slate-400">
+            <Receipt className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          </div>
+          <div className="text-[13px] sm:text-lg md:text-xl font-black font-mono text-emerald-700 dark:text-emerald-400 leading-tight truncate">
+            € {formatAmountNoCents(totalJobPending)}
+          </div>
+        </div>
+
+        {/* 3. Stipendi da pagare */}
+        <div
+          onClick={() => onNavigateTab('payments')}
+          title="Stipendi da pagare"
+          className="py-1 px-0.5 sm:px-1 flex flex-col justify-between space-y-1 cursor-pointer hover:opacity-80 transition-opacity select-none"
+        >
+          <div className="flex items-center text-slate-500 dark:text-slate-400">
+            <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          </div>
+          <div className="text-[13px] sm:text-lg md:text-xl font-black font-mono text-amber-600 dark:text-amber-400 leading-tight truncate">
+            € {formatAmountNoCents(totalWorkerPendingAll)}
+          </div>
+        </div>
+
+        {/* 4. Totale operai */}
+        <div
+          onClick={() => onNavigateTab('calendar')}
+          title="Totale operai"
+          className="py-1 px-0.5 sm:px-1 flex flex-col justify-between space-y-1 cursor-pointer hover:opacity-80 transition-opacity select-none"
+        >
+          <div className="flex items-center text-slate-500 dark:text-slate-400">
+            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-600 dark:text-sky-400 shrink-0" />
           </div>
           <div className="text-xl sm:text-2xl font-black font-mono text-slate-900 dark:text-white leading-tight">
-            {activeWorkersToday}
-          </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-none">
-            Sul campo oggi
-          </div>
-        </div>
-
-        {/* 3. Ore Rendicontate */}
-        <div
-          onClick={() => onNavigateTab('reports')}
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2 shadow-xs cursor-pointer hover:border-emerald-500/60 transition-colors flex flex-col justify-between space-y-1"
-        >
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Ore Report</span>
-            <Timer className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-          </div>
-          <div className="text-xl sm:text-2xl font-black font-mono text-emerald-700 dark:text-emerald-400 leading-tight">
-            {totalReportedHours.toFixed(1)}<span className="text-sm ml-0.5 font-normal">h</span>
-          </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-none">
-            Totale lavorato
-          </div>
-        </div>
-
-        {/* 4. Rapportini da Validare */}
-        <div
-          onClick={() => onNavigateTab('reports')}
-          className={`border rounded-lg p-2 shadow-xs cursor-pointer transition-colors flex flex-col justify-between space-y-1 ${
-            pendingApprovalReports.length > 0
-              ? 'bg-amber-50 dark:bg-amber-950/70 border-amber-300 dark:border-amber-600/80 text-amber-900 dark:text-amber-200'
-              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100'
-          }`}
-        >
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Rapportini</span>
-            <FileCheck2 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${pendingApprovalReports.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'} shrink-0`} />
-          </div>
-          <div className={`text-xl sm:text-2xl font-black font-mono leading-tight ${pendingApprovalReports.length > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-slate-900 dark:text-white'}`}>
-            {pendingApprovalReports.length}
-          </div>
-          <div className={`text-[10px] sm:text-[11px] font-semibold flex items-center justify-between leading-none ${pendingApprovalReports.length > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
-            <span>{pendingApprovalReports.length > 0 ? 'Da validare' : 'Inviati oggi'}</span>
-            <ArrowRight className="w-3 h-3 shrink-0 ml-0.5" />
+            {totalWorkersCount}
           </div>
         </div>
       </div>
@@ -307,52 +426,72 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
         </div>
       )}
 
-      {/* ALLERTA METEO SECTION: Titolo solo "Allerta meteo con icona", zero testi superflui, senza duplicato del tasto, bordi e spazi a 7PX */}
+      {/* ALLERTA METEO SECTION: Chiusa di default, cliccabile per aprire le schede interne */}
       {alertClients.length > 0 && (
-        <div className="bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-          {/* Header con solo icona e titolo Allerta Meteo */}
-          <div className="flex items-center gap-[7px]">
-            <AlertTriangle className="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0" />
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-950 dark:text-amber-200">
-              Allerta Meteo
-            </span>
-          </div>
+        <div className={`bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-[7px] p-[7px] shadow-xs transition-all ${isWeatherAlertOpen ? 'space-y-[7px]' : ''}`}>
+          {/* Header con solo icona, titolo Allerta Meteo e chevron cliccabile */}
+          <button
+            type="button"
+            onClick={() => setIsWeatherAlertOpen((prev) => !prev)}
+            className="w-full flex items-center justify-between gap-2 cursor-pointer text-left select-none"
+            aria-expanded={isWeatherAlertOpen}
+          >
+            <div className="flex items-center gap-[7px]">
+              <AlertTriangle className="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0" />
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-950 dark:text-amber-200">
+                Allerta Meteo
+              </span>
+            </div>
 
-          {/* Elenco cantieri in allerta: 3 cantieri per ogni riga */}
-          <div className="grid grid-cols-3 gap-1.5 sm:gap-[7px]">
-            {alertClients.map((client) => {
-              const w = weatherMap[client.id];
+            <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
+              <span className="text-xs font-bold font-mono text-amber-950 dark:text-amber-200">
+                {alertClients.length}
+              </span>
+              {isWeatherAlertOpen ? (
+                <ChevronUp className="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0" />
+              )}
+            </div>
+          </button>
 
-              return (
-                <div
-                  key={client.id}
-                  onClick={() => onNavigateTab('weather')}
-                  className="p-2 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 rounded-[7px] hover:border-amber-500 cursor-pointer transition-colors flex flex-col justify-between shadow-xs min-w-0 h-full"
-                >
-                  <div className="flex items-start justify-between gap-1">
-                    <span className="font-bold text-[11px] sm:text-xs text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight flex-1 min-w-0 break-words">
-                      {client.name}
-                    </span>
+          {/* Elenco cantieri in allerta: visibile solo quando aperto */}
+          {isWeatherAlertOpen && (
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-[7px] pt-0.5 animate-in fade-in duration-150">
+              {alertClients.map((client) => {
+                const w = weatherMap[client.id];
+
+                return (
+                  <div
+                    key={client.id}
+                    onClick={() => onNavigateTab('weather')}
+                    className="p-2 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 rounded-[7px] hover:border-amber-500 cursor-pointer transition-colors flex flex-col justify-between shadow-xs min-w-0 h-full"
+                  >
+                    <div className="flex items-start justify-between gap-1">
+                      <span className="font-bold text-[11px] sm:text-xs text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight flex-1 min-w-0 break-words">
+                        {client.name}
+                      </span>
+                    </div>
+
+                    <div className="space-y-0.5 text-[10px] sm:text-[11px] font-mono text-amber-800 dark:text-amber-300 font-semibold mt-auto pt-1">
+                      <div className="flex items-center gap-1">
+                        <Droplets className="w-3 h-3 text-sky-500 shrink-0" />
+                        <span>{w?.precipitationProbability ?? 0}%</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Wind className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span>{w?.windSpeed ?? 0} km/h</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-amber-700 dark:text-amber-400 font-bold">
+                        <Thermometer className="w-3 h-3 text-amber-500 shrink-0" />
+                        <span>{w ? `${w.temp}°C` : '--'}</span>
+                      </div>
+                    </div>
                   </div>
-
-                  <div className="space-y-0.5 text-[10px] sm:text-[11px] font-mono text-amber-800 dark:text-amber-300 font-semibold mt-auto pt-1">
-                    <div className="flex items-center gap-1">
-                      <Droplets className="w-3 h-3 text-sky-500 shrink-0" />
-                      <span>{w?.precipitationProbability ?? 0}%</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Wind className="w-3 h-3 text-slate-400 shrink-0" />
-                      <span>{w?.windSpeed ?? 0} km/h</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-amber-700 dark:text-amber-400 font-bold">
-                      <Thermometer className="w-3 h-3 text-amber-500 shrink-0" />
-                      <span>{w ? `${w.temp}°C` : '--'}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -403,7 +542,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                 return (
                   <div
                     key={job.id}
-                    onClick={() => setSelectedJobForModal(job)}
+                    onClick={() => setSelectedJobForView({ job, dateISO: todayStr })}
                     className={`p-2.5 sm:p-3 border border-dashed rounded-[6px] hover:border-emerald-400 dark:hover:border-emerald-500 cursor-pointer transition-all space-y-1.5 ${
                       isCompleted
                         ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-500 dark:border-emerald-600 shadow-2xs'
@@ -550,7 +689,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                 return (
                   <div
                     key={job.id}
-                    onClick={() => setSelectedJobForModal(job)}
+                    onClick={() => setSelectedJobForView({ job, dateISO: tomorrowStr })}
                     className={`p-2.5 sm:p-3 border border-dashed rounded-[6px] hover:border-emerald-400 dark:hover:border-emerald-500 cursor-pointer transition-all space-y-1.5 ${
                       isCompleted
                         ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-500 dark:border-emerald-600 shadow-2xs'
@@ -600,6 +739,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
         </div>
 
       </div>
+
+      {/* Read-Only Job Detail View Modal */}
+      {selectedJobForView && (
+        <JobDetailViewModal
+          job={selectedJobForView.job}
+          selectedDateISO={selectedJobForView.dateISO}
+          onClose={() => setSelectedJobForView(null)}
+          onEdit={() => {
+            const current = selectedJobForView.job;
+            setSelectedJobForView(null);
+            setSelectedJobForModal(current);
+          }}
+        />
+      )}
 
       {/* Modal for Creating or Editing Job */}
       {(isCreatingJob || selectedJobForModal) && (

@@ -20,6 +20,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
   Tag,
   HardHat,
   Phone,
@@ -87,6 +88,8 @@ export const SquadWorkersRegistry: React.FC = () => {
   const [editingWorker, setEditingWorker] = useState<User | null>(null);
   const [expandedWorkerId, setExpandedWorkerId] = useState<string | null>(null);
   const [confirmDeleteWorkerId, setConfirmDeleteWorkerId] = useState<string | null>(null);
+  const [isMonthDaysOpen, setIsMonthDaysOpen] = useState(false);
+  const [isMonthPayoutsOpen, setIsMonthPayoutsOpen] = useState(false);
 
   // New Worker Form
   const [newWorkerName, setNewWorkerName] = useState('');
@@ -733,10 +736,10 @@ export const SquadWorkersRegistry: React.FC = () => {
       {subView === 'registry' ? (
         <>
           {/* SCHEDE OPERAI: RIEPILOGO TOTALE DA DARE AD OGNUNO */}
-          <div className="space-y-[7px]">
+          <div className="space-y-[3px]">
 
         {workers.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-8 text-center text-xs text-slate-500 space-y-[7px]">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-8 text-center text-xs text-slate-500 space-y-[3px]">
             <HardHat className="w-8 h-8 text-slate-400 mx-auto" />
             <p className="font-semibold text-slate-700 dark:text-slate-300">
               Nessun operaio ancora inserito nella squadra.
@@ -746,14 +749,14 @@ export const SquadWorkersRegistry: React.FC = () => {
             </p>
             <button
               onClick={() => setShowAddWorkerModal(true)}
-              className="inline-flex items-center gap-1.5 p-[7px] px-3 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[7px] font-bold text-xs"
+              className="inline-flex items-center gap-1.5 p-1.5 px-3 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[6px] font-bold text-xs"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Aggiungi Primo Operaio</span>
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[7px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[3px]">
             {workerStats.map((st, index) => {
               const isExpanded = expandedWorkerId === st.worker.uid;
               const workerColor = getWorkerColor(st.worker.uid, index);
@@ -764,7 +767,7 @@ export const SquadWorkersRegistry: React.FC = () => {
                   key={st.worker.uid}
                   style={{ borderLeftColor: workerColor, borderLeftWidth: '3.5px' }}
                   {...cardProps}
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-2.5 shadow-xs hover:border-emerald-500 dark:hover:border-emerald-600 transition-all space-y-2 group cursor-pointer select-none"
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-2 sm:p-2.5 shadow-xs hover:border-emerald-500 dark:hover:border-emerald-600 transition-all space-y-[3px] group cursor-pointer select-none"
                 >
                   {/* Top Row: Name on Left, Google / Offline Badge on Right (No edit icon, no chevron) */}
                   <div className="flex items-center justify-between gap-2">
@@ -813,7 +816,7 @@ export const SquadWorkersRegistry: React.FC = () => {
                   </div>
 
                   {/* Bottom Action Bar: Square + button on left (transparent bg & green border), Phone/Nessun tel on left of Salda, Salda with transparent bg & thick border */}
-                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 dark:border-slate-800/80">
+                  <div className="flex items-center justify-between gap-[3px] pt-1 border-t border-slate-100 dark:border-slate-800/80">
                     <button
                       type="button"
                       onClick={(e) => {
@@ -831,19 +834,19 @@ export const SquadWorkersRegistry: React.FC = () => {
                       <Plus className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
                     </button>
 
-                    <div className="flex items-center gap-2.5 ml-auto shrink-0">
+                    <div className="flex items-center gap-[3px] ml-auto shrink-0">
                       {st.worker.phone ? (
                         <a
                           href={`tel:${st.worker.phone}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-bold"
+                          className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-bold mr-1"
                           title="Chiama operaio"
                         >
                           <Phone className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                           <span>{st.worker.phone}</span>
                         </a>
                       ) : (
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 italic">
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 italic mr-1">
                           Nessun tel
                         </span>
                       )}
@@ -867,11 +870,11 @@ export const SquadWorkersRegistry: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Accordion Elenco Giornate Operaio */}
+                  {/* Accordion Elenco Giornate Operaio - gap a 3px */}
                   {isExpanded && (
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      className="p-2 bg-slate-50 dark:bg-slate-950/80 rounded-[7px] border border-slate-200 dark:border-slate-800 space-y-1 max-h-48 overflow-y-auto text-[11px]"
+                      className="p-1 sm:p-1.5 bg-slate-50 dark:bg-slate-950/80 rounded-[5px] border border-slate-200 dark:border-slate-800 space-y-[3px] max-h-48 overflow-y-auto text-[11px] animate-in fade-in duration-150"
                     >
                       {st.days.length === 0 ? (
                         <div className="text-slate-400 text-center py-2 text-xs">
@@ -881,7 +884,7 @@ export const SquadWorkersRegistry: React.FC = () => {
                         st.days.map((d) => (
                           <div
                             key={d.id}
-                            className="p-1.5 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 shadow-2xs"
+                            className="p-1 px-1.5 bg-white dark:bg-slate-900 rounded-[4px] border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-[3px] shadow-2xs"
                           >
                             <div className="min-w-0 flex-1">
                               <div className="font-mono font-bold text-slate-800 dark:text-slate-200 truncate">
@@ -893,7 +896,7 @@ export const SquadWorkersRegistry: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                            <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                            <div className="flex items-center gap-[3px] shrink-0 ml-1">
                               <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
                                 € {d.amount.toFixed(2)}
                               </span>
@@ -930,128 +933,156 @@ export const SquadWorkersRegistry: React.FC = () => {
         )}
       </div>
 
-      {/* REGISTRO COMPLETO DELLE GIORNATE LAVORATE DEL MESE (COMPATTO STILE CALENDARIO) */}
-      <div className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs space-y-1.5">
-        <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+      {/* REGISTRO COMPLETO DELLE GIORNATE LAVORATE DEL MESE - Chiuso di default, cliccabile, gap a 3px */}
+      <div className={`bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs transition-all ${isMonthDaysOpen ? 'space-y-[3px]' : ''}`}>
+        <button
+          type="button"
+          onClick={() => setIsMonthDaysOpen((prev) => !prev)}
+          className={`w-full flex items-center justify-between text-left cursor-pointer select-none ${isMonthDaysOpen ? 'pb-1 border-b border-slate-800' : ''}`}
+          aria-expanded={isMonthDaysOpen}
+        >
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-100 flex items-center gap-1.5">
-            <Clock className="w-4 h-4 text-emerald-400" />
-            <span>REGISTRO GIORNATE DEL MESE ({monthWorkedDays.length})</span>
+            <Clock className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>REGISTRO GIORNATE DEL MESE</span>
           </h3>
-          <span className="text-[11px] font-mono font-bold text-emerald-400">
-            {formattedMonthLabel}
-          </span>
-        </div>
-
-        {monthWorkedDays.length === 0 ? (
-          <div className="p-4 text-center text-xs text-slate-400">
-            Nessuna giornata di lavoro inserita per {formattedMonthLabel}.
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] font-mono font-bold text-emerald-400">
+              {formattedMonthLabel}
+            </span>
+            {isMonthDaysOpen ? (
+              <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+            )}
           </div>
-        ) : (
-          <div className="space-y-[3px] max-h-56 overflow-y-auto pr-0.5">
-            {monthWorkedDays
-              .sort((a, b) => b.date.localeCompare(a.date))
-              .map((d) => (
-                <div
-                  key={d.id}
-                  className="p-1.5 px-2 bg-slate-800/60 border border-slate-700/60 rounded-md flex items-center justify-between gap-2 text-xs"
-                >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className="font-mono text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/80 shrink-0">
-                      {formatShortDateItalian(d.date)}
-                    </span>
-                    <span className="font-bold text-slate-100 text-xs shrink-0">
-                      {d.workerName}
-                    </span>
-                    <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-700 text-emerald-300 shrink-0">
-                      {d.dayType === 'full' ? '1 GG' : d.dayType === 'half' ? '0.5 GG' : `${d.hours}h`}
-                    </span>
-                    {d.cantiereName && (
-                      <span className="text-[10px] text-slate-400 truncate hidden sm:inline">
-                        · {d.cantiereName}
+        </button>
+
+        {isMonthDaysOpen && (
+          monthWorkedDays.length === 0 ? (
+            <div className="p-3 text-center text-xs text-slate-400">
+              Nessuna giornata di lavoro inserita per {formattedMonthLabel}.
+            </div>
+          ) : (
+            <div className="space-y-[3px] max-h-56 overflow-y-auto pr-0.5 animate-in fade-in duration-150">
+              {monthWorkedDays
+                .sort((a, b) => b.date.localeCompare(a.date))
+                .map((d) => (
+                  <div
+                    key={d.id}
+                    className="p-1 px-1.5 sm:p-1.5 sm:px-2 bg-slate-800/60 border border-slate-700/60 rounded-md flex items-center justify-between gap-[3px] text-xs"
+                  >
+                    <div className="flex items-center gap-[3px] min-w-0 flex-1">
+                      <span className="font-mono text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/80 shrink-0">
+                        {formatShortDateItalian(d.date)}
                       </span>
-                    )}
-                  </div>
+                      <span className="font-bold text-slate-100 text-xs shrink-0 pl-1">
+                        {d.workerName}
+                      </span>
+                      <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-700 text-emerald-300 shrink-0">
+                        {d.dayType === 'full' ? '1 GG' : d.dayType === 'half' ? '0.5 GG' : `${d.hours}h`}
+                      </span>
+                      {d.cantiereName && (
+                        <span className="text-[10px] text-slate-400 truncate hidden sm:inline">
+                          · {d.cantiereName}
+                        </span>
+                      )}
+                    </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-mono font-bold text-xs sm:text-sm text-emerald-400">
-                      € {d.amount.toFixed(0)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => deleteWorkedDay(d.id)}
-                      className="p-1 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
-                      title="Elimina registrazione giornata"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-[3px] shrink-0">
+                      <span className="font-mono font-bold text-xs sm:text-sm text-emerald-400 mr-1">
+                        € {d.amount.toFixed(0)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => deleteWorkedDay(d.id)}
+                        className="p-1 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+                        title="Elimina registrazione giornata"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
-          </div>
+                ))}
+            </div>
+          )
         )}
       </div>
 
-      {/* STORICO PAGAMENTI STIPENDI OPERAI (FILTRATO PER MESE - COMPATTO STILE CALENDARIO) */}
-      <div className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs space-y-1.5">
-        <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+      {/* STORICO PAGAMENTI STIPENDI OPERAI - Chiuso di default, cliccabile, gap a 3px */}
+      <div className={`bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs transition-all ${isMonthPayoutsOpen ? 'space-y-[3px]' : ''}`}>
+        <button
+          type="button"
+          onClick={() => setIsMonthPayoutsOpen((prev) => !prev)}
+          className={`w-full flex items-center justify-between text-left cursor-pointer select-none ${isMonthPayoutsOpen ? 'pb-1 border-b border-slate-800' : ''}`}
+          aria-expanded={isMonthPayoutsOpen}
+        >
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-100 flex items-center gap-1.5">
-            <CreditCard className="w-4 h-4 text-emerald-400" />
-            <span>STORICO PAGAMENTI STIPENDI ({monthPayouts.length})</span>
+            <CreditCard className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>STORICO PAGAMENTI STIPENDI</span>
           </h3>
-          <span className="text-[11px] font-mono font-bold text-emerald-400">
-            {formattedMonthLabel}
-          </span>
-        </div>
-
-        {monthPayouts.length === 0 ? (
-          <div className="p-4 text-center text-xs text-slate-400">
-            Nessun pagamento di stipendio o acconto registrato per {formattedMonthLabel}.
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] font-mono font-bold text-emerald-400">
+              {formattedMonthLabel}
+            </span>
+            {isMonthPayoutsOpen ? (
+              <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+            )}
           </div>
-        ) : (
-          <div className="space-y-[3px] max-h-56 overflow-y-auto pr-0.5">
-            {monthPayouts
-              .sort((a, b) => (b.paymentDate || b.createdAt).localeCompare(a.paymentDate || a.createdAt))
-              .map((p) => (
-                <div
-                  key={p.id}
-                  className="p-1.5 px-2 bg-slate-800/60 border border-slate-700/60 rounded-md flex items-center justify-between gap-2 text-xs"
-                >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className="font-mono text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/80 shrink-0">
-                      {formatShortDateItalian(p.paymentDate || p.createdAt?.split('T')[0])}
-                    </span>
-                    <span className="font-bold text-slate-100 text-xs shrink-0">
-                      {p.workerName}
-                    </span>
-                    <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 shrink-0">
-                      {p.paymentMethod}
-                    </span>
-                    {p.notes && (
-                      <span className="text-[10px] text-slate-400 truncate hidden sm:inline italic">
-                        · {p.notes}
+        </button>
+
+        {isMonthPayoutsOpen && (
+          monthPayouts.length === 0 ? (
+            <div className="p-3 text-center text-xs text-slate-400">
+              Nessun pagamento di stipendio o acconto registrato per {formattedMonthLabel}.
+            </div>
+          ) : (
+            <div className="space-y-[3px] max-h-56 overflow-y-auto pr-0.5 animate-in fade-in duration-150">
+              {monthPayouts
+                .sort((a, b) => (b.paymentDate || b.createdAt).localeCompare(a.paymentDate || a.createdAt))
+                .map((p) => (
+                  <div
+                    key={p.id}
+                    className="p-1 px-1.5 sm:p-1.5 sm:px-2 bg-slate-800/60 border border-slate-700/60 rounded-md flex items-center justify-between gap-[3px] text-xs"
+                  >
+                    <div className="flex items-center gap-[3px] min-w-0 flex-1">
+                      <span className="font-mono text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/80 shrink-0">
+                        {formatShortDateItalian(p.paymentDate || p.createdAt?.split('T')[0])}
                       </span>
-                    )}
-                  </div>
+                      <span className="font-bold text-slate-100 text-xs shrink-0 pl-1">
+                        {p.workerName}
+                      </span>
+                      <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 shrink-0">
+                        {p.paymentMethod}
+                      </span>
+                      {p.notes && (
+                        <span className="text-[10px] text-slate-400 truncate hidden sm:inline italic">
+                          · {p.notes}
+                        </span>
+                      )}
+                    </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="font-mono font-bold text-xs sm:text-sm text-emerald-400">
-                      € {p.totalAmount.toFixed(0)}
-                    </span>
-                    <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800 uppercase shrink-0">
-                      LIQUIDATO
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => deleteWorkerPayout(p.id)}
-                      className="p-1 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer shrink-0"
-                      title="Elimina registrazione pagamento"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-[3px] shrink-0">
+                      <span className="font-mono font-bold text-xs sm:text-sm text-emerald-400 mr-1">
+                        € {p.totalAmount.toFixed(0)}
+                      </span>
+                      <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800 uppercase shrink-0">
+                        LIQUIDATO
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => deleteWorkerPayout(p.id)}
+                        className="p-1 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer shrink-0"
+                        title="Elimina registrazione pagamento"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
-          </div>
+                ))}
+            </div>
+          )
         )}
       </div>
         </>
