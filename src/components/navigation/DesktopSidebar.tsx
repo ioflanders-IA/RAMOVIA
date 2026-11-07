@@ -21,10 +21,11 @@ import {
   PanelLeftOpen,
 } from 'lucide-react';
 import { NotificationCenter } from '../common/NotificationCenter';
+import { NATURANDO_LOGO_URL, NATURANDO_ICON_SVG } from '../jobs/JobModal';
 
 interface DesktopSidebarProps {
-  activeTab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather' | 'team';
-  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather' | 'team') => void;
+  activeTab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'naturando' | 'payments' | 'weather' | 'team';
+  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'naturando' | 'payments' | 'weather' | 'team') => void;
   onOpenAccount: () => void;
   onOpenSettings: () => void;
   onOpenTeamModal: () => void;
@@ -223,6 +224,30 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             >
               <FileCheck2 className="w-4 h-4 text-rose-500 shrink-0" />
               {!isCollapsed && <span className="truncate">Rapportini</span>}
+            </button>
+
+            {/* Naturando */}
+            <button
+              onClick={() => onSelectTab('naturando')}
+              title="Naturando"
+              className={`w-full flex items-center gap-[7px] p-[7px] rounded-[7px] text-xs font-bold transition-colors cursor-pointer ${
+                isCollapsed ? 'justify-center' : 'px-2.5 text-left'
+              } ${
+                activeTab === 'naturando'
+                  ? 'bg-emerald-950 text-white dark:bg-emerald-800'
+                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <img
+                src={NATURANDO_ICON_SVG}
+                alt="Naturando"
+                className={`w-5 h-5 object-contain shrink-0 transition-all ${
+                  activeTab === 'naturando'
+                    ? 'brightness-0 invert'
+                    : 'dark:brightness-0 dark:invert opacity-90'
+                }`}
+              />
+              {!isCollapsed && <span className="truncate">Naturando</span>}
             </button>
 
             {/* Incassi & Pagamenti */}

@@ -309,7 +309,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
 
         {/* Tasti Azione Raggruppati a Destra (Spesa + Nuovo Intervento vicini) */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* Tasto Spesa (Icona tutta rossa, Ingrandita +15%, Icon-only, Niente bordo, Niente sfondo) */}
+          {/* Tasto Spesa (Icona arancione, Ingrandita +15%, Icon-only, Niente bordo, Niente sfondo) */}
           <button
             type="button"
             onClick={() => setIsCreatingExpense(true)}

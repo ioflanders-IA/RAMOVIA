@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { InventoryCategory, InventoryItem } from '../../types';
 import { InventoryModal } from './InventoryModal';
+import { ManualMaintenanceModal } from './ManualMaintenanceModal';
 import {
   Package,
   Wrench,
@@ -35,6 +36,7 @@ export const InventoryView: React.FC = () => {
   const [selectedItemForEdit, setSelectedItemForEdit] = useState<InventoryItem | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [newCategoryType, setNewCategoryType] = useState<InventoryCategory>('material');
+  const [maintenanceModalItem, setMaintenanceModalItem] = useState<InventoryItem | null>(null);
 
   // Filtered lists
   const filteredInventory = inventory.filter((item) => {
@@ -351,7 +353,7 @@ export const InventoryView: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[7px]">
+          <div className="grid grid-cols-2 gap-[3px]">
           {filteredInventory.map((item) => {
             const isEquipment = item.category === 'equipment';
             const isLowStock = !isEquipment && item.quantity <= item.minThreshold;
@@ -368,7 +370,7 @@ export const InventoryView: React.FC = () => {
             return (
               <div
                 key={item.id}
-                className={`bg-white dark:bg-slate-900 border rounded-[7px] p-[7px] shadow-xs transition-all flex flex-col justify-between space-y-[7px] ${
+                className={`bg-white dark:bg-slate-900 border rounded-[7px] p-1.5 shadow-xs transition-all flex flex-col justify-between space-y-[3px] ${
                   isMaintenanceAlert
                     ? 'border-rose-300 dark:border-rose-800 ring-2 ring-rose-50 dark:ring-rose-950/40'
                     : isLowStock
@@ -376,25 +378,38 @@ export const InventoryView: React.FC = () => {
                     : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
               >
-                <div className="space-y-[7px]">
+                <div className="space-y-[3px]">
                   {/* Category icon & actions */}
-                  <div className="flex items-start justify-between gap-[7px]">
-                    <span
-                      className={`inline-flex items-center gap-[7px] px-2 py-0.5 rounded-[7px] text-[10px] font-bold uppercase tracking-wider ${
-                        isEquipment
-                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
-                          : 'bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                      }`}
-                    >
-                      {isEquipment ? <Wrench className="w-3 h-3" /> : <Package className="w-3 h-3" />}
-                      {isEquipment ? 'Attrezzatura' : 'Consumabile'}
-                    </span>
+                  <div className="flex items-center justify-between gap-[3px]">
+                    <div className="flex items-center gap-[3px]">
+                      <span
+                        className={`inline-flex items-center justify-center p-1 rounded-[5px] text-[10px] shrink-0 ${
+                          isEquipment
+                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
+                            : 'bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                        }`}
+                        title={isEquipment ? 'Attrezzatura' : 'Consumabile'}
+                      >
+                        {isEquipment ? <Wrench className="w-3.5 h-3.5" /> : <Package className="w-3.5 h-3.5" />}
+                      </span>
+
+                      {isEquipment && currentUser?.role === 'admin' && (
+                        <button
+                          type="button"
+                          onClick={() => setMaintenanceModalItem(item)}
+                          className="p-1 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 rounded-[5px] cursor-pointer flex items-center justify-center transition-colors shrink-0"
+                          title={`Registra manutenzione per ${item.name}`}
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
 
                     {currentUser?.role === 'admin' && (
-                      <div className="flex items-center gap-[7px]">
+                      <div className="flex items-center gap-[3px] shrink-0">
                         <button
                           onClick={() => setSelectedItemForEdit(item)}
-                          className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-[7px] cursor-pointer"
+                          className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-[5px] cursor-pointer"
                           title="Modifica"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
@@ -405,7 +420,7 @@ export const InventoryView: React.FC = () => {
                               deleteInventoryItem(item.id);
                             }
                           }}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded-[7px] cursor-pointer"
+                          className="p-1 text-slate-400 hover:text-rose-600 rounded-[5px] cursor-pointer"
                           title="Elimina"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -414,19 +429,19 @@ export const InventoryView: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="flex items-start gap-2.5">
+                  <div className="flex items-start gap-[3px]">
                     {item.imageUrl && (
                       <img
                         src={item.imageUrl}
                         alt={item.name}
-                        className="w-12 h-12 object-cover rounded-[6px] border border-slate-200 dark:border-slate-700 shrink-0 bg-slate-100 dark:bg-slate-800"
+                        className="w-10 h-10 object-cover rounded-[5px] border border-slate-200 dark:border-slate-700 shrink-0 bg-slate-100 dark:bg-slate-800"
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.display = 'none';
                         }}
                       />
                     )}
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug truncate">
+                    <div className="min-w-0 flex-1 space-y-[2px]">
+                      <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-tight break-words">
                         {item.name}
                       </h3>
                       {item.brand && (
@@ -445,14 +460,14 @@ export const InventoryView: React.FC = () => {
                                 <img
                                   src={logo}
                                   alt={cleanBrand || item.name}
-                                  className="h-4.5 max-w-[75px] object-contain"
+                                  className="h-3.5 max-w-[65px] object-contain"
                                   title={cleanBrand || item.name}
                                 />
                               );
                             }
                             if (cleanBrand) {
                               return (
-                                <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
+                                <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium break-words">
                                   {cleanBrand}
                                 </div>
                               );
@@ -466,23 +481,23 @@ export const InventoryView: React.FC = () => {
 
                   {/* Material Specific View */}
                   {!isEquipment && (
-                    <div className="p-[7px] bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 rounded-[7px] space-y-[7px]">
+                    <div className="p-1 px-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 rounded-[5px] space-y-[3px]">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Giacenza a magazzino</span>
-                        <span className="text-base font-bold font-mono text-slate-900 dark:text-slate-100">
-                          {item.quantity} <span className="text-xs text-slate-500 dark:text-slate-400 font-normal">{item.unit}</span>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">Giacenza:</span>
+                        <span className="text-xs font-bold font-mono text-slate-900 dark:text-slate-100">
+                          {item.quantity} <span className="text-[10px] text-slate-500 font-normal">{item.unit}</span>
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                        <span>Soglia minima scorta:</span>
-                        <span className="font-mono font-medium text-slate-700 dark:text-slate-300">{item.minThreshold} {item.unit}</span>
+                      <div className="flex items-center justify-between text-[10px] text-slate-500">
+                        <span>Soglia min:</span>
+                        <span className="font-mono text-slate-700 dark:text-slate-300">{item.minThreshold} {item.unit}</span>
                       </div>
 
                       {isLowStock && (
-                        <div className="pt-1 flex items-center gap-[7px] text-[11px] text-amber-800 dark:text-amber-300 font-bold">
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                          <span>Sotto scorta minima! Inserito nella lista spesa.</span>
+                        <div className="pt-0.5 flex items-center gap-1 text-[10px] text-amber-800 dark:text-amber-300 font-bold">
+                          <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                          <span>Sotto scorta</span>
                         </div>
                       )}
                     </div>
@@ -490,8 +505,8 @@ export const InventoryView: React.FC = () => {
 
                   {/* Equipment Specific View */}
                   {isEquipment && (
-                    <div className="p-[7px] bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 rounded-[7px] space-y-[7px]">
-                      <div className="flex items-center justify-between text-xs">
+                    <div className="p-1 px-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 rounded-[5px] space-y-[3px]">
+                      <div className="flex items-center justify-between text-[11px]">
                         <span className="text-slate-500 dark:text-slate-400">Ore di lavoro:</span>
                         <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
                           {item.currentUsageHours}h / {item.maintenanceIntervalHours}h
@@ -499,9 +514,9 @@ export const InventoryView: React.FC = () => {
                       </div>
 
                       {/* Usage bar */}
-                      <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-[7px] h-2 overflow-hidden">
+                      <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-[4px] h-1.5 overflow-hidden">
                         <div
-                          className={`h-full rounded-[7px] transition-all ${
+                          className={`h-full rounded-[4px] transition-all ${
                             usagePercent >= 100
                               ? 'bg-rose-600'
                               : usagePercent >= 80
@@ -513,78 +528,49 @@ export const InventoryView: React.FC = () => {
                       </div>
 
                       {item.assignedWorkerName && (
-                        <div className="flex items-center gap-[7px] text-[11px] text-slate-600 dark:text-slate-300">
-                          <Truck className="w-3.5 h-3.5 text-slate-400" />
-                          <span>Assegnato: <strong>{item.assignedWorkerName}</strong></span>
+                        <div className="flex items-center gap-1 text-[10px] text-slate-600 dark:text-slate-300 truncate">
+                          <Truck className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span className="truncate">{item.assignedWorkerName}</span>
                         </div>
                       )}
 
                       {isMaintenanceAlert && (
-                        <div className="p-[7px] bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 rounded-[7px] text-rose-900 dark:text-rose-200 text-xs flex items-center gap-[7px]">
-                          <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
-                          <span>
-                            <strong>Manutenzione richiesta!</strong> Ore limite raggiunte.
-                          </span>
+                        <div className="p-1 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 rounded text-rose-900 dark:text-rose-200 text-[10px] flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3 text-rose-600 dark:text-rose-400 shrink-0" />
+                          <span className="font-bold">Manutenzione richiesta!</span>
                         </div>
                       )}
                     </div>
                   )}
                 </div>
 
-                {/* Card footer actions */}
-                <div className="pt-[7px] border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                  {isEquipment ? (
-                    currentUser?.role === 'admin' ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const confirmService = prompt(
-                            `Inserisci le nuove ore per ${item.name} dopo la manutenzione (default 0 per reset):`,
-                            '0'
-                          );
-                          if (confirmService !== null) {
-                            recordEquipmentMaintenance(item.id, parseInt(confirmService) || 0);
-                          }
-                        }}
-                        className="flex items-center gap-[7px] px-2.5 py-1 text-slate-700 dark:text-slate-200 hover:text-emerald-800 dark:hover:text-emerald-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-[7px] font-medium transition-colors cursor-pointer"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        <span>Registra Manutenzione</span>
-                      </button>
-                    ) : (
-                      <span className="text-slate-400 font-mono text-[11px]">
-                        Stato: {item.status === 'available' ? 'Disponibile' : 'In Manutenzione'}
-                      </span>
-                    )
-                  ) : (
-                    currentUser?.role === 'admin' && (
-                      <div className="flex items-center gap-[7px]">
-                        <button
-                          onClick={() =>
-                            updateInventoryItem({
-                              ...item,
-                              quantity: Math.max(0, item.quantity - 1),
-                            })
-                          }
-                          className="w-6 h-6 rounded-[7px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 cursor-pointer"
-                        >
-                          -
-                        </button>
-                        <button
-                          onClick={() =>
-                            updateInventoryItem({
-                              ...item,
-                              quantity: item.quantity + 1,
-                            })
-                          }
-                          className="w-6 h-6 rounded-[7px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 cursor-pointer"
-                        >
-                          +
-                        </button>
-                      </div>
-                    )
-                  )}
-                </div>
+                {/* Card footer actions for materials */}
+                {!isEquipment && currentUser?.role === 'admin' && (
+                  <div className="pt-1 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-1.5 w-full">
+                    <button
+                      onClick={() =>
+                        updateInventoryItem({
+                          ...item,
+                          quantity: Math.max(0, item.quantity - 1),
+                        })
+                      }
+                      className="w-6 h-6 rounded-[5px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 cursor-pointer text-xs"
+                    >
+                      -
+                    </button>
+                    <button
+                      onClick={() =>
+                        updateInventoryItem({
+                          ...item,
+                          quantity: item.quantity + 1,
+                        })
+                      }
+                      className="w-6 h-6 rounded-[5px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 cursor-pointer text-xs"
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -601,6 +587,14 @@ export const InventoryView: React.FC = () => {
             setSelectedItemForEdit(null);
           }}
           onSave={handleSaveItem}
+        />
+      )}
+
+      {/* Manual Maintenance Modal */}
+      {maintenanceModalItem && (
+        <ManualMaintenanceModal
+          equipmentItem={maintenanceModalItem}
+          onClose={() => setMaintenanceModalItem(null)}
         />
       )}
     </div>

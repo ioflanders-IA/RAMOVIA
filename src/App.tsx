@@ -8,6 +8,7 @@ import { ClientsView } from './components/clients/ClientsView';
 import { InventoryView } from './components/inventory/InventoryView';
 import { ReportsHub } from './components/report/ReportsHub';
 import { PaymentsView } from './components/payments/PaymentsView';
+import { NaturandoView } from './components/naturando/NaturandoView';
 import { WorkersView } from './components/workers/WorkersView';
 import { WeatherView } from './components/weather/WeatherView';
 import { WorkerView } from './components/worker/WorkerView';
@@ -48,7 +49,7 @@ const MainAppContent: React.FC = () => {
   }, []);
 
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather' | 'team'
+    'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'naturando' | 'payments' | 'weather' | 'team'
   >('dashboard');
 
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
@@ -144,6 +145,7 @@ const MainAppContent: React.FC = () => {
             {activeTab === 'clients' && <ClientsView />}
             {activeTab === 'inventory' && <InventoryView />}
             {activeTab === 'reports' && <ReportsHub />}
+            {activeTab === 'naturando' && <NaturandoView />}
             {activeTab === 'payments' && <PaymentsView />}
           </>
         ) : (

@@ -1,26 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ExpenseCategory, PaymentMethod } from '../../types';
 import { X, Plus, Receipt, Settings2, Trash2 } from 'lucide-react';
+import {
+  getCombinedCategoryList,
+  getSavedCustomCategories,
+  saveCustomCategories,
+} from '../../utils/categoryUtils';
 
 interface ExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const DEFAULT_CATEGORIES: { id: string; label: string }[] = [
-  { id: 'carburante', label: 'Carburante' },
-  { id: 'manutenzione', label: 'Manutenzione Attrezzature' },
-  { id: 'materiale', label: 'Materiali Cantiere' },
-  { id: 'attrezzatura', label: 'Nuova Attrezzatura' },
-  { id: 'smaltimento', label: 'Smaltimento / Discarica' },
-  { id: 'generale', label: 'Spese Generali' },
-];
-
-const STORAGE_KEY = 'ramovia_custom_expense_categories';
-
 export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose }) => {
-  const { addExpense } = useApp();
+  const { expenses, jobs, addExpense } = useApp();
 
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
@@ -31,49 +25,37 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose }) =
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Custom Categories Management
-  const [customCategories, setCustomCategories] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [customCategories, setCustomCategories] = useState<string[]>(() =>
+    getSavedCustomCategories()
+  );
   const [isManagingCategories, setIsManagingCategories] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(customCategories));
-    } catch (e) {
-      console.error('Errore nel salvataggio categorie personalizzate:', e);
-    }
-  }, [customCategories]);
+  const categoryOptions = useMemo(() => {
+    return getCombinedCategoryList(expenses, jobs);
+  }, [expenses, jobs, customCategories]);
 
   if (!isOpen) return null;
 
   const handleAddCategory = () => {
     const trimmed = newCategoryName.trim();
     if (!trimmed) return;
-    const existsInDefault = DEFAULT_CATEGORIES.some(
-      (c) => c.label.toLowerCase() === trimmed.toLowerCase() || c.id.toLowerCase() === trimmed.toLowerCase()
-    );
-    const existsInCustom = customCategories.some(
-      (c) => c.toLowerCase() === trimmed.toLowerCase()
-    );
-
-    if (!existsInDefault && !existsInCustom) {
-      setCustomCategories((prev) => [...prev, trimmed]);
-      setCategory(trimmed);
-    } else {
-      setCategory(trimmed);
+    const saved = getSavedCustomCategories();
+    if (!saved.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
+      const updated = [...saved, trimmed];
+      saveCustomCategories(updated);
+      setCustomCategories(updated);
     }
+    setCategory(trimmed);
     setNewCategoryName('');
   };
 
   const handleDeleteCustomCategory = (catToDelete: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setCustomCategories((prev) => prev.filter((c) => c !== catToDelete));
+    const saved = getSavedCustomCategories();
+    const updated = saved.filter((c) => c !== catToDelete);
+    saveCustomCategories(updated);
+    setCustomCategories(updated);
     if (category === catToDelete) {
       setCategory('carburante');
     }
@@ -200,14 +182,9 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose }) =
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full p-[6px] bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-[6px] text-slate-900 dark:text-slate-100 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
               >
-                {DEFAULT_CATEGORIES.map((c) => (
+                {categoryOptions.map((c) => (
                   <option key={c.id} value={c.label}>
                     {c.label}
-                  </option>
-                ))}
-                {customCategories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
                   </option>
                 ))}
               </select>

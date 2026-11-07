@@ -52,8 +52,8 @@ export const WeatherVectorIcon: React.FC<{
 };
 
 /**
- * 2. ALL-RED EXPENSE VECTOR ICON (Nuova Spesa - Entirely Red Outline Style)
- * Sleek red vector icon: Red wallet with outgoing cash bill and minus indicator.
+ * 2. ORANGE EXPENSE VECTOR ICON (Nuova Spesa - Entirely Orange Outline Style)
+ * Sleek orange vector icon: Orange wallet with outgoing cash bill and indicator arrow, clean without white dots.
  */
 export const ExpenseWalletVectorIcon: React.FC<{ className?: string }> = ({
   className = 'w-8 h-8',
@@ -65,48 +65,46 @@ export const ExpenseWalletVectorIcon: React.FC<{ className?: string }> = ({
       xmlns="http://www.w3.org/2000/svg"
       className={`${className} shrink-0`}
     >
-      {/* Wallet Body in Vivid Red (#ef4444) */}
+      {/* Wallet Body in Vivid Orange (#f97316) */}
       <rect
         x="6"
         y="16"
         width="34"
         height="22"
         rx="4"
-        stroke="#EF4444"
+        stroke="#F97316"
         strokeWidth="2.8"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="fill-red-500/10 dark:fill-red-500/20"
+        className="fill-orange-500/10 dark:fill-orange-500/20"
       />
 
-      {/* Wallet Flap & Button in Red */}
+      {/* Wallet Flap in Orange without white dot */}
       <path
         d="M28 22H40V32H28C25.2386 32 23 29.7614 23 27V27C23 24.2386 25.2386 22 28 22Z"
-        fill="#EF4444"
-        stroke="#DC2626"
+        fill="#F97316"
+        stroke="#EA580C"
         strokeWidth="1.5"
       />
-      <circle cx="32" cy="27" r="2" fill="#FFFFFF" />
 
-      {/* Outgoing Cash Banknote coming out of top left slot (Entirely Red Theme) */}
+      {/* Outgoing Cash Banknote coming out of top left slot in Orange (no white dots) */}
       <rect
         x="12"
         y="8"
         width="20"
         height="12"
         rx="2.5"
-        fill="#EF4444"
-        stroke="#B91C1C"
+        fill="#FB923C"
+        stroke="#EA580C"
         strokeWidth="1.5"
       />
-      {/* Banknote Inner minus symbol */}
-      <circle cx="22" cy="14" r="3" fill="#FEE2E2" />
-      <line x1="20" y1="14" x2="24" y2="14" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" />
+      {/* Banknote Inner subtle line */}
+      <line x1="17" y1="14" x2="27" y2="14" stroke="#C2410C" strokeWidth="1.8" strokeLinecap="round" />
 
       {/* Outgoing spending indicator arrow top right */}
       <path
         d="M36 6L42 12M42 12H37M42 12V7"
-        stroke="#EF4444"
+        stroke="#F97316"
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"

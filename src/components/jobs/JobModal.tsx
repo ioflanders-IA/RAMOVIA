@@ -5,6 +5,7 @@ import { X, Trash2, Package, Euro, User, UserCheck, Plus, Check, Repeat, Clock, 
 import { formatLocalDate, parseLocalDate, formatItalianDate } from '../../utils/dateUtils';
 import { RichNoteBox } from '../common/RichNoteBox';
 import { getClientColor } from '../../utils/clientColors';
+import { ManualMaintenanceModal } from '../inventory/ManualMaintenanceModal';
 
 interface JobModalProps {
   job?: Job | null;
@@ -29,6 +30,12 @@ const PAYMENT_STATUSES: Array<{ id: JobPaymentStatus; label: string }> = [
 
 export const NATURANDO_LOGO_URL =
   'https://www.naturandodal1997.it/wp-content/uploads/2023/06/Logo-Naturando-il-vivaio-per-il-tuo-giardino-removebg-preview.png';
+
+export const NATURANDO_ICON_SVG =
+  'https://www.iofall.it/Public%20Image/Ramovianatur_logo.svg';
+
+export const NATURANDO_COMPLETE_SVG =
+  'https://www.iofall.it/Public%20Image/Ramovianatur%20complete.svg';
 
 export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, onSave }) => {
   const { clients, users, inventory, currentUser } = useApp();
@@ -309,6 +316,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
   );
   const [selectedEquipId, setSelectedEquipId] = useState<string>('');
   const [selectedEquipHours, setSelectedEquipHours] = useState<number>(2);
+  const [maintenanceModalEquipItem, setMaintenanceModalEquipItem] = useState<{ id: string; name: string } | null>(null);
 
   const handleAddEquipment = () => {
     if (!selectedEquipId) return;
@@ -1537,7 +1545,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
           </div>
 
           {/* Attrezzatura Richiesta & Ore Utilizzo */}
-          <div className="p-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-[7px] space-y-2">
+          <div className="p-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-[7px] space-y-[3px]">
             <div className="flex items-center justify-between">
               <label className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1.5 uppercase tracking-wider">
                 <Wrench className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -1552,15 +1560,15 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
 
             {/* Elenco attrezzature già selezionate */}
             {equipmentRequired.length > 0 && (
-              <div className="space-y-1.5">
+              <div className="space-y-[3px]">
                 {equipmentRequired.map((equip) => {
                   const invItem = inventory.find((i) => i.id === equip.itemId);
                   return (
                     <div
                       key={equip.itemId}
-                      className="flex items-center justify-between p-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs"
+                      className="flex items-center justify-between p-[7px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[7px] text-xs gap-[3px]"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center gap-[3px] min-w-0">
                         <Wrench className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <span className="font-medium text-slate-800 dark:text-slate-200 truncate">
                           {equip.name}
@@ -1572,8 +1580,17 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-[3px] shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setMaintenanceModalEquipItem({ id: equip.itemId, name: equip.name })}
+                          className="p-1 rounded text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/40 flex items-center justify-center transition-colors cursor-pointer"
+                          title="Aggiungi manutenzione"
+                        >
+                          <Wrench className="w-3.5 h-3.5" />
+                        </button>
+
+                        <div className="flex items-center gap-[3px]">
                           <input
                             type="number"
                             min="0.5"
@@ -1582,9 +1599,9 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                             onChange={(e) =>
                               handleUpdateEquipmentHours(equip.itemId, parseFloat(e.target.value) || 0)
                             }
-                            className="w-14 p-1 text-center font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[5px] text-xs"
+                            className="w-12 sm:w-14 p-1 text-center font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[5px] text-xs"
                           />
-                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">
                             ore
                           </span>
                         </div>
@@ -1604,7 +1621,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
             )}
 
             {/* Selettore per aggiungere attrezzatura con ore di utilizzo */}
-            <div className="flex items-center gap-1.5 pt-1 w-full min-w-0">
+            <div className="flex items-center gap-[3px] pt-1 w-full min-w-0">
               <select
                 value={selectedEquipId}
                 onChange={(e) => setSelectedEquipId(e.target.value)}
@@ -1624,7 +1641,7 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
                   })}
               </select>
 
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-[3px] shrink-0">
                 <input
                   type="number"
                   min="0.5"
@@ -1686,6 +1703,14 @@ export const JobModal: React.FC<JobModalProps> = ({ job, initialDate, onClose, o
             </button>
           </div>
         </form>
+
+        {maintenanceModalEquipItem && (
+          <ManualMaintenanceModal
+            equipmentItem={inventory.find((i) => i.id === maintenanceModalEquipItem.id) || null}
+            preselectedJobId={job?.id}
+            onClose={() => setMaintenanceModalEquipItem(null)}
+          />
+        )}
       </div>
     </div>
   );

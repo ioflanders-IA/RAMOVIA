@@ -5,7 +5,9 @@ import { ClientModal } from './ClientModal';
 import { JobModal, NATURANDO_LOGO_URL } from '../jobs/JobModal';
 import { JobDetailViewModal } from '../jobs/JobDetailViewModal';
 import { JobCostManagerModal } from '../jobs/JobCostManagerModal';
+import { ManualMaintenanceModal } from '../inventory/ManualMaintenanceModal';
 import { FormattedNote } from '../common/FormattedNote';
+import { getRenamedCategoriesMap, getCanonicalCategoryKey } from '../../utils/categoryUtils';
 import {
   Users,
   Plus,
@@ -35,6 +37,10 @@ import {
   RotateCcw,
   Palette,
   HardHat,
+  Dog,
+  ChevronDown,
+  Wallet,
+  Wrench,
 } from 'lucide-react';
 import { getClientColor, CLIENT_COLOR_OPTIONS } from '../../utils/clientColors';
 
@@ -58,6 +64,32 @@ const cleanHtmlText = (str?: string): string => {
     .replace(/<br\s*[\/]?>/gi, ' ')
     .replace(/<[^>]+>/g, '')
     .trim();
+};
+
+const IT_MONTHS_SHORT = ['GEN', 'FEB', 'MAR', 'APR', 'MAG', 'GIU', 'LUG', 'AGO', 'SET', 'OTT', 'NOV', 'DIC'];
+
+const formatDayAndMonth = (dateStr?: string) => {
+  if (!dateStr) return { day: '--', month: '---' };
+  try {
+    const parts = dateStr.split('-');
+    if (parts.length >= 3) {
+      const day = parts[2].replace(/^0/, '');
+      const mIdx = parseInt(parts[1], 10) - 1;
+      const month = IT_MONTHS_SHORT[mIdx] || parts[1];
+      return { day, month };
+    }
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return { day: String(d.getDate()), month: IT_MONTHS_SHORT[d.getMonth()] || '' };
+    }
+  } catch {
+    // fallback
+  }
+  return { day: dateStr, month: '' };
+};
+
+const formatAmountNoCents = (val: number) => {
+  return Math.abs(val) % 1 === 0 ? val.toFixed(0) : val.toFixed(2);
 };
 
 export const isUserAdminHelper = (u?: User | null, nameOrId?: string, allUsers?: User[]): boolean => {
@@ -218,43 +250,63 @@ export const getJobLaborSummary = (
 };
 
 export const getCostCategoryInfo = (category: JobCostCategory | string) => {
-  switch (category) {
-    case 'benzina':
-      return {
-        label: 'Carburante',
-        badgeClass: 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-      };
+  const rawCat = (category || 'altro').trim();
+  const lowerCat = rawCat.toLowerCase();
+  const canonicalKey = getCanonicalCategoryKey(rawCat);
+  const renamedMap = getRenamedCategoriesMap();
+
+  const customLabel = renamedMap[canonicalKey] || renamedMap[lowerCat] || renamedMap[rawCat];
+
+  let defaultLabel = 'Altro Costo';
+  let badgeClass = 'bg-pink-100 text-pink-800 dark:bg-pink-950/80 dark:text-pink-300 border-pink-200 dark:border-pink-800';
+
+  switch (canonicalKey) {
+    case 'carburante':
+      defaultLabel = 'Benzina / Carburante';
+      badgeClass = 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+      break;
     case 'sacchi':
-      return {
-        label: 'Sacchi Verde',
-        badgeClass: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
-      };
+      defaultLabel = 'Sacchi Verde';
+      badgeClass = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+      break;
     case 'smaltimento':
-      return {
-        label: 'Smaltimento',
-        badgeClass: 'bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border-purple-200 dark:border-purple-800',
-      };
+      defaultLabel = 'Smaltimento Verde';
+      badgeClass = 'bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border-purple-200 dark:border-purple-800';
+      break;
     case 'materiale':
-      return {
-        label: 'Materiale',
-        badgeClass: 'bg-teal-100 text-teal-800 dark:bg-teal-950/80 dark:text-teal-300 border-teal-200 dark:border-teal-800',
-      };
+      defaultLabel = 'Materiali & Concimi';
+      badgeClass = 'bg-teal-100 text-teal-800 dark:bg-teal-950/80 dark:text-teal-300 border-teal-200 dark:border-teal-800';
+      break;
+    case 'attrezzatura':
+      defaultLabel = 'Nuova Attrezzatura';
+      badgeClass = 'bg-blue-100 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300 border-blue-200 dark:border-blue-800';
+      break;
     case 'noleggio':
-      return {
-        label: 'Noleggio Mezzi',
-        badgeClass: 'bg-blue-100 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-      };
+      defaultLabel = 'Noleggio Mezzi';
+      badgeClass = 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/80 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800';
+      break;
+    case 'manutenzione':
+      defaultLabel = 'Manutenzione Macchinari';
+      badgeClass = 'bg-orange-100 text-orange-800 dark:bg-orange-950/80 dark:text-orange-300 border-orange-200 dark:border-orange-800';
+      break;
     case 'manodopera':
-      return {
-        label: 'Manodopera',
-        badgeClass: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/80 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
-      };
+      defaultLabel = 'Manodopera';
+      badgeClass = 'bg-sky-100 text-sky-800 dark:bg-sky-950/80 dark:text-sky-300 border-sky-200 dark:border-sky-800';
+      break;
+    case 'generale':
+      defaultLabel = 'Spese Generali';
+      badgeClass = 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700';
+      break;
     default:
-      return {
-        label: 'Altro',
-        badgeClass: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700',
-      };
+      defaultLabel = rawCat ? rawCat.charAt(0).toUpperCase() + rawCat.slice(1) : 'Altro Costo';
+      badgeClass = 'bg-pink-100 text-pink-800 dark:bg-pink-950/80 dark:text-pink-300 border-pink-200 dark:border-pink-800';
+      break;
   }
+
+  return {
+    label: customLabel || defaultLabel,
+    badgeClass,
+  };
 };
 
 export const ClientsView: React.FC = () => {
@@ -270,6 +322,7 @@ export const ClientsView: React.FC = () => {
     updateJob,
     addJobCost,
     deleteJobCost,
+    inventory,
     currentUser,
   } = useApp();
 
@@ -282,6 +335,7 @@ export const ClientsView: React.FC = () => {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [gardenToDelete, setGardenToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [maintenanceForJobItem, setMaintenanceForJobItem] = useState<{ job: Job; itemId?: string; itemName?: string } | null>(null);
 
   // Modal State: Add Cantiere/Giardino to selected client
   const [isAddingGarden, setIsAddingGarden] = useState(false);
@@ -304,6 +358,15 @@ export const ClientsView: React.FC = () => {
   const [showGardensSection, setShowGardensSection] = useState(false);
   const [showJobsSection, setShowJobsSection] = useState(false);
   const [viewingJob, setViewingJob] = useState<Job | null>(null);
+  const [expandedJobIds, setExpandedJobIds] = useState<Record<string, boolean>>({});
+
+  const toggleJobExpanded = (jobId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setExpandedJobIds((prev) => ({
+      ...prev,
+      [jobId]: !prev[jobId],
+    }));
+  };
 
   // Selected client object
   const activeClient = useMemo(() => {
@@ -694,37 +757,82 @@ export const ClientsView: React.FC = () => {
       
       {/* Back Button and Client Header Card */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-2 sm:p-2.5 shadow-xs space-y-[3px]">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-[3px]">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSelectedClientId(null)}
-              className="p-1 px-2 rounded-[5px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer shrink-0"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Rubrica Clienti</span>
-            </button>
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => setSelectedClientId(null)}
+            className="p-1 hover:text-emerald-600 dark:hover:text-emerald-400 text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer shrink-0 bg-transparent border-0 shadow-none"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Rubrica</span>
+          </button>
 
-            <div className="flex items-center gap-1.5 min-w-0">
-              <h1 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 truncate">
-                <span>{activeClient.name}</span>
-                <span className="text-[10px] text-slate-500 font-normal shrink-0">
-                  ({allGardens.length} {allGardens.length === 1 ? 'giardino' : 'giardini'})
-                </span>
-              </h1>
+          <div className="flex items-center gap-1.5 min-w-0 text-right">
+            <h1 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 justify-end truncate">
+              <span>{activeClient.name}</span>
+              <span className="text-[10px] text-slate-500 font-normal shrink-0">
+                ({allGardens.length} {allGardens.length === 1 ? 'giardino' : 'giardini'})
+              </span>
+            </h1>
+          </div>
+        </div>
+
+        {/* Contact Info Strip & 3 Action Icons Aligned to the Right */}
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 dark:border-slate-800 text-xs">
+          <div className="flex flex-col gap-1 text-slate-600 dark:text-slate-300 min-w-0">
+            {activeClient.address && (() => {
+              const commaIdx = activeClient.address.indexOf(',');
+              if (commaIdx !== -1) {
+                const street = activeClient.address.substring(0, commaIdx).trim();
+                const city = activeClient.address.substring(commaIdx + 1).trim();
+                return (
+                  <div className="flex items-start gap-1.5 min-w-0">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                    <div className="leading-tight min-w-0">
+                      <div className="font-semibold text-slate-900 dark:text-slate-100 truncate">{street}</div>
+                      <div className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate">{city}</div>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <div className="flex items-center gap-1.5 truncate">
+                  <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="truncate">{activeClient.address}</span>
+                </div>
+              );
+            })()}
+
+            <div className="flex items-center gap-3 text-xs">
+              {activeClient.phone && (
+                <div className="flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <a href={`tel:${activeClient.phone}`} className="font-mono text-emerald-700 dark:text-emerald-400 hover:underline font-bold">
+                    {activeClient.phone}
+                  </a>
+                </div>
+              )}
+              {activeClient.email && (
+                <div className="flex items-center gap-1.5 truncate">
+                  <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="truncate">{activeClient.email}</span>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-[3px] shrink-0">
+          {/* 3 Action Buttons as Icons with transparent background and border like delete button */}
+          <div className="flex items-center gap-1.5 shrink-0 self-center">
             <button
               type="button"
               onClick={() => {
                 setCreatingJobForClient(activeClient);
               }}
-              className="flex items-center gap-1 p-1 px-2.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[5px] font-bold text-xs shadow-xs transition-colors cursor-pointer shrink-0"
+              className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-[5px] border border-emerald-600/70 dark:border-emerald-500/60 bg-transparent text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer shrink-0"
+              title="Nuovo Intervento"
+              aria-label="Nuovo Intervento"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Nuovo Intervento</span>
+              <Plus className="w-4 h-4" />
             </button>
 
             {currentUser?.role === 'admin' && (
@@ -732,56 +840,35 @@ export const ClientsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setEditingClient(activeClient)}
-                  className="p-1 px-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-[5px] font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                  className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-[5px] border border-slate-400/60 dark:border-slate-600/60 bg-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-500/10 transition-colors cursor-pointer shrink-0"
+                  title="Modifica Cliente"
+                  aria-label="Modifica Cliente"
                 >
-                  <Edit2 className="w-3 h-3" />
-                  <span>Modifica</span>
+                  <Edit2 className="w-4 h-4" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setClientToDelete(activeClient)}
-                  className="p-1 px-2 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900 rounded-[5px] font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer shrink-0"
-                  title="Elimina questo cliente"
+                  className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-[5px] border border-rose-500/60 dark:border-rose-800/60 bg-transparent text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer shrink-0"
+                  title="Elimina Cliente"
+                  aria-label="Elimina Cliente"
                 >
-                  <Trash2 className="w-3 h-3" />
-                  <span>Elimina</span>
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </>
             )}
           </div>
         </div>
-
-        {/* Contact Info Strip */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-[3px] pt-1 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
-          <div className="flex items-center gap-1.5 truncate">
-            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span className="truncate">{activeClient.address}</span>
-          </div>
-          {activeClient.phone && (
-            <div className="flex items-center gap-1.5">
-              <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <a href={`tel:${activeClient.phone}`} className="font-mono text-emerald-700 dark:text-emerald-400 hover:underline">
-                {activeClient.phone}
-              </a>
-            </div>
-          )}
-          {activeClient.email && (
-            <div className="flex items-center gap-1.5 truncate">
-              <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="truncate">{activeClient.email}</span>
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* Financial Overview for this client */}
+      {/* Financial Overview for this client - no .00 and renamed to Lavoro and Costi */}
       <div className="grid grid-cols-3 gap-[3px]">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-2 shadow-xs space-y-[3px]">
           <div className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">
-            Fatturato Lavori
+            Lavoro
           </div>
           <div className="text-xl font-bold font-mono text-slate-900 dark:text-slate-100">
-            € {clientFinancials.revenue.toFixed(2)}
+            € {formatAmountNoCents(clientFinancials.revenue)}
           </div>
           <div className="text-[10px] text-slate-500 truncate">
             {clientJobs.length} interventi totali
@@ -790,22 +877,22 @@ export const ClientsView: React.FC = () => {
 
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-2 shadow-xs space-y-[3px]">
           <div className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">
-            Costi Interventi
+            Costi
           </div>
           <div className="text-xl font-bold font-mono text-rose-600 dark:text-rose-400">
-            -€ {clientFinancials.totalCosts.toFixed(2)}
+            -€ {formatAmountNoCents(clientFinancials.totalCosts)}
           </div>
           <div className="text-[10px] text-slate-500 truncate">
-            Spese €{clientFinancials.totalExpenses.toFixed(0)} · Manodopera €{clientFinancials.totalLabor.toFixed(0)}{clientFinancials.totalNaturando > 0 ? ` · Naturando €${clientFinancials.totalNaturando.toFixed(0)}` : ''}
+            Spese €{Math.round(clientFinancials.totalExpenses)} · Manodopera €{Math.round(clientFinancials.totalLabor)}{clientFinancials.totalNaturando > 0 ? ` · Naturando €${Math.round(clientFinancials.totalNaturando)}` : ''}
           </div>
         </div>
 
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-2 shadow-xs space-y-[3px]">
           <div className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">
-            Margine Netto
+            Margine
           </div>
           <div className={`text-xl font-bold font-mono ${clientFinancials.netProfit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600'}`}>
-            € {clientFinancials.netProfit.toFixed(2)}
+            € {formatAmountNoCents(clientFinancials.netProfit)}
           </div>
           <div className="text-[10px] text-slate-500 truncate">
             {clientFinancials.revenue > 0 ? Math.round((clientFinancials.netProfit / clientFinancials.revenue) * 100) : 0}% sul fatturato
@@ -856,7 +943,7 @@ export const ClientsView: React.FC = () => {
                   <div className="flex items-center gap-1.5 shrink-0">
                     {garden.isPrimary && (
                       <span className="px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold text-[9px] rounded uppercase">
-                        Sede Principale
+                        Principale
                       </span>
                     )}
 
@@ -896,9 +983,16 @@ export const ClientsView: React.FC = () => {
                     <span className="text-slate-400 text-[10px]">Irrigazione: </span>
                     <span>{cleanHtmlText(garden.notes?.irrigationDetails) || 'Manuale'}</span>
                   </div>
-                  <div>
+                  <div className="flex items-center gap-1">
                     <span className="text-slate-400 text-[10px]">Cane: </span>
-                    <span>{garden.notes?.dogPresent ? 'Sì 🐕' : 'No'}</span>
+                    {garden.notes?.dogPresent ? (
+                      <span className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300 font-medium">
+                        <span>Sì</span>
+                        <Dog className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      </span>
+                    ) : (
+                      <span>No</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -966,228 +1060,327 @@ export const ClientsView: React.FC = () => {
                   const marginPct = price > 0 ? Math.round((margin / price) * 100) : 0;
                   const totalCostCount = costs.length + laborSummary.workers.length + (isJobNaturando ? 1 : 0);
 
+                  const isExpanded = !!expandedJobIds[job.id];
+                  const dayMonth = formatDayAndMonth(job.date);
+
                   return (
                     <div
                       key={job.id}
-                      onClick={() => setViewingJob(job)}
-                      className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] space-y-[3px] text-xs hover:border-emerald-500/60 dark:hover:border-emerald-500/60 transition-colors shadow-2xs cursor-pointer"
+                      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] text-xs hover:border-emerald-500/60 dark:hover:border-emerald-500/60 transition-colors shadow-2xs overflow-hidden"
                     >
-                      {/* Job Header: 2 righe pulite per eliminare qualsiasi sovrapposizione in mobile */}
-                      <div className="p-1.5 px-2 bg-slate-50/70 dark:bg-slate-800/40 rounded-[5px] border border-slate-100 dark:border-slate-800 space-y-1">
-                        {/* Riga 1: Titolo a sinistra, Badge Naturando e Stato a destra */}
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 min-w-0">
+                      {/* Job Header: Always visible, clickable to toggle open/closed */}
+                      <div
+                        onClick={() => toggleJobExpanded(job.id)}
+                        className={`p-2 flex items-center justify-between gap-2 cursor-pointer select-none transition-colors ${
+                          isExpanded ? 'bg-slate-50/90 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                        }`}
+                      >
+                        {/* Sinistra: Data in grande (Giorno grande + Mese 3 lettere) + Titolo */}
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex items-baseline gap-0.5 shrink-0 font-mono">
+                            <span className="text-base sm:text-lg font-black text-emerald-700 dark:text-emerald-400 leading-none">
+                              {dayMonth.day}
+                            </span>
+                            <span className="text-[10px] font-extrabold uppercase text-slate-600 dark:text-slate-300 ml-0.5">
+                              {dayMonth.month}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 min-w-0 truncate">
                             <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate">
                               {job.title}
                             </span>
                             {isJobNaturando && (
-                              <div className="inline-flex items-center gap-1 px-1.5 py-0.2 bg-emerald-50 dark:bg-emerald-950/80 rounded border border-emerald-200 dark:border-emerald-800 shrink-0" title={`Quota Naturando: ${naturandoPct}% (€ ${naturandoCost.toFixed(2)})`}>
-                                <img src={NATURANDO_LOGO_URL} alt="Naturando" className="h-2.5 max-w-[40px] object-contain" />
-                                <span className="text-[8px] font-bold text-emerald-800 dark:text-emerald-300">
-                                  {naturandoPct}%
-                                </span>
+                              <img
+                                src="https://www.iofall.it/Public%20Image/Ramovianatur_logo.svg"
+                                alt="Naturando"
+                                className="w-3.5 h-3.5 object-contain shrink-0 dark:brightness-0 dark:invert"
+                                title="Intervento Naturando"
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Destra: Icona Stato + Icona Pagamento + Prezzo + Freccia toggle */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* Icona Stato Intervento (Ultimato / In Corso / Programmato) */}
+                          <div title={isCompleted ? 'Ultimato' : job.status === 'in_progress' ? 'In Corso' : 'Programmato'}>
+                            {isCompleted ? (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                            ) : job.status === 'in_progress' ? (
+                              <Clock className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                            ) : (
+                              <Calendar className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                            )}
+                          </div>
+
+                          {/* Icona Pagamento Ricevuto o Ancora da Ricevere */}
+                          {(() => {
+                            const isPaid =
+                              job.paymentStatus === 'paid' ||
+                              ((job.paidAmount || 0) >= price && price > 0);
+                            const isPartial = job.paymentStatus === 'partial';
+
+                            if (isPaid) {
+                              return (
+                                <div title="Pagamento Ricevuto">
+                                  <Wallet className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                </div>
+                              );
+                            }
+                            if (isPartial) {
+                              return (
+                                <div title="Acconto Ricevuto">
+                                  <Wallet className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                </div>
+                              );
+                            }
+                            return (
+                              <div title="Pagamento Ancora da Ricevere">
+                                <Wallet className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                              </div>
+                            );
+                          })()}
+
+                          <span className="font-mono text-xs font-extrabold text-slate-800 dark:text-slate-200 shrink-0">
+                            € {formatAmountNoCents(price)}
+                          </span>
+
+                          <ChevronDown
+                            className={`w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0 ${
+                              isExpanded ? 'rotate-180 text-emerald-600' : ''
+                            }`}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Card Content when OPEN (expanded) */}
+                      {isExpanded && (
+                        <div className="p-2 space-y-2 animate-in fade-in duration-150">
+                          {/* Orario visibile quando aperto & tasti azione rapidi */}
+                          <div className="flex items-center justify-between gap-2 p-1.5 px-2 bg-slate-50 dark:bg-slate-800/40 rounded-[5px] border border-slate-100 dark:border-slate-800 text-[11px]">
+                            <div className="flex items-center gap-1.5 font-mono text-slate-600 dark:text-slate-300">
+                              <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span className="font-semibold">{job.timeSlot || 'Orario non specificato'}</span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCostJob(job);
+                                }}
+                                className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 rounded-[5px] font-bold text-[10px] flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                                title="Gestisci spese e manodopera"
+                              >
+                                <Fuel className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                                <span>Gestisci Costi</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setViewingJob(job);
+                                }}
+                                className="px-2 py-0.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[5px] font-bold text-[10px] transition-colors cursor-pointer shadow-2xs"
+                              >
+                                Visualizza
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Note / Lavorazione Formattate (Senza tag HTML visibili) */}
+                          {(job.description || job.notes) && (
+                            <div className="p-2 bg-slate-50 dark:bg-slate-800/30 rounded-[5px] border border-slate-100 dark:border-slate-800 text-[11px] space-y-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                                Lavorazione & Note Cantiere:
+                              </span>
+                              {job.description && (
+                                <div className="text-slate-700 dark:text-slate-200">
+                                  <FormattedNote content={job.description} />
+                                </div>
+                              )}
+                              {job.notes && job.notes !== job.description && (
+                                <div className="text-slate-600 dark:text-slate-300 pt-0.5 border-t border-slate-200/50 dark:border-slate-700/50">
+                                  <FormattedNote content={job.notes} />
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Macchinari Usati nel Cantiere & Aggiungi Manutenzione */}
+                          {job.equipmentRequired && job.equipmentRequired.length > 0 && (
+                            <div className="p-1.5 bg-slate-50 dark:bg-slate-800/40 rounded-[5px] border border-slate-100 dark:border-slate-800 space-y-[3px]">
+                              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                <div className="flex items-center gap-1.5">
+                                  <Wrench className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                  <span>Macchinari Usati ({job.equipmentRequired.length})</span>
+                                </div>
+                              </div>
+
+                              <div className="space-y-[3px] pt-0.5">
+                                {job.equipmentRequired.map((eq) => (
+                                  <div
+                                    key={eq.itemId}
+                                    className="p-1 px-1.5 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 text-xs"
+                                  >
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                        {eq.name}
+                                      </span>
+                                      <span className="font-mono text-[10px] text-slate-400 shrink-0">
+                                        ({eq.hoursUsed}h)
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Financial KPI Strip: Prezzo | Costi | Margine - su un rigo solo */}
+                          <div className="grid grid-cols-3 gap-[3px] text-center text-[11px] sm:text-xs">
+                            <div className="bg-slate-50 dark:bg-slate-800/40 p-1 px-1.5 rounded-[5px] border border-slate-200/70 dark:border-slate-800 flex items-center justify-center font-mono font-bold text-slate-900 dark:text-slate-100 truncate">
+                              <span>tot € {formatAmountNoCents(price)}</span>
+                            </div>
+
+                            <div className="bg-rose-50/40 dark:bg-rose-950/20 p-1 px-1.5 rounded-[5px] border border-rose-100 dark:border-rose-950/60 flex items-center justify-center font-mono font-bold text-rose-600 dark:text-rose-400 truncate">
+                              <span>costi -€ {formatAmountNoCents(totalAllCost)}</span>
+                            </div>
+
+                            <div
+                              className={`p-1 px-1.5 rounded-[5px] border flex items-center justify-center gap-1 truncate ${
+                                margin >= 0
+                                  ? 'bg-emerald-950/40 border-emerald-900/60 text-emerald-400'
+                                  : 'bg-rose-950/40 border-rose-900/60 text-rose-400'
+                              }`}
+                            >
+                              <span className="text-[10px] font-sans font-bold opacity-90">
+                                utile {marginPct}%
+                              </span>
+                              <span className="text-white text-xs sm:text-sm font-extrabold font-mono ml-0.5">
+                                € {formatAmountNoCents(margin)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Manodopera Cantiere Breakdown */}
+                          <div className="px-1 py-1 space-y-[3px]">
+                            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                              <div className="flex items-center gap-1.5">
+                                <HardHat className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                <span>Manodopera Cantiere</span>
+                              </div>
+                              <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
+                                -€ {formatAmountNoCents(laborSummary.totalLaborCost)}
+                              </span>
+                            </div>
+
+                            {laborSummary.workers.length > 0 ? (
+                              <div className="space-y-[3px] pt-0.5">
+                                {laborSummary.workers.map((w) => (
+                                  <div
+                                    key={w.workerId || w.workerName}
+                                    className="flex items-center justify-between gap-2 text-xs py-0.5"
+                                  >
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                        {w.workerName}
+                                      </span>
+                                      <span
+                                        className={`px-1.5 py-0.2 rounded text-[8px] font-bold uppercase border shrink-0 ${
+                                          w.dayType === 'mezza giornata'
+                                            ? 'bg-sky-50 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800'
+                                            : 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                        }`}
+                                      >
+                                        {w.dayType === 'mezza giornata' ? 'Mezza giornata' : 'Giornata intera'}
+                                      </span>
+                                    </div>
+                                    <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 shrink-0 text-right">
+                                      -€ {formatAmountNoCents(w.cost)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-[10px] text-slate-400 italic">
+                                Nessun operaio assegnato a questo intervento.
                               </div>
                             )}
                           </div>
-                          <span
-                            className={`px-2 py-0.5 rounded font-bold text-[9px] uppercase tracking-wider shrink-0 ${
-                              isCompleted
-                                ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300'
-                                : job.status === 'in_progress'
-                                ? 'bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300'
-                                : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300'
-                            }`}
-                          >
-                            {isCompleted ? 'Ultimato' : job.status === 'in_progress' ? 'In Corso' : 'Programmato'}
-                          </span>
-                        </div>
 
-                        {/* Riga 2: Data e orario a sinistra, Gestisci Costi a destra */}
-                        <div className="flex items-center justify-between gap-2 pt-0.5">
-                          <span className="font-mono text-[10px] bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 shrink-0">
-                            {job.date} {job.timeSlot ? `· ${job.timeSlot}` : ''}
-                          </span>
+                          {/* Voci di Spesa Breakdown */}
+                          <div className="px-1 py-1 space-y-[3px]">
+                            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                              <span>Voci di Spesa Registrate</span>
+                              <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
+                                -€ {formatAmountNoCents(expensesCost)}
+                              </span>
+                            </div>
 
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCostJob(job);
-                            }}
-                            className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 rounded-[5px] font-bold text-[10px] flex items-center gap-1 transition-colors cursor-pointer shrink-0 shadow-2xs"
-                            title="Gestisci e monitora spese e manodopera per questo cantiere"
-                          >
-                            <Fuel className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
-                            <span>Gestisci Costi</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Descrizione & Assegnazione Operaio */}
-                      <div className="px-1 text-[11px] space-y-0.5">
-                        {job.description && (
-                          <div className="text-slate-600 dark:text-slate-300 line-clamp-2">
-                            {job.description}
+                            {costs.length > 0 ? (
+                              <div className="space-y-[3px] pt-0.5">
+                                {costs.map((c) => {
+                                  const catInfo = getCostCategoryInfo(c.category);
+                                  return (
+                                    <div
+                                      key={c.id}
+                                      className="flex items-center justify-between gap-2 text-xs py-0.5"
+                                    >
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <span className="font-medium text-slate-700 dark:text-slate-200 truncate">
+                                          {c.name}
+                                        </span>
+                                        <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold uppercase border shrink-0 ${catInfo.badgeClass}`}>
+                                          {catInfo.label}
+                                        </span>
+                                      </div>
+                                      <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 shrink-0 text-right">
+                                        -€ {formatAmountNoCents(c.amount)}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="text-[10px] text-slate-400 italic pt-0.5">
+                                Nessuna spesa extra registrata.
+                              </div>
+                            )}
                           </div>
-                        )}
-                        <div className="text-[10px] text-slate-500">
-                          Operai Assegnati: <strong className="text-slate-700 dark:text-slate-300">{job.assignedWorkerName || 'Non assegnato'}</strong>
-                        </div>
-                      </div>
 
-                      {/* Financial KPI Strip: Prezzo | Costi | Margine - su un rigo solo */}
-                      <div className="grid grid-cols-3 gap-[3px] text-center text-[11px] sm:text-xs">
-                        <div className="bg-slate-50 dark:bg-slate-800/40 p-1 px-1.5 rounded-[5px] border border-slate-200/70 dark:border-slate-800 flex items-center justify-center font-mono font-bold text-slate-900 dark:text-slate-100 truncate">
-                          <span>tot € {price.toFixed(price % 1 === 0 ? 0 : 2)}</span>
-                        </div>
-
-                        <div className="bg-rose-50/40 dark:bg-rose-950/20 p-1 px-1.5 rounded-[5px] border border-rose-100 dark:border-rose-950/60 flex items-center justify-center font-mono font-bold text-rose-600 dark:text-rose-400 truncate">
-                          <span>costi -€ {totalAllCost.toFixed(totalAllCost % 1 === 0 ? 0 : 2)}</span>
-                        </div>
-
-                        <div
-                          className={`p-1 px-1.5 rounded-[5px] border flex items-center justify-center gap-1 truncate ${
-                            margin >= 0
-                              ? 'bg-emerald-950/40 border-emerald-900/60 text-emerald-400'
-                              : 'bg-rose-950/40 border-rose-900/60 text-rose-400'
-                          }`}
-                        >
-                          <span className="text-[10px] font-sans font-bold opacity-90">
-                            utile {marginPct}%
-                          </span>
-                          <span className="text-white text-xs sm:text-sm font-extrabold font-mono ml-0.5">
-                            € {margin.toFixed(margin % 1 === 0 ? 0 : 2)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* SEZIONE 1: MANODOPERA CANTIERE */}
-                      <div className="px-1 py-1 space-y-[3px]">
-                        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                          <div className="flex items-center gap-1.5">
-                            <HardHat className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                            <span>Manodopera Cantiere</span>
-                          </div>
-                          <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
-                            -€ {laborSummary.totalLaborCost.toFixed(2)}
-                          </span>
-                        </div>
-
-                        {laborSummary.workers.length > 0 ? (
-                          <div className="space-y-[3px] pt-0.5">
-                            {laborSummary.workers.map((w) => (
-                              <div
-                                key={w.workerId || w.workerName}
-                                className="flex items-center justify-between gap-2 text-xs py-0.5"
-                              >
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
-                                    {w.workerName}
-                                  </span>
-                                  <span
-                                    className={`px-1.5 py-0.2 rounded text-[8px] font-bold uppercase border shrink-0 ${
-                                      w.dayType === 'mezza giornata'
-                                        ? 'bg-sky-50 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800'
-                                        : 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                                    }`}
-                                  >
-                                    {w.dayType === 'mezza giornata' ? 'Mezza giornata' : 'Giornata intera'}
-                                  </span>
+                          {/* Quota Dovuta a Naturando */}
+                          {isJobNaturando && (
+                            <div className="px-1 py-1 space-y-[3px]">
+                              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                <div className="flex items-center gap-1.5">
+                                  <img
+                                    src={NATURANDO_LOGO_URL}
+                                    alt="Naturando"
+                                    className="h-3 max-w-[50px] object-contain rounded"
+                                  />
+                                  <span>Quota Dovuta a Naturando</span>
                                 </div>
-                                <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 shrink-0 text-right">
-                                  -€ {w.cost.toFixed(2)}
+                                <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
+                                  -€ {formatAmountNoCents(naturandoCost)}
                                 </span>
                               </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-[10px] text-slate-400 italic">
-                            Nessun operaio assegnato a questo intervento.
-                          </div>
-                        )}
-                      </div>
 
-                      {/* SEZIONE 2: VOCI DI SPESA REGISTRATE */}
-                      <div className="px-1 py-1 space-y-[3px]">
-                        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                          <span>Voci di Spesa Registrate</span>
-                          <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
-                            -€ {expensesCost.toFixed(2)}
-                          </span>
-                        </div>
-
-                        {costs.length > 0 ? (
-                          <div className="space-y-[3px] pt-0.5">
-                            {costs.map((c) => {
-                              const catInfo = getCostCategoryInfo(c.category);
-                              return (
-                                <div
-                                  key={c.id}
-                                  className="flex items-center justify-between gap-2 text-xs py-0.5"
-                                >
-                                  <div className="flex items-center gap-1.5 min-w-0">
-                                    <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold uppercase border shrink-0 ${catInfo.badgeClass}`}>
-                                      {catInfo.label}
-                                    </span>
-                                    <span className="font-medium text-slate-700 dark:text-slate-200 truncate">
-                                      {c.name}
-                                    </span>
-                                  </div>
-                                  <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 shrink-0 text-right">
-                                    -€ {c.amount.toFixed(2)}
+                              <div className="flex items-center justify-between gap-2 text-xs py-0.5">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="text-[10px] font-bold uppercase shrink-0 text-emerald-700 dark:text-emerald-400">
+                                    Naturando {naturandoPct}%
+                                  </span>
+                                  <span className="font-medium text-slate-700 dark:text-slate-200 truncate">
+                                    Quota: € {formatAmountNoCents(naturandoCost)}
                                   </span>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
-                            <span className="italic">Nessuna spesa extra registrata.</span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCostJob(job);
-                              }}
-                              className="text-amber-600 hover:text-amber-700 dark:text-amber-400 font-semibold text-[10px] flex items-center gap-1 hover:underline cursor-pointer"
-                            >
-                              <Plus className="w-3 h-3" />
-                              <span>Aggiungi spesa (carburante, sacchi...)</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* SEZIONE 3: QUOTA SPETTANTE A NATURANDO */}
-                      {isJobNaturando && (
-                        <div className="px-1 py-1 space-y-[3px]">
-                          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                            <div className="flex items-center gap-1.5">
-                              <img
-                                src={NATURANDO_LOGO_URL}
-                                alt="Naturando"
-                                className="h-3 max-w-[50px] object-contain rounded"
-                              />
-                              <span>Quota Dovuta a Naturando</span>
+                              </div>
                             </div>
-                            <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
-                              -€ {naturandoCost.toFixed(2)}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between gap-2 text-xs py-0.5">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase border shrink-0 bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
-                                Naturando {naturandoPct}%
-                              </span>
-                              <span className="font-medium text-slate-700 dark:text-slate-200 truncate">
-                                Importo: € {(job.naturandoAmount !== undefined && job.naturandoAmount > 0 ? job.naturandoAmount : price).toFixed(2)}
-                              </span>
-                            </div>
-                            <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 shrink-0 text-right">
-                              -€ {naturandoCost.toFixed(2)}
-                            </span>
-                          </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1448,6 +1641,18 @@ export const ClientsView: React.FC = () => {
         </div>
       )}
 
+      {/* Manual Maintenance Modal for Job */}
+      {maintenanceForJobItem && (
+        <ManualMaintenanceModal
+          equipmentItem={
+            maintenanceForJobItem.itemId
+              ? inventory.find((i) => i.id === maintenanceForJobItem.itemId) || null
+              : null
+          }
+          preselectedJobId={maintenanceForJobItem.job.id}
+          onClose={() => setMaintenanceForJobItem(null)}
+        />
+      )}
     </div>
   );
 };

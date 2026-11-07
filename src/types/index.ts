@@ -87,7 +87,34 @@ export interface PaymentInstallment {
   createdAt?: string;
 }
 
-export type JobCostCategory = 'benzina' | 'sacchi' | 'materiale' | 'manodopera' | 'smaltimento' | 'noleggio' | 'altro';
+export type JobCostCategory =
+  | 'benzina'
+  | 'carburante'
+  | 'sacchi'
+  | 'smaltimento'
+  | 'materiale'
+  | 'attrezzatura'
+  | 'noleggio'
+  | 'manutenzione'
+  | 'manodopera'
+  | 'stipendio'
+  | 'generale'
+  | 'altro'
+  | (string & {});
+
+export interface EquipmentMaintenanceRecord {
+  id: string;
+  itemId: string;
+  itemName: string;
+  date: string; // YYYY-MM-DD
+  description: string; // es. "Affilatura catena", "Cambio olio & filtro"
+  cost?: number; // costo in €
+  newHours?: number; // ore dopo reset/manutenzione
+  jobId?: string; // Intervento collegato per addebito costo
+  jobTitle?: string;
+  notes?: string;
+  createdAt: string;
+}
 
 export interface JobCostItem {
   id: string;
@@ -172,6 +199,7 @@ export interface InventoryItem {
   imageUrl?: string;
   appliedJobHours?: Record<string, number>;
   appliedJobQty?: Record<string, number>;
+  maintenanceHistory?: EquipmentMaintenanceRecord[];
 }
 
 export interface MaterialUsed {
@@ -229,7 +257,7 @@ export interface WeatherData {
 }
 
 // EXPENSE & FINANCIAL RECORDS
-export type ExpenseCategory = 'attrezzatura' | 'carburante' | 'materiale' | 'manutenzione' | 'stipendio' | 'generale' | (string & {});
+export type ExpenseCategory = JobCostCategory;
 
 export interface ExpenseRecord {
   id: string;

@@ -13,7 +13,19 @@ import {
   WorkReport,
   WorkedDay,
   JobCostItem,
+  EquipmentMaintenanceRecord,
 } from '../types';
+
+export interface MaintenanceRecordPayload {
+  newUsageHours?: number;
+  date?: string;
+  description?: string;
+  cost?: number;
+  jobId?: string;
+  jobTitle?: string;
+  notes?: string;
+  chargeToJob?: boolean;
+}
 import {
   auth,
   db,
@@ -75,7 +87,10 @@ interface AppContextType {
   addInventoryItem: (itemData: Omit<InventoryItem, 'id'>) => Promise<void>;
   updateInventoryItem: (item: InventoryItem) => Promise<void>;
   deleteInventoryItem: (id: string) => Promise<void>;
-  recordEquipmentMaintenance: (itemId: string, newUsageHours: number) => Promise<void>;
+  recordEquipmentMaintenance: (
+    itemId: string,
+    payloadOrHours: number | MaintenanceRecordPayload
+  ) => Promise<void>;
   // Reports
   submitWorkReport: (reportData: Omit<WorkReport, 'id' | 'createdAt' | 'status'>) => Promise<void>;
   approveWorkReport: (reportId: string, adminNotes?: string) => Promise<void>;
@@ -1572,6 +1587,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
 
+    // Sincronizza spese operative se i costi di cantiere sono stati modificati
+    if (processedJob.costs && processedJob.costs.length > 0) {
+      setOperationalExpenses((prev) => {
+        let hasChanges = false;
+        const next = prev.map((exp) => {
+          const matchingCost = processedJob.costs?.find(
+            (c) =>
+              c.id === exp.jobCostId ||
+              c.id === exp.id ||
+              (exp.jobId === processedJob.id && (exp.title.includes(c.name) || c.name.includes(exp.title)))
+          );
+          if (matchingCost) {
+            if (exp.category !== matchingCost.category || exp.amount !== matchingCost.amount) {
+              hasChanges = true;
+              return {
+                ...exp,
+                category: matchingCost.category as any,
+                amount: matchingCost.amount,
+                jobId: processedJob.id,
+                jobCostId: matchingCost.id,
+              };
+            }
+          }
+          return exp;
+        });
+
+        if (hasChanges) {
+          try {
+            localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(next));
+          } catch (e) {
+            console.warn(e);
+          }
+          if (db) {
+            next.forEach((e) => {
+              setDoc(doc(db, 'expenses', e.id), sanitizeForFirestore(e), { merge: true }).catch((err) =>
+                console.warn(err)
+              );
+            });
+          }
+        }
+        return next;
+      });
+    }
+
     // Sincronizza sempre ore macchine e consumo materiali in magazzino
     syncJobToInventory(processedJob, prevJob);
 
@@ -1778,19 +1837,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const recordEquipmentMaintenance = async (itemId: string, newUsageHours: number) => {
-    const lastMaintenanceDate = new Date().toISOString().split('T')[0];
+  const recordEquipmentMaintenance = async (
+    itemId: string,
+    payloadOrHours: number | MaintenanceRecordPayload
+  ) => {
+    const isObject = typeof payloadOrHours === 'object' && payloadOrHours !== null;
+    const newUsageHours = isObject ? (payloadOrHours.newUsageHours ?? 0) : payloadOrHours;
+    const date = (isObject && payloadOrHours.date) || new Date().toISOString().split('T')[0];
+    const description = (isObject && payloadOrHours.description) || 'Manutenzione ordinaria';
+    const cost = isObject && payloadOrHours.cost !== undefined ? Number(payloadOrHours.cost) : 0;
+    const jobId = isObject ? payloadOrHours.jobId : undefined;
+    const jobTitle = isObject ? payloadOrHours.jobTitle : undefined;
+    const notes = isObject ? payloadOrHours.notes : undefined;
+    const chargeToJob = isObject ? payloadOrHours.chargeToJob !== false && !!jobId && cost > 0 : false;
+
+    let targetItemName = '';
+
     setInventory((prev) => {
-      const next = prev.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              currentUsageHours: newUsageHours,
-              status: 'available' as const,
-              lastMaintenanceDate,
-            }
-          : item
-      );
+      const next = prev.map((item) => {
+        if (item.id !== itemId) return item;
+        targetItemName = item.name;
+        const newRecord: EquipmentMaintenanceRecord = {
+          id: `maint_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          itemId,
+          itemName: item.name,
+          date,
+          description,
+          cost: cost > 0 ? cost : undefined,
+          newHours: newUsageHours,
+          jobId,
+          jobTitle,
+          notes,
+          createdAt: new Date().toISOString(),
+        };
+        const existingHistory = item.maintenanceHistory || [];
+        return {
+          ...item,
+          currentUsageHours: newUsageHours,
+          status: 'available' as const,
+          lastMaintenanceDate: date,
+          maintenanceHistory: [newRecord, ...existingHistory],
+        };
+      });
       try {
         localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(next));
       } catch (e) {
@@ -1801,14 +1889,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (db) {
       try {
-        await updateDoc(doc(db, 'inventory', itemId), {
-          currentUsageHours: newUsageHours,
-          status: 'available',
-          lastMaintenanceDate,
-        });
+        const itemRef = doc(db, 'inventory', itemId);
+        const targetItem = inventory.find((i) => i.id === itemId);
+        const newRecord: EquipmentMaintenanceRecord = {
+          id: `maint_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          itemId,
+          itemName: targetItem?.name || targetItemName || 'Attrezzatura',
+          date,
+          description,
+          cost: cost > 0 ? cost : undefined,
+          newHours: newUsageHours,
+          jobId,
+          jobTitle,
+          notes,
+          createdAt: new Date().toISOString(),
+        };
+        const updatedHistory = [newRecord, ...(targetItem?.maintenanceHistory || [])];
+        await updateDoc(
+          itemRef,
+          sanitizeForFirestore({
+            currentUsageHours: newUsageHours,
+            status: 'available',
+            lastMaintenanceDate: date,
+            maintenanceHistory: updatedHistory,
+          })
+        );
       } catch (err) {
         console.warn('Firestore maintenance update error:', err);
       }
+    }
+
+    // Se richiesta addebito all'intervento: aggiungi come spesa al cantiere
+    if (chargeToJob && jobId && cost > 0) {
+      const costItemName = `Manutenzione ${targetItemName || 'Attrezzo'}: ${description}`;
+      await addJobCost(jobId, {
+        category: 'manutenzione',
+        name: costItemName,
+        amount: cost,
+        notes: notes ? `${notes} (Attrezzo: ${targetItemName || itemId})` : `Attrezzo: ${targetItemName || itemId}`,
+      });
     }
   };
 
@@ -1941,7 +2060,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (j.id === updated.jobId) {
             const updatedCosts = (j.costs || []).map((c) =>
               c.id === updated.jobCostId
-                ? { ...c, amount: Number(updated.amount) || 0, name: updated.title, notes: updated.recipientOrVendor }
+                ? {
+                    ...c,
+                    amount: Number(updated.amount) || 0,
+                    name: updated.title,
+                    category: updated.category as any,
+                    notes: updated.recipientOrVendor,
+                  }
                 : c
             );
             const updatedJob = { ...j, costs: updatedCosts };

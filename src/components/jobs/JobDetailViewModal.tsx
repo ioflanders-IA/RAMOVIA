@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Job } from '../../types';
+import { Job, PaymentInstallment, PaymentMethod, JobPaymentStatus } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { JobCostManagerModal } from './JobCostManagerModal';
 import {
@@ -20,12 +20,17 @@ import {
   Repeat,
   HardHat,
   Fuel,
+  Wallet,
+  Trash2,
+  Check,
+  Plus,
 } from 'lucide-react';
 import { formatItalianDate, formatLocalDate } from '../../utils/dateUtils';
 import { getClientColor } from '../../utils/clientColors';
 import { getEffectiveJobStatusOnDate } from '../calendar/CalendarView';
 import { NATURANDO_LOGO_URL } from './JobModal';
 import { getJobLaborSummary, getCostCategoryInfo } from '../clients/ClientsView';
+import { ManualMaintenanceModal } from '../inventory/ManualMaintenanceModal';
 
 interface JobDetailViewModalProps {
   job: Job;
@@ -40,37 +45,102 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
   onClose,
   onEdit,
 }) => {
-  const { clients, currentUser, jobs, users } = useApp();
+  const { clients, currentUser, jobs, users, inventory, updateJob } = useApp();
+  const currentJob = jobs.find((j) => j.id === job.id) || job;
   const [showCostManager, setShowCostManager] = useState(false);
+  const [maintenanceEquipItem, setMaintenanceEquipItem] = useState<{ id: string; name: string } | null>(null);
+  const [showAddIncassoModal, setShowAddIncassoModal] = useState(false);
+  const [incassoAmount, setIncassoAmount] = useState<number | ''>('');
+  const [incassoDate, setIncassoDate] = useState<string>('');
+  const [incassoMethod, setIncassoMethod] = useState<PaymentMethod>('bonifico');
+  const [incassoNotes, setIncassoNotes] = useState<string>('');
+  const [isSavingIncasso, setIsSavingIncasso] = useState<boolean>(false);
 
   const todayStr = formatLocalDate(new Date());
-  const activeDateISO = selectedDateISO || job.date || todayStr;
-  const effectiveStatus = getEffectiveJobStatusOnDate(job, activeDateISO, todayStr);
+  const activeDateISO = selectedDateISO || currentJob.date || todayStr;
+  const effectiveStatus = getEffectiveJobStatusOnDate(currentJob, activeDateISO, todayStr);
 
   const client = clients.find(
-    (c) => (job.clientId && c.id === job.clientId) || c.name.toLowerCase() === job.clientName.toLowerCase()
+    (c) => (currentJob.clientId && c.id === currentJob.clientId) || c.name.toLowerCase() === currentJob.clientName.toLowerCase()
   );
-  const clientColor = getClientColor(client || { name: job.clientName });
+  const clientColor = getClientColor(client || { name: currentJob.clientName });
 
   const isCompleted = effectiveStatus === 'completed';
 
   // Costi & Manodopera & Naturando per questo intervento
-  const costs = job.costs || [];
+  const costs = currentJob.costs || [];
   const expensesCost = costs.reduce((sum, c) => sum + (c.amount || 0), 0);
-  const laborSummary = getJobLaborSummary(job, jobs || [], users || []);
-  const isJobNaturando = !!job.isNaturando;
-  const price = job.price || 0;
-  const naturandoBase = job.naturandoAmount !== undefined && job.naturandoAmount > 0
-    ? job.naturandoAmount
+  const laborSummary = getJobLaborSummary(currentJob, jobs || [], users || []);
+  const isJobNaturando = !!currentJob.isNaturando;
+  const price = currentJob.price || 0;
+  const naturandoBase = currentJob.naturandoAmount !== undefined && currentJob.naturandoAmount > 0
+    ? currentJob.naturandoAmount
     : price;
-  const naturandoPct = job.naturandoPercentage !== undefined && job.naturandoPercentage > 0
-    ? job.naturandoPercentage
+  const naturandoPct = currentJob.naturandoPercentage !== undefined && currentJob.naturandoPercentage > 0
+    ? currentJob.naturandoPercentage
     : 20;
   const naturandoCost = isJobNaturando ? Math.round(((naturandoBase * naturandoPct) / 100) * 100) / 100 : 0;
   const totalAllCost = expensesCost + laborSummary.totalLaborCost + naturandoCost;
   const margin = price - totalAllCost;
   const marginPct = price > 0 ? Math.round((margin / price) * 100) : 0;
   const totalCostCount = costs.length + laborSummary.workers.length + (isJobNaturando ? 1 : 0);
+
+  // Incassi & Acconti
+  const installments = currentJob.installments || [];
+  const totalPaid = installments.reduce((sum, it) => sum + (it.amount || 0), 0);
+  const remainingDue = Math.max(0, price - totalPaid);
+
+  const handleSaveIncasso = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = Number(incassoAmount);
+    if (!amt || amt <= 0) return;
+
+    setIsSavingIncasso(true);
+    try {
+      const currentInst = currentJob.installments || [];
+      const newInst: PaymentInstallment = {
+        id: `inst_${Date.now()}`,
+        amount: amt,
+        date: incassoDate || todayStr,
+        paymentMethod: incassoMethod,
+        notes: incassoNotes.trim() || undefined,
+        createdAt: new Date().toISOString(),
+      };
+
+      const updatedInst = [...currentInst, newInst];
+      const newPaid = updatedInst.reduce((s, it) => s + (it.amount || 0), 0);
+      const jobPrice = currentJob.price || 0;
+      const newStatus: JobPaymentStatus =
+        newPaid >= jobPrice && jobPrice > 0 ? 'paid' : newPaid > 0 ? 'partial' : 'unpaid';
+
+      await updateJob({
+        ...currentJob,
+        installments: updatedInst,
+        paidAmount: newPaid,
+        paymentStatus: newStatus,
+      });
+
+      setShowAddIncassoModal(false);
+      setIncassoNotes('');
+    } finally {
+      setIsSavingIncasso(false);
+    }
+  };
+
+  const handleDeleteInstallment = async (instId: string) => {
+    const updatedInst = (currentJob.installments || []).filter((it) => it.id !== instId);
+    const newPaid = updatedInst.reduce((s, it) => s + (it.amount || 0), 0);
+    const jobPrice = currentJob.price || 0;
+    const newStatus: JobPaymentStatus =
+      newPaid >= jobPrice && jobPrice > 0 ? 'paid' : newPaid > 0 ? 'partial' : 'unpaid';
+
+    await updateJob({
+      ...currentJob,
+      installments: updatedInst,
+      paidAmount: newPaid,
+      paymentStatus: newStatus,
+    });
+  };
 
   const formatShortDateItalian = (dStr: string) => {
     if (!dStr) return '';
@@ -145,11 +215,11 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
                 )}
               </span>
 
-              {job.isNaturando && (
-                <div className="flex items-center gap-1.5 px-1.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/80 rounded border border-emerald-200 dark:border-emerald-800 shrink-0">
-                  <img src={NATURANDO_LOGO_URL} alt="Naturando" className="h-3 max-w-[40px] object-contain" />
-                  <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300">
-                    {job.naturandoPercentage || 20}%
+              {currentJob.isNaturando && (
+                <div className="flex items-center gap-1 shrink-0" title={`Quota Naturando: ${currentJob.naturandoPercentage || 20}%`}>
+                  <img src={NATURANDO_LOGO_URL} alt="Naturando" className="h-3.5 max-w-[42px] object-contain" />
+                  <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                    {currentJob.naturandoPercentage || 20}%
                   </span>
                 </div>
               )}
@@ -387,6 +457,36 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
                 )}
               </div>
 
+              {/* Macchinari ed Attrezzature Usate (Vista Lettura Clean) */}
+              {currentJob.equipmentRequired && currentJob.equipmentRequired.length > 0 && (
+                <div className="pt-1 space-y-[3px]">
+                  <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    <div className="flex items-center gap-1.5">
+                      <Wrench className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>Macchinari Usati ({currentJob.equipmentRequired.length})</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-[3px] pt-0.5">
+                    {currentJob.equipmentRequired.map((eq) => (
+                      <div
+                        key={eq.itemId}
+                        className="p-1 px-1.5 bg-slate-50 dark:bg-slate-800/40 rounded border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 text-xs"
+                      >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                            {eq.name}
+                          </span>
+                          <span className="font-mono text-[10px] text-slate-400 shrink-0">
+                            ({eq.hoursUsed}h)
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Voci di Spesa Registrate */}
               <div className="pt-1 space-y-[3px]">
                 <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -406,11 +506,11 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
                           className="flex items-center justify-between gap-2 text-xs py-0.5"
                         >
                           <div className="flex items-center gap-1.5 min-w-0">
-                            <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold uppercase border shrink-0 ${catInfo.badgeClass}`}>
-                              {catInfo.label}
-                            </span>
                             <span className="font-medium text-slate-700 dark:text-slate-200 truncate">
                               {c.name}
+                            </span>
+                            <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold uppercase border shrink-0 ${catInfo.badgeClass}`}>
+                              {catInfo.label}
                             </span>
                           </div>
                           <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 shrink-0 text-right">
@@ -446,7 +546,7 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
 
                   <div className="flex items-center justify-between gap-2 text-xs py-0.5">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase border shrink-0 bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
+                      <span className="text-[10px] font-bold uppercase shrink-0 text-emerald-700 dark:text-emerald-400">
                         Naturando {naturandoPct}%
                       </span>
                       <span className="font-medium text-slate-700 dark:text-slate-200 truncate">
@@ -489,6 +589,24 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
             <>
               <button
                 type="button"
+                onClick={() => {
+                  const inst = currentJob.installments || [];
+                  const paid = inst.reduce((s, it) => s + (it.amount || 0), 0);
+                  const remaining = Math.max(0, (currentJob.price || 0) - paid);
+                  setIncassoAmount(remaining > 0 ? remaining : (currentJob.price || 0));
+                  setIncassoDate(todayStr);
+                  setIncassoMethod(currentJob.paymentMethod || 'bonifico');
+                  setIncassoNotes('');
+                  setShowAddIncassoModal(true);
+                }}
+                className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:opacity-80 transition-opacity cursor-pointer"
+                title="Aggiungi Incasso"
+                aria-label="Aggiungi Incasso"
+              >
+                <Wallet className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
                 onClick={() => setShowCostManager(true)}
                 className="p-1.5 text-amber-600 dark:text-amber-400 hover:opacity-80 transition-opacity cursor-pointer"
                 title="Gestisci Costi"
@@ -519,8 +637,243 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
       {/* Interactive Cost Management Modal */}
       {showCostManager && (
         <JobCostManagerModal
-          job={job}
+          job={currentJob}
           onClose={() => setShowCostManager(false)}
+        />
+      )}
+
+      {/* Modal Aggiungi Incasso */}
+      {showAddIncassoModal && (
+        <div className="fixed inset-0 z-[1100] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
+          <div
+            className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Modal Incasso */}
+            <div className="p-3 px-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
+                  <Wallet className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                    Registra Incasso
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[240px]">
+                    {currentJob.title} • {currentJob.clientName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddIncassoModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded transition-colors cursor-pointer"
+                title="Chiudi"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3.5 overflow-y-auto">
+              {/* Riepilogo Saldo Lavoro */}
+              <div className="grid grid-cols-3 gap-1.5 text-center">
+                <div className="p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200/80 dark:border-slate-700/60">
+                  <span className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">
+                    Totale Lavoro
+                  </span>
+                  <span className="text-xs font-mono font-bold text-slate-900 dark:text-slate-100">
+                    € {price.toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="p-2 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-lg border border-emerald-200/60 dark:border-emerald-900/40">
+                  <span className="text-[9px] uppercase font-bold text-emerald-700 dark:text-emerald-400 tracking-wider block">
+                    Incassato
+                  </span>
+                  <span className="text-xs font-mono font-bold text-emerald-700 dark:text-emerald-300">
+                    € {totalPaid.toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="p-2 bg-amber-50/60 dark:bg-amber-950/30 rounded-lg border border-amber-200/60 dark:border-amber-900/40">
+                  <span className="text-[9px] uppercase font-bold text-amber-700 dark:text-amber-400 tracking-wider block">
+                    Rimanente
+                  </span>
+                  <span className="text-xs font-mono font-bold text-amber-700 dark:text-amber-300">
+                    € {remainingDue.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Acconti già registrati (se presenti) */}
+              {installments.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">
+                    Acconti Registrati ({installments.length})
+                  </span>
+                  <div className="space-y-1 max-h-36 overflow-y-auto">
+                    {installments.map((inst, idx) => (
+                      <div
+                        key={inst.id || idx}
+                        className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 text-xs"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-slate-800 dark:text-slate-200">
+                              {formatShortDateItalian(inst.date)}
+                            </span>
+                            <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                              {inst.paymentMethod === 'bonifico'
+                                ? 'Bonifico'
+                                : inst.paymentMethod === 'contanti'
+                                ? 'Contanti'
+                                : inst.paymentMethod === 'pos_carta'
+                                ? 'Carta / POS'
+                                : inst.paymentMethod === 'assegno'
+                                ? 'Assegno'
+                                : inst.paymentMethod === 'riba_30_60'
+                                ? 'Ri.Ba.'
+                                : 'Altro'}
+                            </span>
+                          </div>
+                          {inst.notes && (
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                              {inst.notes}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                            +€ {inst.amount.toFixed(2)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteInstallment(inst.id)}
+                            className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                            title="Elimina questo acconto"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Form Nuovo Incasso */}
+              <form onSubmit={handleSaveIncasso} className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Importo Incasso (€) *
+                    </label>
+                    {remainingDue > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setIncassoAmount(remainingDue)}
+                        className="text-[10px] text-emerald-700 dark:text-emerald-400 hover:underline font-bold"
+                      >
+                        Saldo Tutto (€ {remainingDue.toFixed(2)})
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
+                      €
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      value={incassoAmount}
+                      onChange={(e) => setIncassoAmount(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                      placeholder="0.00"
+                      className="w-full pl-8 pr-3 py-2 text-sm font-mono font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      Data Incasso
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={incassoDate}
+                      onChange={(e) => setIncassoDate(e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-emerald-600 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      Metodo di Pagamento
+                    </label>
+                    <select
+                      value={incassoMethod}
+                      onChange={(e) => setIncassoMethod(e.target.value as PaymentMethod)}
+                      className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-emerald-600 cursor-pointer"
+                    >
+                      <option value="bonifico">Bonifico Bancario</option>
+                      <option value="contanti">Contanti</option>
+                      <option value="pos_carta">Carta / POS</option>
+                      <option value="assegno">Assegno</option>
+                      <option value="riba_30_60">Ri.Ba. (30/60 gg)</option>
+                      <option value="altro">Altro</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    Note / Riferimento (opzionale)
+                  </label>
+                  <input
+                    type="text"
+                    value={incassoNotes}
+                    onChange={(e) => setIncassoNotes(e.target.value)}
+                    placeholder="Es. Acconto 50%, Saldo cantiere..."
+                    className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-emerald-600"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddIncassoModal(false)}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingIncasso || !incassoAmount || Number(incassoAmount) <= 0}
+                    className="px-4 py-1.5 text-xs font-bold rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white shadow-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>{isSavingIncasso ? 'Salvataggio...' : 'Registra Incasso'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Maintenance Modal */}
+      {maintenanceEquipItem && (
+        <ManualMaintenanceModal
+          equipmentItem={
+            maintenanceEquipItem.id
+              ? inventory.find((i) => i.id === maintenanceEquipItem.id) || null
+              : null
+          }
+          preselectedJobId={currentJob.id}
+          onClose={() => setMaintenanceEquipItem(null)}
         />
       )}
     </div>

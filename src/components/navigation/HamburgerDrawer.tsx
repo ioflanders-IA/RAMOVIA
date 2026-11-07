@@ -1,6 +1,7 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../hooks/useTheme';
+import { NATURANDO_LOGO_URL, NATURANDO_ICON_SVG } from '../jobs/JobModal';
 import {
   X,
   LayoutDashboard,
@@ -23,8 +24,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface HamburgerDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  activeTab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather' | 'team';
-  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather' | 'team') => void;
+  activeTab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'naturando' | 'payments' | 'weather' | 'team';
+  onSelectTab: (tab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'naturando' | 'payments' | 'weather' | 'team') => void;
   onOpenAccount: () => void;
   onOpenSettings: () => void;
   onOpenTeamModal: () => void;
@@ -44,7 +45,7 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
 
   if (!currentUser) return null;
 
-  const handleNavClick = (tab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather' | 'team') => {
+  const handleNavClick = (tab: 'dashboard' | 'map' | 'calendar' | 'workers' | 'clients' | 'inventory' | 'reports' | 'naturando' | 'payments' | 'weather' | 'team') => {
     onSelectTab(tab);
     onClose();
   };
@@ -233,6 +234,28 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
                   <Users className="w-4 h-4 text-indigo-500" />
                   <span>Clienti & Schede Giardini</span>
                 </button>
+
+                {currentUser.role === 'admin' && (
+                  <button
+                    onClick={() => handleNavClick('naturando')}
+                    className={`w-full p-[7px] px-3 rounded-[7px] flex items-center gap-[7px] transition-colors ${
+                      activeTab === 'naturando'
+                        ? 'bg-emerald-950 text-white dark:bg-emerald-800'
+                        : 'bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'
+                    }`}
+                  >
+                    <img
+                      src={NATURANDO_ICON_SVG}
+                      alt="Naturando"
+                      className={`w-5 h-5 object-contain shrink-0 transition-all ${
+                        activeTab === 'naturando'
+                          ? 'brightness-0 invert'
+                          : 'dark:brightness-0 dark:invert opacity-90'
+                      }`}
+                    />
+                    <span>Naturando</span>
+                  </button>
+                )}
 
                 {currentUser.role === 'admin' && (
                   <button
