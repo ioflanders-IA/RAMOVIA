@@ -726,57 +726,57 @@ export const SquadWorkersRegistry: React.FC = () => {
       {/* KPI STAT CARDS: 4 cards with high-contrast, non-truncated text matching home */}
       <div className="grid grid-cols-4 gap-1.5 sm:gap-2 w-full">
         {/* 1. DA DARE */}
-        <div className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1">
-          <div className="flex items-center justify-between text-slate-300 dark:text-slate-300">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2 shadow-2xs flex flex-col justify-between space-y-1">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
             <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Da Dare</span>
-            <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
+            <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 dark:text-amber-400 shrink-0" />
           </div>
           <div className="text-xl sm:text-2xl font-black font-mono text-slate-900 dark:text-white leading-tight">
             € {totalDueAllWorkers.toFixed(0)}
           </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-300 dark:text-slate-300 font-medium leading-none">
+          <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-none">
             {workers.length} operai
           </div>
         </div>
 
         {/* 2. MATURATO */}
-        <div className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1">
-          <div className="flex items-center justify-between text-slate-300 dark:text-slate-300">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2 shadow-2xs flex flex-col justify-between space-y-1">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
             <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Maturato</span>
-            <Euro className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
+            <Euro className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           </div>
-          <div className="text-xl sm:text-2xl font-black font-mono text-emerald-400 leading-tight">
+          <div className="text-xl sm:text-2xl font-black font-mono text-emerald-700 dark:text-emerald-400 leading-tight">
             € {totalEarnedAllWorkers.toFixed(0)}
           </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-300 dark:text-slate-300 font-medium leading-none">
+          <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-none">
             Lavoro svolto
           </div>
         </div>
 
         {/* 3. GIORNATE */}
-        <div className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1">
-          <div className="flex items-center justify-between text-slate-300 dark:text-slate-300">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2 shadow-2xs flex flex-col justify-between space-y-1">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
             <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Giornate</span>
-            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-400 shrink-0" />
+            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-600 dark:text-sky-400 shrink-0" />
           </div>
-          <div className="text-xl sm:text-2xl font-black font-mono text-sky-400 leading-tight">
+          <div className="text-xl sm:text-2xl font-black font-mono text-sky-700 dark:text-sky-400 leading-tight">
             {totalDaysAllWorkers.toFixed(1)} <span className="text-xs font-normal">gg</span>
           </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-300 dark:text-slate-300 font-medium leading-none">
+          <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-none">
             Nel mese
           </div>
         </div>
 
         {/* 4. LIQUIDATO */}
-        <div className="bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1">
-          <div className="flex items-center justify-between text-slate-300 dark:text-slate-300">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2 shadow-2xs flex flex-col justify-between space-y-1">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
             <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">Liquidato</span>
-            <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
+            <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           </div>
-          <div className="text-xl sm:text-2xl font-black font-mono text-white leading-tight">
+          <div className="text-xl sm:text-2xl font-black font-mono text-slate-900 dark:text-white leading-tight">
             € {totalPaidAllWorkers.toFixed(0)}
           </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-300 dark:text-slate-300 font-medium leading-none">
+          <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-none">
             Già pagati
           </div>
         </div>
@@ -1018,25 +1018,25 @@ export const SquadWorkersRegistry: React.FC = () => {
       </div>
 
       {/* REGISTRO COMPLETO DELLE GIORNATE LAVORATE DEL MESE con Calendario Filtro */}
-      <div className={`bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-[3px] shadow-xs transition-all ${isMonthDaysOpen ? 'space-y-[3px]' : ''}`}>
+      <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-[3px] shadow-2xs transition-all ${isMonthDaysOpen ? 'space-y-[3px]' : ''}`}>
         <button
           type="button"
           onClick={() => setIsMonthDaysOpen((prev) => !prev)}
           className="w-full flex items-center justify-between text-left cursor-pointer select-none p-1"
           aria-expanded={isMonthDaysOpen}
         >
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-100 flex items-center gap-1.5">
-            <Clock className="w-4 h-4 text-emerald-400 shrink-0" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+            <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span>REGISTRO GIORNATE DEL MESE</span>
           </h3>
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[11px] font-mono font-bold text-emerald-400">
+            <span className="text-[11px] font-mono font-bold text-emerald-700 dark:text-emerald-400">
               {formattedMonthLabel}
             </span>
             {isMonthDaysOpen ? (
-              <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
+              <ChevronUp className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
             ) : (
-              <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+              <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
             )}
           </div>
         </button>
@@ -1044,9 +1044,9 @@ export const SquadWorkersRegistry: React.FC = () => {
         {isMonthDaysOpen && (
           <div className="space-y-[3px]">
             {/* Calendario 1: Giornate Lavorate */}
-            <div className="bg-slate-950/70 p-[3px] rounded-lg border border-slate-800 space-y-[3px]">
-              <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-slate-300 p-1">
-                <span className="flex items-center gap-1 text-emerald-400">
+            <div className="bg-slate-50 dark:bg-slate-950/70 p-[3px] rounded-lg border border-slate-200 dark:border-slate-800 space-y-[3px]">
+              <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-300 p-1">
+                <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
                   <Calendar className="w-3.5 h-3.5" />
                   <span>Calendario Operai al Lavoro</span>
                 </span>
@@ -1054,19 +1054,19 @@ export const SquadWorkersRegistry: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setSelectedDayForDaysFilter(null)}
-                    className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 text-[10px] rounded font-bold transition-colors cursor-pointer"
+                    className="px-2 py-0.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-emerald-800 dark:text-emerald-300 text-[10px] rounded font-bold transition-colors cursor-pointer"
                   >
                     Mostra tutti ({monthWorkedDays.length})
                   </button>
                 ) : (
-                  <span className="text-[10px] text-slate-400 font-normal">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">
                     Clicca un giorno per filtrare
                   </span>
                 )}
               </div>
 
               {/* Weekday headers */}
-              <div className="grid grid-cols-7 gap-[3px] text-center text-[9px] font-bold text-slate-400 uppercase py-0.5">
+              <div className="grid grid-cols-7 gap-[3px] text-center text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase py-0.5">
                 <span>Lun</span>
                 <span>Mar</span>
                 <span>Mer</span>
@@ -1094,10 +1094,10 @@ export const SquadWorkersRegistry: React.FC = () => {
                       onClick={() => setSelectedDayForDaysFilter(isSelected ? null : cell.dateISO)}
                       className={`h-8 sm:h-10 p-0.5 sm:p-1 rounded-[5px] border flex flex-col justify-between items-center transition-all cursor-pointer select-none ${
                         isSelected
-                          ? 'bg-emerald-600 border-emerald-400 text-white font-extrabold ring-2 ring-emerald-400/60 shadow-xs'
+                          ? 'bg-emerald-600 border-emerald-500 text-white font-extrabold ring-2 ring-emerald-500/60 shadow-2xs'
                           : count > 0
-                          ? 'bg-emerald-950/80 border-emerald-700/80 text-emerald-300 font-bold hover:bg-emerald-900/80'
-                          : 'bg-slate-800/40 border-slate-800/60 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                          ? 'bg-emerald-100 dark:bg-emerald-950/80 border-emerald-300 dark:border-emerald-700/80 text-emerald-900 dark:text-emerald-300 font-bold hover:bg-emerald-200 dark:hover:bg-emerald-900/80'
+                          : 'bg-white dark:bg-slate-800/40 border-slate-200 dark:border-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
                       }`}
                       title={
                         count > 0
@@ -1111,7 +1111,7 @@ export const SquadWorkersRegistry: React.FC = () => {
                           <span className={`text-[8px] font-bold px-1 rounded block truncate leading-tight ${
                             isSelected
                               ? 'bg-white/20 text-white'
-                              : 'bg-emerald-500/20 text-emerald-300'
+                              : 'bg-emerald-200 dark:bg-emerald-500/20 text-emerald-900 dark:text-emerald-300'
                           }`}>
                             {count} op.
                           </span>
@@ -1125,7 +1125,7 @@ export const SquadWorkersRegistry: React.FC = () => {
 
             {/* List of Worked Days - SENZA SFONDO NÉ BORDO */}
             {filteredWorkedDaysList.length === 0 ? (
-              <div className="p-3 text-center text-xs text-slate-400">
+              <div className="p-3 text-center text-xs text-slate-500 dark:text-slate-400">
                 {selectedDayForDaysFilter
                   ? `Nessuna giornata registrata per il ${formatShortDateItalian(selectedDayForDaysFilter)}.`
                   : `Nessuna giornata di lavoro inserita per ${formattedMonthLabel}.`}
@@ -1140,27 +1140,27 @@ export const SquadWorkersRegistry: React.FC = () => {
                       className="p-1 px-1 flex items-center justify-between gap-[3px] text-xs"
                     >
                       <div className="flex items-center gap-[3px] min-w-0 flex-1">
-                        <span className="font-mono text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/80 shrink-0">
+                        <span className="font-mono text-[10px] font-bold text-emerald-800 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-800/80 shrink-0">
                           {formatShortDateItalian(d.date)}
                         </span>
-                        <span className="font-bold text-slate-100 text-xs shrink-0 pl-1">
+                        <span className="font-bold text-slate-900 dark:text-slate-100 text-xs shrink-0 pl-1">
                           {d.workerName}
                         </span>
                         {d.cantiereName && (
-                          <span className="text-[10px] text-slate-400 truncate hidden sm:inline">
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate hidden sm:inline">
                             · {d.cantiereName}
                           </span>
                         )}
                       </div>
 
                       <div className="flex items-center gap-[3px] shrink-0">
-                        <span className="font-mono font-bold text-xs sm:text-sm text-emerald-400 mr-1">
+                        <span className="font-mono font-bold text-xs sm:text-sm text-emerald-700 dark:text-emerald-400 mr-1">
                           € {d.amount.toFixed(0)}
                         </span>
                         <button
                           type="button"
                           onClick={() => deleteWorkedDay(d.id)}
-                          className="p-1 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+                          className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
                           title="Elimina registrazione giornata"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -1175,25 +1175,25 @@ export const SquadWorkersRegistry: React.FC = () => {
       </div>
 
       {/* STORICO PAGAMENTI STIPENDI OPERAI con Calendario Filtro */}
-      <div className={`bg-slate-900/90 dark:bg-slate-900 border border-slate-800 rounded-lg p-[3px] shadow-xs transition-all ${isMonthPayoutsOpen ? 'space-y-[3px]' : ''}`}>
+      <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-[3px] shadow-2xs transition-all ${isMonthPayoutsOpen ? 'space-y-[3px]' : ''}`}>
         <button
           type="button"
           onClick={() => setIsMonthPayoutsOpen((prev) => !prev)}
           className="w-full flex items-center justify-between text-left cursor-pointer select-none p-1"
           aria-expanded={isMonthPayoutsOpen}
         >
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-100 flex items-center gap-1.5">
-            <CreditCard className="w-4 h-4 text-emerald-400 shrink-0" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+            <CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span>STORICO PAGAMENTI STIPENDI</span>
           </h3>
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[11px] font-mono font-bold text-emerald-400">
+            <span className="text-[11px] font-mono font-bold text-emerald-700 dark:text-emerald-400">
               {formattedMonthLabel}
             </span>
             {isMonthPayoutsOpen ? (
-              <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
+              <ChevronUp className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
             ) : (
-              <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+              <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
             )}
           </div>
         </button>
@@ -1201,9 +1201,9 @@ export const SquadWorkersRegistry: React.FC = () => {
         {isMonthPayoutsOpen && (
           <div className="space-y-[3px]">
             {/* Calendario 2: Pagamenti Stipendi */}
-            <div className="bg-slate-950/70 p-[3px] rounded-lg border border-slate-800 space-y-[3px]">
-              <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-slate-300 p-1">
-                <span className="flex items-center gap-1 text-sky-400">
+            <div className="bg-slate-50 dark:bg-slate-950/70 p-[3px] rounded-lg border border-slate-200 dark:border-slate-800 space-y-[3px]">
+              <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-300 p-1">
+                <span className="flex items-center gap-1 text-sky-700 dark:text-sky-400">
                   <Calendar className="w-3.5 h-3.5" />
                   <span>Calendario Operai Pagati</span>
                 </span>
@@ -1211,19 +1211,19 @@ export const SquadWorkersRegistry: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setSelectedDayForPayoutsFilter(null)}
-                    className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-sky-300 text-[10px] rounded font-bold transition-colors cursor-pointer"
+                    className="px-2 py-0.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-sky-800 dark:text-sky-300 text-[10px] rounded font-bold transition-colors cursor-pointer"
                   >
                     Mostra tutti ({monthPayouts.length})
                   </button>
                 ) : (
-                  <span className="text-[10px] text-slate-400 font-normal">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">
                     Clicca un giorno per filtrare
                   </span>
                 )}
               </div>
 
               {/* Weekday headers */}
-              <div className="grid grid-cols-7 gap-[3px] text-center text-[9px] font-bold text-slate-400 uppercase py-0.5">
+              <div className="grid grid-cols-7 gap-[3px] text-center text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase py-0.5">
                 <span>Lun</span>
                 <span>Mar</span>
                 <span>Mer</span>
@@ -1253,10 +1253,10 @@ export const SquadWorkersRegistry: React.FC = () => {
                       onClick={() => setSelectedDayForPayoutsFilter(isSelected ? null : cell.dateISO)}
                       className={`h-8 sm:h-10 p-0.5 sm:p-1 rounded-[5px] border flex flex-col justify-between items-center transition-all cursor-pointer select-none ${
                         isSelected
-                          ? 'bg-sky-600 border-sky-400 text-white font-extrabold ring-2 ring-sky-400/60 shadow-xs'
+                          ? 'bg-sky-600 border-sky-500 text-white font-extrabold ring-2 ring-sky-500/60 shadow-2xs'
                           : count > 0
-                          ? 'bg-sky-950/80 border-sky-700/80 text-sky-300 font-bold hover:bg-sky-900/80'
-                          : 'bg-slate-800/40 border-slate-800/60 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                          ? 'bg-sky-100 dark:bg-sky-950/80 border-sky-300 dark:border-sky-700/80 text-sky-900 dark:text-sky-300 font-bold hover:bg-sky-200 dark:hover:bg-sky-900/80'
+                          : 'bg-white dark:bg-slate-800/40 border-slate-200 dark:border-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
                       }`}
                       title={
                         count > 0
@@ -1270,7 +1270,7 @@ export const SquadWorkersRegistry: React.FC = () => {
                           <span className={`text-[8px] font-bold px-1 rounded block truncate leading-tight ${
                             isSelected
                               ? 'bg-white/20 text-white'
-                              : 'bg-sky-500/20 text-sky-300'
+                              : 'bg-sky-200 dark:bg-sky-500/20 text-sky-900 dark:text-sky-300'
                           }`}>
                             €{totalAmountDay.toFixed(0)}
                           </span>
@@ -1284,7 +1284,7 @@ export const SquadWorkersRegistry: React.FC = () => {
 
             {/* List of Payouts - SENZA SFONDO NÉ BORDO */}
             {filteredPayoutsList.length === 0 ? (
-              <div className="p-3 text-center text-xs text-slate-400">
+              <div className="p-3 text-center text-xs text-slate-500 dark:text-slate-400">
                 {selectedDayForPayoutsFilter
                   ? `Nessun pagamento registrato per il ${formatShortDateItalian(selectedDayForPayoutsFilter)}.`
                   : `Nessun pagamento di stipendio o acconto registrato per ${formattedMonthLabel}.`}
@@ -1299,33 +1299,33 @@ export const SquadWorkersRegistry: React.FC = () => {
                       className="p-1 px-1 flex items-center justify-between gap-[3px] text-xs"
                     >
                       <div className="flex items-center gap-[3px] min-w-0 flex-1">
-                        <span className="font-mono text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/80 shrink-0">
+                        <span className="font-mono text-[10px] font-bold text-emerald-800 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-800/80 shrink-0">
                           {formatShortDateItalian(p.paymentDate || p.createdAt?.split('T')[0])}
                         </span>
-                        <span className="font-bold text-slate-100 text-xs shrink-0 pl-1">
+                        <span className="font-bold text-slate-900 dark:text-slate-100 text-xs shrink-0 pl-1">
                           {p.workerName}
                         </span>
-                        <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 shrink-0">
+                        <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
                           {p.paymentMethod}
                         </span>
                         {p.notes && (
-                          <span className="text-[10px] text-slate-400 truncate hidden sm:inline italic">
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate hidden sm:inline italic">
                             · {p.notes}
                           </span>
                         )}
                       </div>
 
                       <div className="flex items-center gap-[3px] shrink-0">
-                        <span className="font-mono font-bold text-xs sm:text-sm text-emerald-400 mr-1">
+                        <span className="font-mono font-bold text-xs sm:text-sm text-emerald-700 dark:text-emerald-400 mr-1">
                           € {p.totalAmount.toFixed(0)}
                         </span>
-                        <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800 uppercase shrink-0">
+                        <span className="text-[9px] font-bold text-emerald-800 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-800 uppercase shrink-0">
                           LIQUIDATO
                         </span>
                         <button
                           type="button"
                           onClick={() => deleteWorkerPayout(p.id)}
-                          className="p-1 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer shrink-0"
+                          className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer shrink-0"
                           title="Elimina registrazione pagamento"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

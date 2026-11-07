@@ -41,7 +41,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onSelectTab, onOpenFi
 
   return (
     <>
-      <header className="md:hidden sticky top-0 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100">
+      <header className="md:hidden sticky top-0 z-20 bg-white/95 dark:bg-slate-900/95 pt-[env(safe-area-inset-top,0px)] backdrop-blur-md border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100">
         <div className="max-w-7xl mx-auto px-3 py-2 flex items-center justify-between gap-[7px]">
           
           {/* Mobile Brand Logo */}

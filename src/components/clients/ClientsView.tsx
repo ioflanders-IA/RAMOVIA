@@ -1354,7 +1354,7 @@ export const ClientsView: React.FC = () => {
 
                           {/* Quota Dovuta a Naturando */}
                           {isJobNaturando && (
-                            <div className="px-1 py-1 space-y-[3px]">
+                            <div className="px-1 py-1">
                               <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                                 <div className="flex items-center gap-1.5">
                                   <img
@@ -1367,17 +1367,6 @@ export const ClientsView: React.FC = () => {
                                 <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
                                   -€ {formatAmountNoCents(naturandoCost)}
                                 </span>
-                              </div>
-
-                              <div className="flex items-center justify-between gap-2 text-xs py-0.5">
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  <span className="text-[10px] font-bold uppercase shrink-0 text-emerald-700 dark:text-emerald-400">
-                                    Naturando {naturandoPct}%
-                                  </span>
-                                  <span className="font-medium text-slate-700 dark:text-slate-200 truncate">
-                                    Quota: € {formatAmountNoCents(naturandoCost)}
-                                  </span>
-                                </div>
                               </div>
                             </div>
                           )}
