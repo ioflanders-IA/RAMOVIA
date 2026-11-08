@@ -1553,17 +1553,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let processedStatus = updated.status;
     let nextCompletedDates: string[] = Array.isArray(updated.completedDates) ? [...updated.completedDates] : [];
 
-    if (Array.isArray(updated.plannedDates) && updated.plannedDates.length > 1) {
+    if (updated.status === 'completed') {
+      processedStatus = 'completed';
+      if (Array.isArray(updated.plannedDates) && updated.plannedDates.length > 1) {
+        nextCompletedDates = Array.from(new Set([...nextCompletedDates, ...updated.plannedDates, updated.date].filter(Boolean)));
+      }
+    } else if (Array.isArray(updated.plannedDates) && updated.plannedDates.length > 1) {
       const todayISO = new Date().toISOString().split('T')[0];
-      if (updated.status === 'completed') {
-        const targetDate = (updated.date && updated.plannedDates.includes(updated.date)) ? updated.date : todayISO;
-        if (!nextCompletedDates.includes(targetDate)) {
-          nextCompletedDates.push(targetDate);
-        }
-        const hasFutureDates = updated.plannedDates.some((d) => d > todayISO && !nextCompletedDates.includes(d));
-        if (hasFutureDates) {
-          processedStatus = 'scheduled';
-        }
+      const hasFutureDates = updated.plannedDates.some((d) => d > todayISO && !nextCompletedDates.includes(d));
+      if (hasFutureDates) {
+        processedStatus = 'scheduled';
       }
     }
 
@@ -1851,25 +1850,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const notes = isObject ? payloadOrHours.notes : undefined;
     const chargeToJob = isObject ? payloadOrHours.chargeToJob !== false && !!jobId && cost > 0 : false;
 
-    let targetItemName = '';
+    const targetItem = inventory.find((i) => i.id === itemId);
+    const targetItemName = targetItem?.name || 'Attrezzatura';
+    const maintId = `maint_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+
+    const newRecord: EquipmentMaintenanceRecord = {
+      id: maintId,
+      itemId,
+      itemName: targetItemName,
+      date,
+      description,
+      cost: cost > 0 ? cost : undefined,
+      newHours: newUsageHours,
+      jobId,
+      jobTitle,
+      notes,
+      createdAt: new Date().toISOString(),
+    };
 
     setInventory((prev) => {
       const next = prev.map((item) => {
         if (item.id !== itemId) return item;
-        targetItemName = item.name;
-        const newRecord: EquipmentMaintenanceRecord = {
-          id: `maint_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-          itemId,
-          itemName: item.name,
-          date,
-          description,
-          cost: cost > 0 ? cost : undefined,
-          newHours: newUsageHours,
-          jobId,
-          jobTitle,
-          notes,
-          createdAt: new Date().toISOString(),
-        };
         const existingHistory = item.maintenanceHistory || [];
         return {
           ...item,
@@ -1890,20 +1891,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (db) {
       try {
         const itemRef = doc(db, 'inventory', itemId);
-        const targetItem = inventory.find((i) => i.id === itemId);
-        const newRecord: EquipmentMaintenanceRecord = {
-          id: `maint_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-          itemId,
-          itemName: targetItem?.name || targetItemName || 'Attrezzatura',
-          date,
-          description,
-          cost: cost > 0 ? cost : undefined,
-          newHours: newUsageHours,
-          jobId,
-          jobTitle,
-          notes,
-          createdAt: new Date().toISOString(),
-        };
         const updatedHistory = [newRecord, ...(targetItem?.maintenanceHistory || [])];
         await updateDoc(
           itemRef,
@@ -1921,12 +1908,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Se richiesta addebito all'intervento: aggiungi come spesa al cantiere
     if (chargeToJob && jobId && cost > 0) {
-      const costItemName = `Manutenzione ${targetItemName || 'Attrezzo'}: ${description}`;
+      const costItemName = `Manutenzione ${targetItemName}: ${description}`;
       await addJobCost(jobId, {
         category: 'manutenzione',
         name: costItemName,
         amount: cost,
-        notes: notes ? `${notes} (Attrezzo: ${targetItemName || itemId})` : `Attrezzo: ${targetItemName || itemId}`,
+        notes: notes ? `${notes} (Attrezzo: ${targetItemName})` : `Attrezzo: ${targetItemName}`,
       });
     }
   };

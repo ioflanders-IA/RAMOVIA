@@ -87,7 +87,13 @@ export function getJobStartTime(timeSlot?: string): ParsedTime | null {
  * - The date is today and the current time is at or past the end time of the slot.
  */
 export function isJobTimeExpired(
-  job: { date: string; timeSlot?: string; status: string },
+  job: {
+    date: string;
+    timeSlot?: string;
+    status: string;
+    completedDates?: string[];
+    plannedDates?: string[];
+  },
   referenceDate: Date = new Date()
 ): boolean {
   if (job.status === 'completed' || job.status === 'cancelled') {
@@ -98,6 +104,43 @@ export function isJobTimeExpired(
   const month = String(referenceDate.getMonth() + 1).padStart(2, '0');
   const day = String(referenceDate.getDate()).padStart(2, '0');
   const todayStr = `${year}-${month}-${day}`;
+
+  // Se è un intervento a date multiple (plannedDates)
+  if (Array.isArray(job.plannedDates) && job.plannedDates.length > 1) {
+    const completedSet = new Set(job.completedDates || []);
+    // Se tutte le date pianificate sono completate, non è scaduto
+    if (job.plannedDates.every((d) => completedSet.has(d))) {
+      return false;
+    }
+    // Se la data di oggi o la data di riferimento è già stata completata, non è scaduto
+    if (completedSet.has(todayStr) || (job.date && completedSet.has(job.date))) {
+      // Se ci sono date future, l'intervento è ancora in programma per il futuro e non scaduto
+      const hasFutureDates = job.plannedDates.some((d) => d > todayStr && !completedSet.has(d));
+      if (hasFutureDates) {
+        return false;
+      }
+    }
+    // Se ha date future non ancora raggiunte, l'intervento generale non è scaduto
+    const hasFutureDates = job.plannedDates.some((d) => d > todayStr);
+    if (hasFutureDates) {
+      // Scade solo se OGGI era una sessione pianificata, l'orario di oggi è terminato e oggi non è completata
+      if (job.plannedDates.includes(todayStr) && !completedSet.has(todayStr)) {
+        const endTime = getJobEndTime(job.timeSlot);
+        if (!endTime) {
+          return referenceDate.getHours() >= 17 && referenceDate.getMinutes() >= 30;
+        }
+        const currentMinutes = referenceDate.getHours() * 60 + referenceDate.getMinutes();
+        const endMinutes = endTime.hour * 60 + endTime.minute;
+        return currentMinutes >= endMinutes;
+      }
+      return false;
+    }
+  }
+
+  // Se la data di questo intervento è già segnata come completata nei completedDates
+  if (Array.isArray(job.completedDates) && job.completedDates.includes(job.date)) {
+    return false;
+  }
 
   if (job.date < todayStr) {
     return true;

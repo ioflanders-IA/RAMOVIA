@@ -29,7 +29,10 @@ import {
   BarChart3,
   Settings,
   Settings2,
+  ChevronRight,
+  Archive,
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 import { ExpenseModal } from './ExpenseModal';
 import { CategoryManagerModal } from './CategoryManagerModal';
@@ -37,6 +40,45 @@ import { getClientColor } from '../../utils/clientColors';
 import { getCostCategoryInfo } from '../clients/ClientsView';
 import { getCombinedCategoryList, isSameCategory } from '../../utils/categoryUtils';
 import { ExpenseWalletVectorIcon } from '../common/HeaderVectorIcons';
+import { NATURANDO_ICON_SVG } from '../jobs/JobModal';
+import { NaturandoVsStandardChart } from './charts/NaturandoVsStandardChart';
+import { CashflowPerformanceChart } from './charts/CashflowPerformanceChart';
+
+const IT_MONTHS_SHORT = ['GEN', 'FEB', 'MAR', 'APR', 'MAG', 'GIU', 'LUG', 'AGO', 'SET', 'OTT', 'NOV', 'DIC'];
+
+const formatDayAndMonth = (dateStr?: string) => {
+  if (!dateStr) return { day: '--', month: '---' };
+  try {
+    const parts = dateStr.split('-');
+    if (parts.length >= 3) {
+      const day = parts[2].replace(/^0/, '');
+      const mIdx = parseInt(parts[1], 10) - 1;
+      const month = IT_MONTHS_SHORT[mIdx] || parts[1];
+      return { day, month };
+    }
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return { day: String(d.getDate()), month: IT_MONTHS_SHORT[d.getMonth()] || '' };
+    }
+  } catch {
+    // fallback
+  }
+  return { day: '--', month: '---' };
+};
+
+const isOlderPaidJob = (dateStr?: string) => {
+  if (!dateStr) return false;
+  try {
+    const jobDate = new Date(dateStr);
+    if (isNaN(jobDate.getTime())) return false;
+    const now = new Date();
+    const diffTime = now.getTime() - jobDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 30;
+  } catch {
+    return false;
+  }
+};
 
 export const PaymentsView: React.FC = () => {
   const {
@@ -59,6 +101,15 @@ export const PaymentsView: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'incassi' | 'spese' | 'grafici'>('incassi');
   const [statusFilter, setStatusFilter] = useState<'all' | 'unpaid' | 'partial' | 'paid'>('all');
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState<string>('all');
+  const [expandedIncassiJobIds, setExpandedIncassiJobIds] = useState<Record<string, boolean>>({});
+  const [showOlderPaidSection, setShowOlderPaidSection] = useState(false);
+
+  const toggleIncassiJobExpanded = (jobId: string) => {
+    setExpandedIncassiJobIds((prev) => ({
+      ...prev,
+      [jobId]: !prev[jobId],
+    }));
+  };
 
   // Expense modal state
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -948,207 +999,328 @@ export const PaymentsView: React.FC = () => {
             </button>
           </div>
 
-          <div className="space-y-[3px]">
-            {jobs.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-400">
-                Nessun cantiere o intervento ancora registrato.
-              </div>
-            ) : (
-              jobs
-                .filter((job) => {
-                  if (statusFilter === 'all') return true;
-                  const price = job.price || 0;
-                  const installments = job.installments || [];
-                  const installmentsSum = installments.reduce((sum, it) => sum + (it.amount || 0), 0);
-                  const isExplicitlyPaid = job.paymentStatus === 'paid';
-                  const isExplicitlyUnpaid = job.paymentStatus === 'unpaid';
+          {/* Calcolo e ordinamento incassi: NON incassati in alto, INCASSATI in basso con animazione fluida */}
+          {(() => {
+            const incassiList = jobs.map((job) => {
+              const price = job.price || 0;
+              const installments = job.installments || [];
+              const installmentsSum = installments.reduce((sum, it) => sum + (it.amount || 0), 0);
+              const isExplicitlyPaid = job.paymentStatus === 'paid';
+              const isExplicitlyUnpaid = job.paymentStatus === 'unpaid';
 
-                  let paid = 0;
-                  if (isExplicitlyPaid) {
-                    paid = price;
-                  } else if (installmentsSum > 0) {
-                    paid = installmentsSum;
-                  } else if (job.paidAmount && !isExplicitlyUnpaid) {
-                    paid = job.paidAmount;
-                  } else {
-                    paid = 0;
-                  }
+              let paid = 0;
+              if (isExplicitlyPaid) {
+                paid = price;
+              } else if (installmentsSum > 0) {
+                paid = installmentsSum;
+              } else if (job.paidAmount && !isExplicitlyUnpaid) {
+                paid = job.paidAmount;
+              } else {
+                paid = 0;
+              }
 
-                  const jobComputedStatus: 'paid' | 'partial' | 'unpaid' =
-                    isExplicitlyPaid || (paid >= price && price > 0)
-                      ? 'paid'
-                      : paid > 0
-                      ? 'partial'
-                      : 'unpaid';
+              const remaining = Math.max(0, price - paid);
+              const status: 'paid' | 'partial' | 'unpaid' =
+                isExplicitlyPaid || (paid >= price && price > 0)
+                  ? 'paid'
+                  : paid > 0
+                  ? 'partial'
+                  : 'unpaid';
+              const method = job.paymentMethod || 'bonifico';
 
-                  return jobComputedStatus === statusFilter;
-                })
-                .map((job) => {
-                const price = job.price || 0;
-                const installments = job.installments || [];
-                const installmentsSum = installments.reduce((sum, it) => sum + (it.amount || 0), 0);
-                const isExplicitlyPaid = job.paymentStatus === 'paid';
-                const isExplicitlyUnpaid = job.paymentStatus === 'unpaid';
+              return {
+                job,
+                price,
+                paid,
+                remaining,
+                status,
+                method,
+                installments,
+                installmentsSum,
+                isOlder: isOlderPaidJob(job.date),
+              };
+            });
 
-                let paid = 0;
-                if (isExplicitlyPaid) {
-                  paid = price;
-                } else if (installmentsSum > 0) {
-                  paid = installmentsSum;
-                } else if (job.paidAmount && !isExplicitlyUnpaid) {
-                  paid = job.paidAmount;
-                } else {
-                  paid = 0;
+            // Filtro per statusFilter
+            const filteredIncassi = incassiList.filter((item) => {
+              if (statusFilter === 'all') return true;
+              return item.status === statusFilter;
+            });
+
+            // Incassati oltre 30 giorni per la card "Mese scorso"
+            const olderPaidJobs = (statusFilter === 'unpaid' || statusFilter === 'partial')
+              ? []
+              : filteredIncassi.filter((item) => item.status === 'paid' && item.isOlder);
+
+            const olderPaidTotal = olderPaidJobs.reduce((sum, item) => sum + item.paid, 0);
+
+            // Lista principale: non incassati/acconti in alto, incassati recenti in fondo
+            const currentJobs = filteredIncassi
+              .filter((item) => !(item.status === 'paid' && item.isOlder))
+              .sort((a, b) => {
+                const aPaid = a.status === 'paid' ? 1 : 0;
+                const bPaid = b.status === 'paid' ? 1 : 0;
+                if (aPaid !== bPaid) {
+                  return aPaid - bPaid; // 0 (non saldati) in alto, 1 (saldati) in fondo
                 }
+                const dateA = new Date(a.job.date || 0).getTime();
+                const dateB = new Date(b.job.date || 0).getTime();
+                return dateB - dateA;
+              });
 
-                const remaining = Math.max(0, price - paid);
-                const status: 'paid' | 'partial' | 'unpaid' =
-                  isExplicitlyPaid || (paid >= price && price > 0)
-                    ? 'paid'
-                    : paid > 0
-                    ? 'partial'
-                    : 'unpaid';
-                const method = job.paymentMethod || 'bonifico';
+            const renderCard = (item: typeof incassiList[0]) => {
+              const { job, price, paid, remaining, status, method, installments, installmentsSum } = item;
+              const client = clients.find((c) => c.id === job.clientId || (job.clientName && c.name?.toLowerCase() === job.clientName.toLowerCase()));
+              const clientColor = client ? getClientColor(client) : undefined;
+              const isExpanded = !!expandedIncassiJobIds[job.id];
+              const dayMonth = formatDayAndMonth(job.date);
 
-                const isLongPressed = longPressedPaymentJobId === job.id;
-                const pressHandlers = createPaymentCardLongPress(job.id);
+              const isLongPressed = longPressedPaymentJobId === job.id;
+              const pressHandlers = createPaymentCardLongPress(job.id);
 
-                return (
+              return (
+                <motion.div
+                  layout="position"
+                  key={job.id}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 350,
+                    damping: 30,
+                    mass: 0.8,
+                  }}
+                  {...pressHandlers}
+                  className={`bg-white dark:bg-slate-900 border rounded-[5px] text-xs transition-colors shadow-2xs overflow-hidden select-none ${
+                    isLongPressed
+                      ? 'border-emerald-500 ring-2 ring-emerald-500/20 dark:ring-emerald-500/30'
+                      : 'border-slate-200 dark:border-slate-800 hover:border-emerald-500/60 dark:hover:border-emerald-500/60'
+                  }`}
+                  style={clientColor ? { borderLeftWidth: '3px', borderLeftColor: clientColor } : undefined}
+                >
+                  {/* Header Card Compatto stile Naturando / Storico Interventi: Data grande + Cliente/Titolo + Prezzo grigio + Icona Paga + Valore */}
                   <div
-                    key={job.id}
-                    {...pressHandlers}
-                    className={`p-[3px] bg-white dark:bg-slate-900 border rounded-[7px] space-y-[3px] text-xs transition-all shadow-2xs select-none ${
-                      isLongPressed
-                        ? 'border-emerald-500 ring-2 ring-emerald-500/20 dark:ring-emerald-500/30'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                    onClick={() => toggleIncassiJobExpanded(job.id)}
+                    className={`p-2 flex items-center justify-between gap-1.5 cursor-pointer select-none transition-colors ${
+                      isExpanded
+                        ? 'bg-slate-50/90 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800'
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
                     }`}
                   >
-                    {/* Header: Cliente, Titolo, Data (sulla destra) & Badge Stato */}
-                    <div className="flex items-start justify-between gap-1.5 px-1.5 pt-1 pb-1 border-b border-slate-100 dark:border-slate-800/80">
-                      <div className="space-y-0.5 min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">
-                            {job.clientName}
-                          </span>
-                          {job.interventionType === 'generale' && (
-                            <span className="font-mono text-[9px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.2 rounded border border-emerald-300 dark:border-emerald-800 shrink-0">
-                              Periodico
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                          {job.title}
-                        </div>
-                        <div className="text-[10px] text-slate-400">
-                          Modalità: <strong className="text-slate-700 dark:text-slate-300">{getMethodLabel(method)}</strong>
-                        </div>
+                    {/* Sinistra: Data (Giorno grande + Mese 3 lettere) + Nome Cliente + Titolo + Badge Periodico / Naturando */}
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <div className="flex items-baseline gap-0.5 shrink-0 font-mono">
+                        <span className="text-base sm:text-lg font-black text-emerald-700 dark:text-emerald-400 leading-none">
+                          {dayMonth.day}
+                        </span>
+                        <span className="text-[10px] font-extrabold uppercase text-slate-600 dark:text-slate-300 ml-0.5">
+                          {dayMonth.month}
+                        </span>
                       </div>
 
-                      {/* Right: Data e Badge Stato */}
-                      <div className="shrink-0 flex flex-col items-end gap-1">
-                        <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded shrink-0">
-                          {job.date}
+                      <div className="flex items-center gap-1 min-w-0 truncate">
+                        <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate">
+                          {job.clientName || client?.name || 'Cliente'}
+                        </span>
+                        {job.title && (
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate hidden sm:inline">
+                            · {job.title}
+                          </span>
+                        )}
+                        {job.interventionType === 'generale' && (
+                          <span className="font-mono text-[9px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-1 py-0.2 rounded border border-emerald-300 dark:border-emerald-800 shrink-0">
+                            Periodico
+                          </span>
+                        )}
+                        {job.isNaturando && (
+                          <img
+                            src={NATURANDO_ICON_SVG}
+                            alt="Naturando"
+                            className="w-3.5 h-3.5 object-contain shrink-0 dark:brightness-0 dark:invert"
+                            title="Intervento Naturando"
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Destra: Totale in grigio prima dell'icona + Tasto Pagamento con ICONA + Valore con numero ingrandito (senza freccetta) */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {/* Valore totale in grigio senza parentesi, prima dell'icona */}
+                      <span className="font-mono text-[10.5px] sm:text-xs text-slate-400 dark:text-slate-500 font-normal shrink-0">
+                        € {formatAmountNoCents(price)}
+                      </span>
+
+                      {/* Tasto Salda / Saldato fatto con ICONA */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleJobPaid(job);
+                        }}
+                        className={`p-1 rounded-[5px] cursor-pointer transition-colors shadow-2xs shrink-0 flex items-center justify-center ${
+                          status === 'paid'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-200'
+                            : status === 'partial'
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-200'
+                            : 'bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-300 dark:border-rose-700 hover:bg-rose-200 dark:hover:bg-rose-900/50'
+                        }`}
+                        title={
+                          status === 'paid'
+                            ? 'Saldato - Clicca per riaprire (Non Saldato)'
+                            : status === 'partial'
+                            ? `Acconto versato (€ ${formatAmountNoCents(paid)}) - Clicca per saldare l'intero importo`
+                            : 'Non saldato - Clicca per saldare'
+                        }
+                      >
+                        {status === 'paid' ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        ) : status === 'partial' ? (
+                          <Wallet className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                        ) : (
+                          <Wallet className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                        )}
+                      </button>
+
+                      {/* Importo con solo il numero ingrandito di poco */}
+                      <div className="flex items-baseline gap-0.5 font-mono shrink-0">
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                          €
                         </span>
                         <span
-                          className={`inline-flex items-center gap-1 text-[9px] font-bold uppercase px-2 py-0.5 rounded-[5px] tracking-wider border ${
+                          className={`text-sm sm:text-base font-black ${
                             status === 'paid'
-                              ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                              ? 'text-emerald-700 dark:text-emerald-400'
                               : status === 'partial'
-                              ? 'bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-                              : 'bg-rose-50 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                              ? 'text-amber-700 dark:text-amber-400'
+                              : 'text-slate-900 dark:text-slate-100'
                           }`}
                         >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              status === 'paid'
-                                ? 'bg-emerald-500'
-                                : status === 'partial'
-                                ? 'bg-amber-500'
-                                : 'bg-rose-500'
-                            }`}
-                          />
-                          <span>{status === 'paid' ? 'Saldato' : status === 'partial' ? 'Acconto' : 'Da Incassare'}</span>
+                          {formatAmountNoCents(status === 'paid' ? price : status === 'partial' ? paid : price)}
                         </span>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Financial Breakdown: Testo normale senza bordi o sfondi (testo a sx e importi a dx) */}
-                    <div className="space-y-[3px] text-xs px-1.5 py-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500 dark:text-slate-400 font-medium">Prezzo Totale:</span>
-                        <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
-                          € {price.toFixed(2)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-1">
-                          <span>Incassato</span>
-                          {installments.length > 0 && (
-                            <span className="text-[10px] font-normal opacity-80">({installments.length})</span>
-                          )}
-                          <span>:</span>
-                        </span>
-                        <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">
-                          € {paid.toFixed(2)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className={`font-medium ${remaining === 0 ? 'text-slate-400' : 'text-amber-700 dark:text-amber-400'}`}>
-                          Rimanente da Saldare:
-                        </span>
-                        <span className={`font-mono font-bold ${remaining === 0 ? 'text-slate-400' : 'text-amber-700 dark:text-amber-400'}`}>
-                          € {remaining.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Acconti e Versamenti Registrati */}
-                    {installments.length > 0 && (
-                      <div className="pt-1 border-t border-slate-100 dark:border-slate-800/80 px-1 space-y-[3px]">
-                        <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                          <span>Acconti ({installments.length})</span>
-                          <span className="font-mono text-emerald-600 dark:text-emerald-400">
-                            Totale: € {installmentsSum.toFixed(2)}
+                  {/* Dettagli Espansi al Click con grafica minimal 3px */}
+                  {isExpanded && (
+                    <div className="p-[3px] space-y-[3px] border-t border-slate-100 dark:border-slate-800 animate-in fade-in duration-150">
+                      {/* Riga 1: Testo lavorazione e modalità a sinistra + Azioni modifica / elimina / azzera a destra */}
+                      <div className="flex items-center justify-between gap-1 px-1 pt-0.5">
+                        <div className="min-w-0 truncate text-slate-600 dark:text-slate-300">
+                          <span className="font-bold text-slate-800 dark:text-slate-100 truncate mr-1.5">
+                            {job.title || 'Lavorazione'}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            Modalità: <strong className="text-slate-700 dark:text-slate-300">{getMethodLabel(method)}</strong>
                           </span>
                         </div>
 
-                        <div className="space-y-[3px]">
-                          {installments.map((inst, idx) => {
-                            const isInstLongPressed = longPressedInstallmentId === inst.id;
-                            const instLongPress = createInstallmentLongPress(inst.id);
-                            return (
-                              <div
-                                key={inst.id}
-                                {...instLongPress}
-                                className={`flex items-center justify-between py-1 px-1 text-xs select-none cursor-pointer transition-colors rounded ${
-                                  isInstLongPressed ? 'bg-slate-100/90 dark:bg-slate-800/60' : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/30'
-                                }`}
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className="font-bold text-slate-700 dark:text-slate-300 shrink-0 text-xs">
-                                    #{idx + 1}
-                                  </span>
-                                  <span className="font-mono text-[11px] text-slate-500 shrink-0">
-                                    {inst.date}
-                                  </span>
-                                  <span className="text-[10px] uppercase font-semibold text-slate-600 dark:text-slate-300 shrink-0">
-                                    {getMethodLabel(inst.paymentMethod)}
-                                  </span>
-                                  {inst.notes && (
-                                    <span className="text-[10px] text-slate-400 italic truncate max-w-[120px] sm:max-w-xs" title={inst.notes}>
-                                      "{inst.notes}"
-                                    </span>
-                                  )}
-                                </div>
+                        {/* Azioni rapide inline a destra con stopPropagation */}
+                        <div className="flex items-center gap-[3px] shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditPayment(job)}
+                            className="p-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors cursor-pointer bg-slate-100 dark:bg-slate-800 rounded-[5px]"
+                            title="Modifica pagamento e dettagli cantiere"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
 
-                                <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
-                                  <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 text-xs">
-                                    € {inst.amount.toFixed(2)}
-                                  </span>
-                                  {isInstLongPressed && (
-                                    <div className="flex items-center gap-0.5 ml-1 animate-in fade-in duration-150">
+                          <button
+                            type="button"
+                            onClick={() => setJobToDelete(job)}
+                            className="p-1 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 transition-colors cursor-pointer bg-rose-50 dark:bg-rose-950/60 rounded-[5px]"
+                            title="Elimina definitivamente questo intervento/cantiere"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          {(paid > 0 || installments.length > 0) && (
+                            <button
+                              type="button"
+                              onClick={() => setJobToResetPayments(job)}
+                              className="p-1 text-amber-600 dark:text-amber-400 hover:text-amber-700 transition-colors cursor-pointer bg-amber-50 dark:bg-amber-950/60 rounded-[5px]"
+                              title="Azzera incassi del cantiere"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Riga 2: Ripartizione Economica su UN UNICO RIGO A 3 COLONNE con gap 3px */}
+                      <div className="grid grid-cols-3 gap-[3px] p-[3px] bg-slate-50/80 dark:bg-slate-800/50 rounded-[5px] border border-slate-100 dark:border-slate-800/80">
+                        <div className="min-w-0">
+                          <span className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400 block truncate leading-tight">
+                            Prezzo Totale
+                          </span>
+                          <span className="text-xs sm:text-sm font-extrabold font-mono text-slate-900 dark:text-slate-100 block leading-tight truncate mt-0.5">
+                            € {price.toFixed(2)}
+                          </span>
+                        </div>
+
+                        <div className="min-w-0">
+                          <span className="text-[9px] uppercase font-bold text-emerald-700 dark:text-emerald-400 block truncate leading-tight flex items-center gap-0.5">
+                            <span>Incassato</span>
+                            {installments.length > 0 && <span className="opacity-80">({installments.length})</span>}
+                          </span>
+                          <span className="text-xs sm:text-sm font-extrabold font-mono text-emerald-700 dark:text-emerald-400 block leading-tight truncate mt-0.5">
+                            € {paid.toFixed(2)}
+                          </span>
+                        </div>
+
+                        <div className="min-w-0">
+                          <span className={`text-[9px] uppercase font-bold block truncate leading-tight ${remaining === 0 ? 'text-slate-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                            Rimanente
+                          </span>
+                          <span className={`text-xs sm:text-sm font-extrabold font-mono block leading-tight truncate mt-0.5 ${remaining === 0 ? 'text-slate-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                            € {remaining.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Acconti e Versamenti Registrati (se presenti) */}
+                      {installments.length > 0 && (
+                        <div className="pt-0.5 border-t border-slate-100 dark:border-slate-800/80 px-1 space-y-[3px]">
+                          <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            <span>Acconti ({installments.length})</span>
+                            <span className="font-mono text-emerald-600 dark:text-emerald-400">
+                              Totale: € {installmentsSum.toFixed(2)}
+                            </span>
+                          </div>
+
+                          <div className="space-y-[3px]">
+                            {installments.map((inst, idx) => {
+                              const isInstLongPressed = longPressedInstallmentId === inst.id;
+                              const instLongPress = createInstallmentLongPress(inst.id);
+                              return (
+                                <div
+                                  key={inst.id}
+                                  {...instLongPress}
+                                  className={`flex items-center justify-between py-1 px-1 text-xs select-none cursor-pointer transition-colors rounded-[5px] ${
+                                    isInstLongPressed ? 'bg-slate-100/90 dark:bg-slate-800/60' : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/30'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className="font-bold text-slate-700 dark:text-slate-300 shrink-0 text-xs">
+                                      #{idx + 1}
+                                    </span>
+                                    <span className="font-mono text-[11px] text-slate-500 shrink-0">
+                                      {inst.date}
+                                    </span>
+                                    <span className="text-[10px] uppercase font-semibold text-slate-600 dark:text-slate-300 shrink-0">
+                                      {getMethodLabel(inst.paymentMethod)}
+                                    </span>
+                                    {inst.notes && (
+                                      <span className="text-[10px] text-slate-400 italic truncate max-w-[120px] sm:max-w-xs" title={inst.notes}>
+                                        "{inst.notes}"
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                                    <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 text-xs">
+                                      € {inst.amount.toFixed(2)}
+                                    </span>
+                                    <div className="flex items-center gap-0.5 ml-1">
                                       <button
                                         type="button"
                                         onClick={() => handleOpenEditInstallment(job, inst)}
@@ -1166,83 +1338,22 @@ export const PaymentsView: React.FC = () => {
                                         <Trash2 className="w-3.5 h-3.5" />
                                       </button>
                                     </div>
-                                  )}
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Actions Toolbar: Left = Modifica, Elimina Cantiere, Azzera Incassi; Right = Saldato & + Acconto */}
-                    <div className="flex items-center justify-between gap-2 px-1 pt-1 border-t border-slate-100 dark:border-slate-800 min-h-[34px]">
-                      {/* Left: Icon-only actions with stopPropagation */}
-                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
-                        {isLongPressed ? (
-                          <div className="flex items-center gap-1 animate-in fade-in zoom-in-90 duration-150">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                handleOpenEditPayment(job);
-                              }}
-                              className="p-1.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors cursor-pointer bg-slate-100 dark:bg-slate-800/80 rounded-[5px]"
-                              title="Modifica pagamento e dettagli cantiere"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                setJobToDelete(job);
-                              }}
-                              className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 transition-colors cursor-pointer bg-rose-50 dark:bg-rose-950/60 rounded-[5px]"
-                              title="Elimina definitivamente questo intervento/cantiere"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-
-                            {(paid > 0 || installments.length > 0) && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  e.preventDefault();
-                                  setJobToResetPayments(job);
-                                }}
-                                className="p-1.5 text-amber-600 dark:text-amber-400 hover:text-amber-700 transition-colors cursor-pointer bg-amber-50 dark:bg-amber-950/60 rounded-[5px]"
-                                title="Azzera incassi del cantiere"
-                              >
-                                <RotateCcw className="w-3.5 h-3.5" />
-                              </button>
-                            )}
+                              );
+                            })}
                           </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              e.preventDefault();
-                              handleOpenEditPayment(job);
-                            }}
-                            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
-                            title="Pressione prolungata o clicca per opzioni (Modifica / Elimina)"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
+                        </div>
+                      )}
 
-                      {/* Right: [Saldato] then [+ Acconto] furthest right */}
-                      <div className="flex items-center gap-1.5 ml-auto" onClick={(e) => e.stopPropagation()}>
+                      {/* Toolbar inferiore: [Riapri / Saldato] + [+ Acconto] */}
+                      <div className="flex items-center justify-end gap-[3px] px-1 pt-1 border-t border-slate-100 dark:border-slate-800">
                         <button
                           type="button"
-                          onClick={() => handleToggleJobPaid(job)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleJobPaid(job);
+                          }}
                           className={`p-1 px-2.5 rounded-[5px] font-bold text-[11px] shadow-xs cursor-pointer flex items-center gap-1 transition-colors ${
                             status === 'paid'
                               ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 dark:bg-amber-950/60 dark:hover:bg-amber-950 dark:text-amber-200 border border-amber-300 dark:border-amber-800'
@@ -1264,7 +1375,8 @@ export const PaymentsView: React.FC = () => {
 
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedJobForAcconto(job);
                             setAccontoAmount(remaining > 0 ? remaining : 50);
                             setAccontoDate(new Date().toISOString().split('T')[0]);
@@ -1274,15 +1386,77 @@ export const PaymentsView: React.FC = () => {
                           className="p-1 px-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-[5px] font-bold text-[11px] shadow-xs cursor-pointer flex items-center gap-1 transition-colors"
                         >
                           <Plus className="w-3 h-3" />
-                          <span>Acconto</span>
+                          <span>+ Acconto</span>
                         </button>
                       </div>
                     </div>
+                  )}
+                </motion.div>
+              );
+            };
+
+            return (
+              <div className="space-y-[3px]">
+                {jobs.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-slate-400">
+                    Nessun cantiere o intervento ancora registrato.
                   </div>
-                );
-              })
-            )}
-          </div>
+                ) : currentJobs.length === 0 && olderPaidJobs.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-slate-400">
+                    Nessun incasso corrisponde al filtro selezionato.
+                  </div>
+                ) : (
+                  <>
+                    {/* Lista principale: non incassati/acconti in alto, incassati recenti in fondo (con animazione fluida al click) */}
+                    {currentJobs.map((item) => renderCard(item))}
+
+                    {/* Card "Mese scorso" per incassati da oltre 30 giorni */}
+                    {(statusFilter === 'all' || statusFilter === 'paid') && (
+                      <div className="bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-[5px] p-[3px] space-y-[3px] shadow-2xs mt-1">
+                        <div
+                          onClick={() => setShowOlderPaidSection((prev) => !prev)}
+                          className="p-2 flex items-center justify-between cursor-pointer select-none rounded-[5px] hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-colors"
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <Archive className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+                            <span className="font-bold text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                              Mese scorso
+                            </span>
+                            <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 px-1.5 py-0.2 rounded border border-slate-300 dark:border-slate-700">
+                              {olderPaidJobs.length}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                              € {formatAmountNoCents(olderPaidTotal)}
+                            </span>
+                            <ChevronRight
+                              className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                                showOlderPaidSection ? 'rotate-90' : ''
+                              }`}
+                            />
+                          </div>
+                        </div>
+
+                        {showOlderPaidSection && (
+                          <div className="space-y-[3px] pt-0.5 border-t border-slate-200/80 dark:border-slate-800/80 animate-in fade-in duration-150">
+                            {olderPaidJobs.length === 0 ? (
+                              <div className="p-3 text-center text-[11px] text-slate-400 italic">
+                                Nessun incasso antecedente a 30 giorni fa.
+                              </div>
+                            ) : (
+                              olderPaidJobs.map((item) => renderCard(item))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -1452,212 +1626,268 @@ export const PaymentsView: React.FC = () => {
 
       {/* TAB 4: CHARTS & FINANCIAL TRENDS */}
       {activeSubTab === 'grafici' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-[7px]">
-          {/* CHART 1: Monochromatic Emerald Donut Chart for Expense Categories */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-            <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
-                <PieChart className="w-4 h-4 text-emerald-600" />
-                <span>Spese per Categoria (Donut Chart)</span>
-              </h3>
-              <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400">
-                Totale: € {totalExpensesAmount.toFixed(2)}
-              </span>
+        <div className="space-y-[7px]">
+          {/* ROW 1: I due nuovi grafici finanziari con linee trend stile asset */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[7px]">
+            <NaturandoVsStandardChart jobs={jobs} users={users} />
+            <CashflowPerformanceChart
+              jobs={jobs}
+              users={users}
+              allCombinedExpenses={allCombinedExpenses}
+              payouts={payouts}
+              workedDays={workedDays}
+            />
+          </div>
+
+          {/* ROW 2: Donut Chart riprogettato e Andamento Temporale Spese potenziato */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[7px]">
+            {/* CHART 3: Donut Chart per Spese (Titolo pulito, categorie a destra, senza card né bordi, testo colorato al posto delle palline) */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
+              <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+                  <PieChart className="w-4 h-4 text-emerald-600" />
+                  <span>Spese per Categoria</span>
+                </h3>
+                <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                  Totale: € {totalExpensesAmount.toFixed(2)}
+                </span>
+              </div>
+
+              {expensesByCategory.length === 0 ? (
+                <div className="p-8 text-center text-xs text-slate-400">
+                  Nessuna spesa disponibile per generare il grafico.
+                </div>
+              ) : (
+                <div className="p-1">
+                  {/* Donut Chart a sinistra, Categorie rappresentate a destra */}
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start justify-center gap-4">
+                    {/* Donut SVG a sinistra */}
+                    <div className="relative w-40 h-40 sm:w-44 sm:h-44 shrink-0 flex items-center justify-center my-auto">
+                      <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                        {(() => {
+                          const radius = 36;
+                          const circumference = 2 * Math.PI * radius; // ~226.195
+                          let cumulativeOffset = 0;
+
+                          return expensesByCategory.map((cat) => {
+                            const sliceLength = (cat.percentage / 100) * circumference;
+                            const offset = cumulativeOffset;
+                            cumulativeOffset += sliceLength;
+                            const isSelected = selectedCategoryKey === cat.category;
+
+                            return (
+                              <circle
+                                key={cat.category}
+                                cx="50"
+                                cy="50"
+                                r={radius}
+                                fill="transparent"
+                                stroke={cat.color}
+                                strokeWidth={isSelected ? 18 : 15}
+                                strokeDasharray={`${sliceLength} ${circumference - sliceLength}`}
+                                strokeDashoffset={-offset}
+                                className="transition-all duration-300 cursor-pointer hover:opacity-90"
+                                onClick={() => setSelectedCategoryKey((prev) => (prev === cat.category ? null : cat.category))}
+                              />
+                            );
+                          });
+                        })()}
+                      </svg>
+
+                      {/* Donut Center Hole display */}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none p-2">
+                        <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">
+                          {selectedCategoryKey
+                            ? expensesByCategory.find((c) => c.category === selectedCategoryKey)?.label
+                            : 'Totale Spese'}
+                        </span>
+                        <span className="font-mono font-extrabold text-xs sm:text-sm text-slate-900 dark:text-slate-100">
+                          € {formatAmountNoCents(
+                            selectedCategoryKey
+                              ? expensesByCategory.find((c) => c.category === selectedCategoryKey)?.amount || 0
+                              : totalExpensesAmount
+                          )}
+                        </span>
+                        {selectedCategoryKey && (
+                          <span className="text-[9.5px] font-bold text-emerald-600">
+                            {expensesByCategory.find((c) => c.category === selectedCategoryKey)?.percentage.toFixed(1)}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Categorie a destra: SENZA SFONDO NÉ BORDI CARD, SENZA PALLINE, TESTO COLORATO */}
+                    <div className="flex-1 min-w-0 w-full space-y-1">
+                      {expensesByCategory.map((cat) => {
+                        const isSelected = selectedCategoryKey === cat.category;
+                        return (
+                          <div
+                            key={cat.category}
+                            onClick={() => setSelectedCategoryKey((prev) => (prev === cat.category ? null : cat.category))}
+                            className={`py-1 px-1 flex items-center justify-between gap-2 cursor-pointer transition-opacity border-b border-slate-100/60 dark:border-slate-800/60 last:border-b-0 ${
+                              isSelected ? 'opacity-100 font-extrabold' : 'opacity-85 hover:opacity-100'
+                            }`}
+                          >
+                            {/* Nome categoria con colore associato al posto della pallina */}
+                            <span
+                              className="truncate text-xs font-bold transition-colors"
+                              style={{ color: cat.color }}
+                            >
+                              {cat.label}
+                            </span>
+                            <div className="flex items-center gap-2.5 shrink-0 font-mono text-[11px]">
+                              <span className="text-slate-500 dark:text-slate-400 text-[10px]">
+                                {cat.percentage.toFixed(1)}%
+                              </span>
+                              <span className="font-bold text-slate-900 dark:text-slate-100">
+                                € {cat.amount.toFixed(0)}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {expensesByCategory.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-400">
-                Nessuna spesa disponibile per generare il grafico.
+            {/* CHART 4: Temporal Expense Trend Chart Migliorato */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
+              <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+                  <BarChart3 className="w-4 h-4 text-emerald-600" />
+                  <span>Andamento Temporale Spese</span>
+                </h3>
+                {expensesByMonth.peakMonth && (
+                  <span className="text-[10px] font-semibold text-slate-500">
+                    Picco: <strong className="text-rose-600 dark:text-rose-400">{expensesByMonth.peakMonth.label} (€ {expensesByMonth.peakMonth.amount.toFixed(0)})</strong>
+                  </span>
+                )}
               </div>
-            ) : (
-              <div className="p-2 space-y-4">
-                {/* Donut Chart SVG & Center Hole */}
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                  <div className="relative w-44 h-44 shrink-0 flex items-center justify-center">
-                    <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+
+              <div className="p-1 space-y-2">
+                {/* Summary KPIs */}
+                <div className="grid grid-cols-3 gap-1.5 text-center p-1.5 bg-slate-50 dark:bg-slate-800/60 rounded-[6px] border border-slate-200 dark:border-slate-800">
+                  <div>
+                    <span className="block text-[9px] uppercase font-bold text-slate-400">Media Mensile</span>
+                    <span className="font-mono font-bold text-xs text-slate-900 dark:text-slate-100">
+                      € {formatAmountNoCents(expensesByMonth.avgMonthly)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-[9px] uppercase font-bold text-slate-400">Totale Periodo</span>
+                    <span className="font-mono font-bold text-xs text-rose-600 dark:text-rose-400">
+                      € {formatAmountNoCents(expensesByMonth.totalPeriodAmount)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-[9px] uppercase font-bold text-slate-400">Mesi Monitorati</span>
+                    <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
+                      {expensesByMonth.months.length} mesi
+                    </span>
+                  </div>
+                </div>
+
+                {/* Combined Financial Spline & Histogram Chart */}
+                <div className="pt-2 relative">
+                  <div className="h-44 flex items-end justify-between gap-1.5 px-2 relative bg-slate-950/90 rounded-[5px] border border-slate-800 p-2 pt-4">
+                    {/* SVG Trendline Spline overlay */}
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none p-2 pt-4" viewBox="0 0 100 100" preserveAspectRatio="none">
+                      <defs>
+                        <linearGradient id="gradExpenseTrend" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
+                          <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
+                        </linearGradient>
+                      </defs>
                       {(() => {
-                        const radius = 36;
-                        const circumference = 2 * Math.PI * radius; // ~226.195
-                        let cumulativeOffset = 0;
-
-                        return expensesByCategory.map((cat) => {
-                          const sliceLength = (cat.percentage / 100) * circumference;
-                          const offset = cumulativeOffset;
-                          cumulativeOffset += sliceLength;
-                          const isSelected = selectedCategoryKey === cat.category;
-
-                          return (
-                            <circle
-                              key={cat.category}
-                              cx="50"
-                              cy="50"
-                              r={radius}
-                              fill="transparent"
-                              stroke={cat.color}
-                              strokeWidth={isSelected ? 18 : 15}
-                              strokeDasharray={`${sliceLength} ${circumference - sliceLength}`}
-                              strokeDashoffset={-offset}
-                              className="transition-all duration-300 cursor-pointer hover:opacity-90"
-                              onClick={() => setSelectedCategoryKey((prev) => (prev === cat.category ? null : cat.category))}
-                            />
-                          );
+                        const mList = expensesByMonth.months;
+                        if (mList.length < 2) return null;
+                        const maxVal = Math.max(expensesByMonth.maxMonthAmount, 1);
+                        const pointsStr = mList.map((m, idx) => {
+                          const x = (idx / (mList.length - 1)) * 96 + 2;
+                          const y = 92 - (m.amount / maxVal) * 78;
+                          return { x, y };
                         });
+                        const d = pointsStr.reduce((acc, pt, idx) => {
+                          if (idx === 0) return `M ${pt.x} ${pt.y}`;
+                          const prev = pointsStr[idx - 1];
+                          const cx = prev.x + (pt.x - prev.x) / 2;
+                          return `${acc} C ${cx} ${prev.y}, ${cx} ${pt.y}, ${pt.x} ${pt.y}`;
+                        }, '');
+                        return (
+                          <>
+                            <path
+                              d={`${d} L ${pointsStr[pointsStr.length - 1].x} 94 L ${pointsStr[0].x} 94 Z`}
+                              fill="url(#gradExpenseTrend)"
+                            />
+                            <path
+                              d={d}
+                              fill="none"
+                              stroke="#10b981"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                            />
+                          </>
+                        );
                       })()}
                     </svg>
 
-                    {/* Donut Center Hole display */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none p-2">
-                      <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">
-                        {selectedCategoryKey
-                          ? expensesByCategory.find((c) => c.category === selectedCategoryKey)?.label
-                          : 'Totale Spese'}
-                      </span>
-                      <span className="font-mono font-extrabold text-xs sm:text-sm text-slate-900 dark:text-slate-100">
-                        € {formatAmountNoCents(
-                          selectedCategoryKey
-                            ? expensesByCategory.find((c) => c.category === selectedCategoryKey)?.amount || 0
-                            : totalExpensesAmount
-                        )}
-                      </span>
-                      {selectedCategoryKey && (
-                        <span className="text-[9.5px] font-bold text-emerald-600">
-                          {expensesByCategory.find((c) => c.category === selectedCategoryKey)?.percentage.toFixed(1)}%
+                    {/* Average Expense Dotted Line */}
+                    {expensesByMonth.maxMonthAmount > 0 && (
+                      <div
+                        className="absolute left-0 right-0 border-b border-dashed border-emerald-500/50 z-10 pointer-events-none flex items-center justify-end pr-2"
+                        style={{
+                          bottom: `${Math.min(92, Math.max(8, (expensesByMonth.avgMonthly / expensesByMonth.maxMonthAmount) * 78 + 14))}%`,
+                        }}
+                      >
+                        <span className="text-[8px] font-mono font-bold bg-emerald-700 text-white px-1 py-0.5 rounded shadow-2xs opacity-90">
+                          Media: € {expensesByMonth.avgMonthly.toFixed(0)}
                         </span>
-                      )}
-                    </div>
-                  </div>
+                      </div>
+                    )}
 
-                  {/* Category Breakdown List */}
-                  <div className="flex-1 min-w-0 space-y-1.5 w-full">
-                    {expensesByCategory.map((cat) => {
-                      const isSelected = selectedCategoryKey === cat.category;
+                    {expensesByMonth.months.map((m) => {
+                      const heightPercent = expensesByMonth.maxMonthAmount > 0
+                        ? Math.max(8, (m.amount / expensesByMonth.maxMonthAmount) * 78)
+                        : 8;
+                      const isHovered = hoveredMonthKey === m.key;
+
                       return (
                         <div
-                          key={cat.category}
-                          onClick={() => setSelectedCategoryKey((prev) => (prev === cat.category ? null : cat.category))}
-                          className={`p-1.5 rounded-[6px] border text-xs cursor-pointer transition-colors flex items-center justify-between gap-2 ${
-                            isSelected
-                              ? 'bg-slate-100 dark:bg-slate-800 border-emerald-500 font-bold'
-                              : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 hover:bg-slate-100/60'
-                          }`}
+                          key={m.key}
+                          onMouseEnter={() => setHoveredMonthKey(m.key)}
+                          onMouseLeave={() => setHoveredMonthKey(null)}
+                          className="flex-1 flex flex-col items-center justify-end h-full group relative cursor-pointer z-20"
                         >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                            <span className="truncate text-[11px] text-slate-800 dark:text-slate-200 font-semibold">
-                              {cat.label}
-                            </span>
+                          {/* Tooltip on hover */}
+                          {isHovered && (
+                            <div className="absolute -top-10 z-30 bg-slate-900 text-white text-[10px] p-1.5 rounded shadow-lg whitespace-nowrap animate-in fade-in duration-100 border border-slate-700">
+                              <div className="font-bold">{m.fullLabel}</div>
+                              <div className="font-mono text-emerald-400 font-bold">€ {m.amount.toFixed(2)} ({m.count} spese)</div>
+                            </div>
+                          )}
+
+                          <div className="w-full max-w-[24px] bg-slate-800/60 rounded-t-[4px] overflow-hidden flex items-end h-full relative">
+                            <div
+                              className={`w-full rounded-t-[4px] transition-all duration-300 ${
+                                isHovered
+                                  ? 'bg-emerald-400 shadow-md'
+                                  : m.amount === expensesByMonth.peakMonth?.amount
+                                  ? 'bg-emerald-600'
+                                  : 'bg-emerald-800/70'
+                              }`}
+                              style={{ height: `${heightPercent}%` }}
+                            />
                           </div>
-                          <div className="flex items-center gap-2 shrink-0 font-mono text-[11px]">
-                            <span className="text-slate-500 dark:text-slate-400 text-[10px]">
-                              {cat.percentage.toFixed(1)}%
-                            </span>
-                            <span className="font-bold text-slate-900 dark:text-slate-100">
-                              € {cat.amount.toFixed(0)}
-                            </span>
-                          </div>
+
+                          <span className="text-[9px] font-mono font-semibold text-slate-400 mt-1 truncate max-w-full text-center">
+                            {m.label}
+                          </span>
                         </div>
                       );
                     })}
                   </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* CHART 2: Temporal Expense Trend Chart */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
-            <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
-                <BarChart3 className="w-4 h-4 text-emerald-600" />
-                <span>Andamento Temporale Spese</span>
-              </h3>
-              {expensesByMonth.peakMonth && (
-                <span className="text-[10px] font-semibold text-slate-500">
-                  Picco: <strong className="text-rose-600 dark:text-rose-400">{expensesByMonth.peakMonth.label} (€ {expensesByMonth.peakMonth.amount.toFixed(0)})</strong>
-                </span>
-              )}
-            </div>
-
-            <div className="p-2 space-y-3">
-              {/* Summary KPIs */}
-              <div className="grid grid-cols-3 gap-1.5 text-center p-2 bg-slate-50 dark:bg-slate-800/60 rounded-[6px] border border-slate-200 dark:border-slate-800">
-                <div>
-                  <span className="block text-[9px] uppercase font-bold text-slate-400">Media Mensile</span>
-                  <span className="font-mono font-bold text-xs text-slate-900 dark:text-slate-100">
-                    € {formatAmountNoCents(expensesByMonth.avgMonthly)}
-                  </span>
-                </div>
-                <div>
-                  <span className="block text-[9px] uppercase font-bold text-slate-400">Totale Periodo</span>
-                  <span className="font-mono font-bold text-xs text-rose-600 dark:text-rose-400">
-                    € {formatAmountNoCents(expensesByMonth.totalPeriodAmount)}
-                  </span>
-                </div>
-                <div>
-                  <span className="block text-[9px] uppercase font-bold text-slate-400">Mesi Monitorati</span>
-                  <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
-                    {expensesByMonth.months.length} mesi
-                  </span>
-                </div>
-              </div>
-
-              {/* Monthly Histogram Bars */}
-              <div className="pt-2">
-                <div className="h-40 flex items-end justify-between gap-1.5 px-1 relative">
-                  {/* Average Expense Dotted Line */}
-                  {expensesByMonth.maxMonthAmount > 0 && (
-                    <div
-                      className="absolute left-0 right-0 border-b border-dashed border-emerald-500/50 z-10 pointer-events-none flex items-center justify-end pr-1"
-                      style={{
-                        bottom: `${Math.min(95, Math.max(5, (expensesByMonth.avgMonthly / expensesByMonth.maxMonthAmount) * 100))}%`,
-                      }}
-                    >
-                      <span className="text-[8.5px] font-mono font-bold bg-emerald-600 text-white px-1 py-0.5 rounded shadow-2xs opacity-90">
-                        Media: € {expensesByMonth.avgMonthly.toFixed(0)}
-                      </span>
-                    </div>
-                  )}
-
-                  {expensesByMonth.months.map((m) => {
-                    const heightPercent = expensesByMonth.maxMonthAmount > 0
-                      ? Math.max(8, (m.amount / expensesByMonth.maxMonthAmount) * 100)
-                      : 8;
-                    const isHovered = hoveredMonthKey === m.key;
-
-                    return (
-                      <div
-                        key={m.key}
-                        onMouseEnter={() => setHoveredMonthKey(m.key)}
-                        onMouseLeave={() => setHoveredMonthKey(null)}
-                        className="flex-1 flex flex-col items-center justify-end h-full group relative cursor-pointer"
-                      >
-                        {/* Tooltip on hover */}
-                        {isHovered && (
-                          <div className="absolute -top-10 z-30 bg-slate-900 text-white text-[10px] p-1.5 rounded shadow-lg whitespace-nowrap animate-in fade-in duration-100">
-                            <div className="font-bold">{m.fullLabel}</div>
-                            <div className="font-mono text-emerald-400 font-bold">€ {m.amount.toFixed(2)} ({m.count} spese)</div>
-                          </div>
-                        )}
-
-                        <div className="w-full max-w-[28px] bg-slate-100 dark:bg-slate-800 rounded-t-[4px] overflow-hidden flex items-end h-full relative">
-                          <div
-                            className={`w-full rounded-t-[4px] transition-all duration-300 ${
-                              isHovered
-                                ? 'bg-emerald-500 shadow-md'
-                                : m.amount === expensesByMonth.peakMonth?.amount
-                                ? 'bg-emerald-700'
-                                : 'bg-emerald-800/80 dark:bg-emerald-600/80'
-                            }`}
-                            style={{ height: `${heightPercent}%` }}
-                          />
-                        </div>
-
-                        <span className="text-[9.5px] font-semibold text-slate-500 dark:text-slate-400 mt-1 truncate max-w-full text-center">
-                          {m.label}
-                        </span>
-                      </div>
-                    );
-                  })}
                 </div>
               </div>
             </div>

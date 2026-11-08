@@ -37,8 +37,39 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
   const { jobs, inventory, reports, users, currentUser, updateJob, deleteJob, redDays } = useApp();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [readIds, setReadIds] = useState<string[]>([]);
-  const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+  const [readIds, setReadIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('ramovia_read_notifications');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [dismissedIds, setDismissedIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('ramovia_dismissed_notifications');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('ramovia_read_notifications', JSON.stringify(readIds));
+    } catch (e) {
+      console.warn(e);
+    }
+  }, [readIds]);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('ramovia_dismissed_notifications', JSON.stringify(dismissedIds));
+    } catch (e) {
+      console.warn(e);
+    }
+  }, [dismissedIds]);
+
   const [reschedulingJobId, setReschedulingJobId] = useState<string | null>(null);
   const [rescheduleDateValue, setRescheduleDateValue] = useState<string>('');
 
