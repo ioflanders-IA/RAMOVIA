@@ -115,7 +115,7 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
 
   const combinedCosts: JobCostItem[] = [...rawCosts, ...extraMaintenanceCosts];
   const expensesCost = combinedCosts.reduce((sum, c) => sum + (c.amount || 0), 0);
-  const laborSummary = getJobLaborSummary(currentJob, jobs || [], users || []);
+  const laborSummary = getJobLaborSummary(currentJob, jobs || [], users || [], activeDateISO);
   const isJobNaturando = !!currentJob.isNaturando;
   const price = currentJob.price || 0;
   const naturandoBase = currentJob.naturandoAmount !== undefined && currentJob.naturandoAmount > 0
@@ -481,12 +481,13 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
                           </span>
                           <span
                             className={`px-1.5 py-0.2 rounded text-[8px] font-bold uppercase border shrink-0 ${
-                              w.dayType === 'mezza giornata'
+                              w.totalJobsToday > 1
                                 ? 'bg-sky-50 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800'
                                 : 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                             }`}
+                            title={w.totalJobsToday > 1 ? `Costo giornata diviso per ${w.totalJobsToday} interventi` : 'Intervento singolo'}
                           >
-                            {w.dayType === 'mezza giornata' ? 'Mezza giornata' : 'Giornata intera'}
+                            {w.label || (w.totalJobsToday > 1 ? `Manodopera (1/${w.totalJobsToday})` : 'Manodopera')}
                           </span>
                         </div>
                         <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 shrink-0 text-right">

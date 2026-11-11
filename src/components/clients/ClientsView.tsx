@@ -47,7 +47,8 @@ import { getClientColor, CLIENT_COLOR_OPTIONS } from '../../utils/clientColors';
 export interface WorkerLaborItem {
   workerId: string;
   workerName: string;
-  dayType: 'mezza giornata' | 'giornata intera';
+  dayType: string;
+  label?: string;
   rate: number;
   cost: number;
   totalJobsToday: number;
@@ -138,9 +139,10 @@ export const isUserAdminHelper = (u?: User | null, nameOrId?: string, allUsers?:
 export const getJobLaborSummary = (
   job: Job,
   allJobs: Job[],
-  allUsers: User[]
+  allUsers: User[],
+  overrideDate?: string
 ): JobLaborSummary => {
-  const targetDate = (job.date || '').split('T')[0];
+  const targetDate = (overrideDate || job.date || '').split('T')[0];
   if (!targetDate) {
     return { workers: [], totalLaborCost: 0 };
   }
@@ -209,7 +211,8 @@ export const getJobLaborSummary = (
       const otherDate = (otherJob.date || '').split('T')[0];
       const isDateMatch =
         otherDate === targetDate ||
-        (Array.isArray(otherJob.plannedDates) && otherJob.plannedDates.includes(targetDate));
+        (Array.isArray(otherJob.plannedDates) &&
+          otherJob.plannedDates.some((pd) => (pd || '').split('T')[0] === targetDate));
       if (!isDateMatch) return false;
 
       const hasId =
@@ -217,24 +220,30 @@ export const getJobLaborSummary = (
         otherJob.assignedWorkerId === w.id;
       const hasName =
         (Array.isArray(otherJob.assignedWorkerNames) &&
-          otherJob.assignedWorkerNames.some((nm) => nm.toLowerCase() === w.name.toLowerCase())) ||
+          otherJob.assignedWorkerNames.some((nm) => (nm || '').trim().toLowerCase() === w.name.trim().toLowerCase())) ||
         (otherJob.assignedWorkerName &&
-          otherJob.assignedWorkerName.toLowerCase().includes(w.name.toLowerCase()));
+          otherJob.assignedWorkerName
+            .toLowerCase()
+            .split(',')
+            .some((part) => part.trim() === w.name.trim().toLowerCase() || part.trim().includes(w.name.trim().toLowerCase())));
 
       return hasId || hasName;
     });
 
-    const totalJobsToday = Math.max(1, workerJobsOnDate.length);
-    // Se un operaio durante la giornata fa due o più interventi: mezza giornata (costo a metà)
-    // Se fa un solo intervento: giornata intera (costo intero su quel cantiere)
-    const isHalfDay = totalJobsToday >= 2;
-    const dayType: 'mezza giornata' | 'giornata intera' = isHalfDay ? 'mezza giornata' : 'giornata intera';
-    const cost = isHalfDay ? Math.round((w.rate / 2) * 100) / 100 : w.rate;
+    const isThisJobInList = workerJobsOnDate.some((j) => j.id === job.id);
+    const totalJobsToday = Math.max(1, workerJobsOnDate.length + (isThisJobInList ? 0 : 1));
+
+    // Il costo della giornata lavorativa dell'operaio si divide per il numero di interventi svolti nella giornata!
+    // Es. se oggi fa 4 interventi, ciascun intervento costa (giornata / 4).
+    const cost = Math.round((w.rate / totalJobsToday) * 100) / 100;
+    const label = totalJobsToday > 1 ? `Manodopera (1/${totalJobsToday})` : 'Manodopera';
+    const dayType = label;
 
     return {
       workerId: w.id,
       workerName: w.name,
       dayType,
+      label,
       rate: w.rate,
       cost,
       totalJobsToday,
@@ -1402,12 +1411,13 @@ export const ClientsView: React.FC = () => {
                                       </span>
                                       <span
                                         className={`px-1.5 py-0.2 rounded text-[8px] font-bold uppercase border shrink-0 ${
-                                          w.dayType === 'mezza giornata'
+                                          w.totalJobsToday > 1
                                             ? 'bg-sky-50 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800'
                                             : 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                                         }`}
+                                        title={w.totalJobsToday > 1 ? `Costo giornata diviso per ${w.totalJobsToday} interventi` : 'Intervento singolo'}
                                       >
-                                        {w.dayType === 'mezza giornata' ? 'Mezza giornata' : 'Giornata intera'}
+                                        {w.label || (w.totalJobsToday > 1 ? `Manodopera (1/${w.totalJobsToday})` : 'Manodopera')}
                                       </span>
                                     </div>
                                     <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 shrink-0 text-right">

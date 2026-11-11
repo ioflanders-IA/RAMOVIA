@@ -88,7 +88,7 @@ export const JobCostManagerModal: React.FC<JobCostManagerModalProps> = ({ job, o
   const currentNetMargin = currentPrice - currentAllCosts;
 
   const formatNoDecimals = (val: number) => {
-    return Math.round(val).toLocaleString('it-IT');
+    return Math.abs(val) % 1 === 0 ? Math.round(val).toLocaleString('it-IT') : val.toFixed(2).replace('.', ',');
   };
 
   let pressTimer: any = null;
@@ -337,12 +337,13 @@ export const JobCostManagerModal: React.FC<JobCostManagerModalProps> = ({ job, o
                     <span className="font-semibold text-slate-900 dark:text-slate-100">{w.workerName}</span>
                     <span
                       className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase border shrink-0 ${
-                        w.dayType === 'mezza giornata'
+                        w.totalJobsToday > 1
                           ? 'bg-sky-50 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800'
                           : 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                       }`}
+                      title={w.totalJobsToday > 1 ? `Costo giornata diviso per ${w.totalJobsToday} interventi` : 'Intervento singolo'}
                     >
-                      {w.dayType === 'mezza giornata' ? 'Mezza Giornata' : 'Giornata Intera'}
+                      {w.label || (w.totalJobsToday > 1 ? `Manodopera (1/${w.totalJobsToday})` : 'Manodopera')}
                     </span>
                   </div>
                   <span className="font-mono font-semibold text-slate-500 dark:text-slate-400 shrink-0 text-right">
