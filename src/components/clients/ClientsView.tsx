@@ -295,7 +295,7 @@ export const getCostCategoryInfo = (category: JobCostCategory | string) => {
       badgeClass = 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/80 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800';
       break;
     case 'manutenzione':
-      defaultLabel = 'Manutenzione Macchinari';
+      defaultLabel = 'Manutenzione';
       badgeClass = 'bg-orange-100 text-orange-800 dark:bg-orange-950/80 dark:text-orange-300 border-orange-200 dark:border-orange-800';
       break;
     case 'manodopera':
@@ -312,8 +312,13 @@ export const getCostCategoryInfo = (category: JobCostCategory | string) => {
       break;
   }
 
+  let finalLabel = customLabel || defaultLabel;
+  if (canonicalKey === 'manutenzione' && finalLabel.toLowerCase().includes('manutenzione macchinari')) {
+    finalLabel = 'Manutenzione';
+  }
+
   return {
-    label: customLabel || defaultLabel,
+    label: finalLabel,
     badgeClass,
   };
 };
@@ -1011,10 +1016,10 @@ export const ClientsView: React.FC = () => {
       </div>
 
       {/* SECTION 2: STORICO INTERVENTI & MONITORAGGIO COSTI (accordion, closed by default) */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-2 shadow-xs space-y-[3px]">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[3px] shadow-xs space-y-[3px]">
         <div
           onClick={() => setShowJobsSection(!showJobsSection)}
-          className="flex items-center justify-between cursor-pointer select-none py-0.5"
+          className="flex items-center justify-between cursor-pointer select-none p-1 px-1.5"
         >
           <div className="flex items-center gap-1.5">
             <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
@@ -1213,15 +1218,15 @@ export const ClientsView: React.FC = () => {
 
                       {/* Card Content when OPEN (expanded) */}
                       {isExpanded && (
-                        <div className="p-2 space-y-2 animate-in fade-in duration-150">
+                        <div className="p-[3px] space-y-[3px] animate-in fade-in duration-150">
                           {/* Orario visibile quando aperto & tasti azione rapidi */}
-                          <div className="flex items-center justify-between gap-2 p-1.5 px-2 bg-slate-50 dark:bg-slate-800/40 rounded-[5px] border border-slate-100 dark:border-slate-800 text-[11px]">
+                          <div className="flex items-center justify-between gap-[3px] p-1 px-1.5 bg-slate-50 dark:bg-slate-800/40 rounded-[5px] border border-slate-100 dark:border-slate-800 text-[11px]">
                             <div className="flex items-center gap-1.5 font-mono text-slate-600 dark:text-slate-300">
                               <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                               <span className="font-semibold">{job.timeSlot || 'Orario non specificato'}</span>
                             </div>
 
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-[3px]">
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1250,7 +1255,7 @@ export const ClientsView: React.FC = () => {
 
                           {/* Note / Lavorazione Formattate (Senza tag HTML visibili) */}
                           {(job.description || job.notes) && (
-                            <div className="p-2 bg-slate-50 dark:bg-slate-800/30 rounded-[5px] border border-slate-100 dark:border-slate-800 text-[11px] space-y-1">
+                            <div className="p-1 px-1.5 bg-slate-50 dark:bg-slate-800/30 rounded-[5px] border border-slate-100 dark:border-slate-800 text-[11px] space-y-[3px]">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
                                 Lavorazione & Note Cantiere:
                               </span>
@@ -1267,95 +1272,30 @@ export const ClientsView: React.FC = () => {
                             </div>
                           )}
 
-                          {/* Macchinari Usati nel Cantiere & Manutenzioni */}
+                          {/* Macchinari Usati nel Cantiere (Solo macchinari usati con gap a 3px, senza tasti o diciture manutenzione) */}
                           {job.equipmentRequired && job.equipmentRequired.length > 0 && (
-                            <div className="p-1.5 bg-slate-50 dark:bg-slate-800/40 rounded-[5px] border border-slate-100 dark:border-slate-800 space-y-[3px]">
-                              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                                <div className="flex items-center gap-1.5">
-                                  <Wrench className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                                  <span>Macchinari Usati ({job.equipmentRequired.length})</span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setMaintenanceForJobItem({ job });
-                                  }}
-                                  className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 font-bold px-1.5 py-0.5 rounded hover:bg-amber-100/60 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
-                                  title="Registra manutenzione per questo intervento"
-                                >
-                                  <Plus className="w-3 h-3" />
-                                  <span>Manutenzione</span>
-                                </button>
+                            <div className="p-1 px-1.5 bg-slate-50 dark:bg-slate-800/40 rounded-[5px] border border-slate-100 dark:border-slate-800 space-y-[3px]">
+                              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                <Wrench className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                <span>Macchinari Usati ({job.equipmentRequired.length})</span>
                               </div>
 
-                              <div className="space-y-[3px] pt-0.5">
-                                {job.equipmentRequired.map((eq) => {
-                                  const eqMaints = linkedMaintenances.filter(
-                                    (m) =>
-                                      m.itemId === eq.itemId ||
-                                      (m.toolName && eq.name && m.toolName.trim().toLowerCase() === eq.name.trim().toLowerCase())
-                                  );
-
-                                  return (
-                                    <div
-                                      key={eq.itemId}
-                                      className="p-1 px-1.5 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 text-xs space-y-1"
-                                    >
-                                      <div className="flex items-center justify-between gap-2">
-                                        <div className="flex items-center gap-1.5 min-w-0">
-                                          <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
-                                            {eq.name}
-                                          </span>
-                                          <span className="font-mono text-[10px] text-slate-400 shrink-0">
-                                            ({eq.hoursUsed}h)
-                                          </span>
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setMaintenanceForJobItem({ job, itemId: eq.itemId, itemName: eq.name });
-                                          }}
-                                          className="inline-flex items-center gap-0.5 text-[9.5px] font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 px-1 py-0.5 rounded hover:bg-amber-100/60 dark:hover:bg-amber-950/40 transition-colors shrink-0 cursor-pointer"
-                                          title={`Aggiungi manutenzione a ${eq.name}`}
-                                        >
-                                          <Plus className="w-2.5 h-2.5" />
-                                          <span>Manutenzione</span>
-                                        </button>
-                                      </div>
-
-                                      {/* Manutenzioni registrate per questo attrezzo */}
-                                      {eqMaints.length > 0 && (
-                                        <div className="space-y-1 pt-1 border-t border-slate-100 dark:border-slate-800/80">
-                                          {eqMaints.map((m) => (
-                                            <div
-                                              key={m.id}
-                                              className="flex items-center justify-between gap-2 text-[10.5px] p-1 px-1.5 rounded bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/70 dark:border-amber-900/60"
-                                            >
-                                              <div className="flex items-center gap-1.5 min-w-0">
-                                                <Wrench className="w-3 h-3 text-amber-500 shrink-0" />
-                                                <span className="font-semibold text-amber-900 dark:text-amber-200 truncate">
-                                                  {m.description}
-                                                </span>
-                                                {m.date && (
-                                                  <span className="font-mono text-[9.5px] text-amber-700/80 dark:text-amber-400/80 shrink-0">
-                                                    · {m.date}
-                                                  </span>
-                                                )}
-                                              </div>
-                                              {m.cost !== undefined && m.cost > 0 && (
-                                                <span className="font-mono font-bold text-rose-600 dark:text-rose-400 shrink-0">
-                                                  -€ {Math.round(m.cost)}
-                                                </span>
-                                              )}
-                                            </div>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
+                              <div className="space-y-[3px]">
+                                {job.equipmentRequired.map((eq) => (
+                                  <div
+                                    key={eq.itemId || eq.name}
+                                    className="p-1 px-1.5 bg-white dark:bg-slate-900 rounded-[5px] border border-slate-200 dark:border-slate-800 text-xs flex items-center justify-between gap-[3px]"
+                                  >
+                                    <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                      {eq.name}
+                                    </span>
+                                    {eq.hoursUsed !== undefined && (
+                                      <span className="font-mono text-[10px] text-slate-400 shrink-0">
+                                        ({eq.hoursUsed}h)
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           )}

@@ -1534,24 +1534,69 @@ export const PaymentsView: React.FC = () => {
                   <div
                     key={exp.id}
                     {...longPressProps}
-                    className={`p-[7px] bg-slate-50 dark:bg-slate-800/60 border rounded-[7px] flex items-center justify-between gap-[7px] text-xs transition-all select-none cursor-pointer ${
+                    className={`p-[7px] bg-slate-50 dark:bg-slate-800/60 border rounded-[7px] flex flex-col justify-between gap-1 text-xs transition-all select-none cursor-pointer ${
                       isLongPressed
                         ? 'border-emerald-500 dark:border-emerald-500 shadow-md ring-1 ring-emerald-500/30'
                         : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                     style={clientColor ? { borderLeftWidth: '5px', borderLeftColor: clientColor } : undefined}
                   >
-                    <div className="space-y-1 flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-bold text-slate-900 dark:text-slate-100 truncate text-xs">
-                          {cleanTitle}
-                        </span>
-                        <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border shrink-0 ${catInfo.badgeClass}`}>
-                          {catInfo.label}
-                        </span>
+                    {/* Top Row: Title on Left, Price in line on the Right */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-slate-900 dark:text-slate-100 truncate text-xs min-w-0">
+                        {cleanTitle}
+                      </span>
+                      <div className="flex items-center gap-2 shrink-0 ml-auto" onClick={(e) => e.stopPropagation()}>
+                        <div className="font-mono font-bold text-sm text-rose-700 dark:text-rose-400 whitespace-nowrap">
+                          - € {exp.amount.toFixed(2)}
+                        </div>
+
+                        {/* Action Buttons appear ONLY after Long Press */}
+                        {isLongPressed && (
+                          <div className="flex items-center gap-1 animate-in fade-in zoom-in-90 duration-150 ml-1">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpTitle(exp.title);
+                                setExpAmount(exp.amount);
+                                setExpCategory(exp.category);
+                                setExpMethod(exp.paymentMethod || 'pos_carta');
+                                setExpVendor(exp.recipientOrVendor || '');
+                                setExpDate(exp.date || new Date().toISOString().split('T')[0]);
+                                setExpenseToEdit(exp);
+                              }}
+                              className="p-1.5 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white bg-slate-200 dark:bg-slate-700 rounded-[5px] cursor-pointer transition-colors"
+                              title="Modifica Spesa"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpenseToDelete(exp);
+                              }}
+                              className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 bg-rose-100 dark:bg-rose-950/70 rounded-[5px] cursor-pointer transition-colors"
+                              title="Elimina Spesa"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Bottom Row: Vendor/Date/Method on Left, Client & Category Badges on Right under Price */}
+                    <div className="flex items-center justify-between gap-2 pt-0.5">
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate min-w-0 flex-1">
+                        {exp.recipientOrVendor || 'Fornitore non specificato'} · {exp.date} · {getMethodLabel(exp.paymentMethod)}
+                      </div>
+
+                      <div className="flex items-center justify-end gap-1 shrink-0 ml-auto flex-wrap">
                         {clientName && (
                           <span
-                            className="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full border truncate shrink-0 max-w-[160px] inline-flex items-center gap-1 shadow-2xs"
+                            className="text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-full border truncate shrink-0 max-w-[150px] inline-flex items-center gap-1 shadow-2xs"
                             style={
                               clientColor
                                 ? {
@@ -1567,53 +1612,13 @@ export const PaymentsView: React.FC = () => {
                             }
                           >
                             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: clientColor || '#2563eb' }} />
-                            <span>{clientName}</span>
+                            <span className="truncate">{clientName}</span>
                           </span>
                         )}
+                        <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border shrink-0 ${catInfo.badgeClass}`}>
+                          {catInfo.label}
+                        </span>
                       </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                        {exp.recipientOrVendor || 'Fornitore non specificato'} · {exp.date} · {getMethodLabel(exp.paymentMethod)}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                      <div className="font-mono font-bold text-sm text-rose-700 dark:text-rose-400">
-                        - € {exp.amount.toFixed(2)}
-                      </div>
-
-                      {/* Action Buttons appear ONLY after Long Press */}
-                      {isLongPressed && (
-                        <div className="flex items-center gap-1 animate-in fade-in zoom-in-90 duration-150 ml-1">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setExpTitle(exp.title);
-                              setExpAmount(exp.amount);
-                              setExpCategory(exp.category);
-                              setExpMethod(exp.paymentMethod || 'pos_carta');
-                              setExpVendor(exp.recipientOrVendor || '');
-                              setExpDate(exp.date || new Date().toISOString().split('T')[0]);
-                              setExpenseToEdit(exp);
-                            }}
-                            className="p-1.5 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white bg-slate-200 dark:bg-slate-700 rounded-[5px] cursor-pointer transition-colors"
-                            title="Modifica Spesa"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setExpenseToDelete(exp);
-                            }}
-                            className="p-1.5 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 bg-rose-100 dark:bg-rose-950/70 rounded-[5px] cursor-pointer transition-colors"
-                            title="Elimina Spesa"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 );
@@ -1626,9 +1631,9 @@ export const PaymentsView: React.FC = () => {
 
       {/* TAB 4: CHARTS & FINANCIAL TRENDS */}
       {activeSubTab === 'grafici' && (
-        <div className="space-y-[7px]">
+        <div className="space-y-[3px]">
           {/* ROW 1: I due nuovi grafici finanziari con linee trend stile asset */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[7px]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[3px]">
             <NaturandoVsStandardChart jobs={jobs} users={users} />
             <CashflowPerformanceChart
               jobs={jobs}

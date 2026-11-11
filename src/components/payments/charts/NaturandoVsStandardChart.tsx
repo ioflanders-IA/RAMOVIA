@@ -112,7 +112,7 @@ export const NaturandoVsStandardChart: React.FC<NaturandoVsStandardChartProps> =
   // Coordinates for SVG (viewBox 0 0 500 220)
   const svgWidth = 500;
   const svgHeight = 220;
-  const padLeft = 32;
+  const padLeft = 36;
   const padRight = 16;
   const padTop = 18;
   const padBottom = 26;
@@ -175,147 +175,70 @@ export const NaturandoVsStandardChart: React.FC<NaturandoVsStandardChartProps> =
   const activeHover = hoveredIndex !== null && coords[hoveredIndex] ? coords[hoveredIndex] : null;
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[3px] shadow-xs space-y-[3px]">
       {/* Top Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-slate-100 dark:border-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-2 p-1 px-1.5 pb-1 border-b border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-1.5 min-w-0">
           <TrendingUp className="w-4 h-4 text-emerald-500 shrink-0" />
           <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider truncate">
-            Trend Lavori Diretti vs Naturando & Margini Ottimali
+            Analisi lavori per conto terzi
           </h3>
         </div>
-        <div className="flex items-center gap-2 text-[10px] font-mono">
-          <span className="text-slate-500">
-            Miglior Margine: <strong className="text-amber-500 font-bold">{stats.bestMarginPct}%</strong>
-          </span>
+        <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-slate-500">
+          <span>Top Margine:</span>
+          <span className="text-amber-500 font-extrabold">{stats.bestMarginPct}%</span>
         </div>
       </div>
 
-      {/* Financial KPI Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-[3px] text-[10.5px]">
-        <div className="p-1 px-1.5 rounded-[5px] bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50">
-          <span className="text-[9px] uppercase font-bold text-emerald-700 dark:text-emerald-400 block truncate">
-            Lavori Diretti ({stats.stdCount})
+      {/* 4 Financial KPI Stat Cards - SU UN SOLO RIGO A 3PX */}
+      <div className="grid grid-cols-4 gap-[3px] text-center">
+        <div className="p-1 px-1 rounded-[5px] bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50 flex flex-col justify-between">
+          <span className="text-[8.5px] uppercase font-bold text-emerald-700 dark:text-emerald-400 truncate">
+            Diretti ({stats.stdCount})
           </span>
-          <div className="flex items-baseline justify-between gap-1">
-            <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-xs">
-              € {stats.stdTotalRev}
-            </span>
-            <span className="font-mono font-semibold text-[10px] text-emerald-600 dark:text-emerald-400">
-              μ {stats.stdAvgMargin}%
-            </span>
-          </div>
+          <span className="font-mono font-extrabold text-slate-900 dark:text-slate-100 text-xs truncate">
+            € {stats.stdTotalRev}
+          </span>
+          <span className="font-mono font-semibold text-[9px] text-emerald-600 dark:text-emerald-400 truncate">
+            μ {stats.stdAvgMargin}%
+          </span>
         </div>
 
-        <div className="p-1 px-1.5 rounded-[5px] bg-purple-50/60 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/50">
-          <span className="text-[9px] uppercase font-bold text-purple-700 dark:text-purple-400 block truncate">
-            Lavori Naturando ({stats.natCount})
+        <div className="p-1 px-1 rounded-[5px] bg-purple-50/60 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/50 flex flex-col justify-between">
+          <span className="text-[8.5px] uppercase font-bold text-purple-700 dark:text-purple-400 truncate">
+            Naturando ({stats.natCount})
           </span>
-          <div className="flex items-baseline justify-between gap-1">
-            <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-xs">
-              € {stats.natTotalRev}
-            </span>
-            <span className="font-mono font-semibold text-[10px] text-purple-600 dark:text-purple-400">
-              μ {stats.natAvgMargin}%
-            </span>
-          </div>
+          <span className="font-mono font-extrabold text-slate-900 dark:text-slate-100 text-xs truncate">
+            € {stats.natTotalRev}
+          </span>
+          <span className="font-mono font-semibold text-[9px] text-purple-600 dark:text-purple-400 truncate">
+            μ {stats.natAvgMargin}%
+          </span>
         </div>
 
-        <div className="p-1 px-1.5 rounded-[5px] bg-amber-50/60 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/50">
-          <span className="text-[9px] uppercase font-bold text-amber-700 dark:text-amber-400 block truncate">
-            Top Margine Raggiunto
+        <div className="p-1 px-1 rounded-[5px] bg-amber-50/60 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/50 flex flex-col justify-between">
+          <span className="text-[8.5px] uppercase font-bold text-amber-700 dark:text-amber-400 truncate">
+            Top Margine
           </span>
-          <div className="flex items-baseline justify-between gap-1">
-            <span className="font-mono font-extrabold text-amber-600 dark:text-amber-400 text-xs">
-              {stats.bestMarginPct}%
-            </span>
-            <span className="text-[9px] text-slate-500 truncate max-w-[90px]">
-              {stats.bestJobName}
-            </span>
-          </div>
+          <span className="font-mono font-extrabold text-amber-600 dark:text-amber-400 text-xs truncate">
+            {stats.bestMarginPct}%
+          </span>
+          <span className="text-[8.5px] text-slate-500 truncate" title={stats.bestJobName}>
+            {stats.bestJobName.split(' ')[0]}
+          </span>
         </div>
 
-        <div className="p-1 px-1.5 rounded-[5px] bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800">
-          <span className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400 block truncate">
-            Spread Redditività
+        <div className="p-1 px-1 rounded-[5px] bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+          <span className="text-[8.5px] uppercase font-bold text-slate-500 dark:text-slate-400 truncate">
+            Spread
           </span>
-          <div className="flex items-baseline justify-between gap-1">
-            <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-xs">
-              {stats.stdAvgMargin >= stats.natAvgMargin ? '+' : ''}{stats.stdAvgMargin - stats.natAvgMargin}%
-            </span>
-            <span className="text-[9.5px] text-slate-500">
-              {stats.stdAvgMargin >= stats.natAvgMargin ? 'Diretti + performanti' : 'Naturando + performante'}
-            </span>
-          </div>
+          <span className="font-mono font-extrabold text-slate-900 dark:text-slate-100 text-xs truncate">
+            {stats.stdAvgMargin >= stats.natAvgMargin ? '+' : ''}{stats.stdAvgMargin - stats.natAvgMargin}%
+          </span>
+          <span className="text-[8.5px] text-slate-500 truncate">
+            {stats.stdAvgMargin >= stats.natAvgMargin ? 'Diretti +' : 'Naturando +'}
+          </span>
         </div>
-      </div>
-
-      {/* Interactive Financial Controls / Toggles */}
-      <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[10px]">
-        <button
-          type="button"
-          onClick={() => setShowStandardLine(!showStandardLine)}
-          className={`px-1.5 py-0.5 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center gap-1 ${
-            showStandardLine
-              ? 'bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300'
-              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 line-through'
-          }`}
-        >
-          <span className="w-2 h-0.5 bg-emerald-500 rounded" />
-          <span>Trend Diretti</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setShowNaturandoLine(!showNaturandoLine)}
-          className={`px-1.5 py-0.5 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center gap-1 ${
-            showNaturandoLine
-              ? 'bg-purple-500/15 border-purple-500 text-purple-700 dark:text-purple-300'
-              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 line-through'
-          }`}
-        >
-          <span className="w-2 h-0.5 bg-purple-500 rounded" />
-          <span>Trend Naturando</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setShowStandardMargin(!showStandardMargin)}
-          className={`px-1.5 py-0.5 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center gap-1 ${
-            showStandardMargin
-              ? 'bg-teal-500/15 border-teal-500 text-teal-700 dark:text-teal-300'
-              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 line-through'
-          }`}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
-          <span>Margini Diretti</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setShowNaturandoMargin(!showNaturandoMargin)}
-          className={`px-1.5 py-0.5 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center gap-1 ${
-            showNaturandoMargin
-              ? 'bg-fuchsia-500/15 border-fuchsia-500 text-fuchsia-700 dark:text-fuchsia-300'
-              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 line-through'
-          }`}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-500" />
-          <span>Margini Naturando</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setShowBestMarginTrend(!showBestMarginTrend)}
-          className={`px-1.5 py-0.5 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center gap-1 ${
-            showBestMarginTrend
-              ? 'bg-amber-500/20 border-amber-500 text-amber-700 dark:text-amber-300'
-              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 line-through'
-          }`}
-        >
-          <Sparkles className="w-2.5 h-2.5 text-amber-500" />
-          <span>Best Margin Peak</span>
-        </button>
       </div>
 
       {/* SVG Financial Canvas */}
@@ -372,8 +295,9 @@ export const NaturandoVsStandardChart: React.FC<NaturandoVsStandardChartProps> =
                   x={padLeft - 4}
                   y={y + 3}
                   textAnchor="end"
-                  fontSize="7.5"
-                  fill="#64748b"
+                  fontSize="9.5"
+                  fontWeight="600"
+                  fill="#94a3b8"
                   fontFamily="monospace"
                 >
                   €{val}
@@ -478,9 +402,10 @@ export const NaturandoVsStandardChart: React.FC<NaturandoVsStandardChartProps> =
               <text
                 key={i}
                 x={pt.x}
-                y={svgHeight - 10}
+                y={svgHeight - 8}
                 textAnchor="middle"
-                fontSize="7.5"
+                fontSize="9"
+                fontWeight="600"
                 fill="#94a3b8"
                 fontFamily="monospace"
               >
@@ -544,9 +469,77 @@ export const NaturandoVsStandardChart: React.FC<NaturandoVsStandardChartProps> =
         )}
       </div>
 
-      <div className="text-[9.5px] text-slate-500 italic px-1 flex items-center justify-between">
-        <span>* Linee trend calcolate su progressione cronologica cantieri Ramovia</span>
-        <span className="font-mono">Fonte: Registri Cantieri</span>
+      {/* Interactive Financial Controls / Toggles - SU UN SOLO RIGO A 5 COLONNE */}
+      <div className="grid grid-cols-5 gap-[2px] pt-0.5 text-[8px] sm:text-[9.5px]">
+        <button
+          type="button"
+          onClick={() => setShowStandardLine(!showStandardLine)}
+          className={`px-1 py-1 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center justify-center gap-1 min-w-0 ${
+            showStandardLine
+              ? 'bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300'
+              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 opacity-60'
+          }`}
+          title="Mostra/Nascondi curva Lavori Diretti"
+        >
+          <span className="w-1.5 h-0.5 bg-emerald-500 rounded shrink-0" />
+          <span className="truncate">Diretti</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowNaturandoLine(!showNaturandoLine)}
+          className={`px-1 py-1 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center justify-center gap-1 min-w-0 ${
+            showNaturandoLine
+              ? 'bg-purple-500/15 border-purple-500 text-purple-700 dark:text-purple-300'
+              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 opacity-60'
+          }`}
+          title="Mostra/Nascondi curva Lavori Naturando"
+        >
+          <span className="w-1.5 h-0.5 bg-purple-500 rounded shrink-0" />
+          <span className="truncate">Naturando</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowStandardMargin(!showStandardMargin)}
+          className={`px-1 py-1 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center justify-center gap-1 min-w-0 ${
+            showStandardMargin
+              ? 'bg-teal-500/15 border-teal-500 text-teal-700 dark:text-teal-300'
+              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 opacity-60'
+          }`}
+          title="Mostra/Nascondi punti Margini Diretti"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0" />
+          <span className="truncate">Marg. Dir</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowNaturandoMargin(!showNaturandoMargin)}
+          className={`px-1 py-1 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center justify-center gap-1 min-w-0 ${
+            showNaturandoMargin
+              ? 'bg-fuchsia-500/15 border-fuchsia-500 text-fuchsia-700 dark:text-fuchsia-300'
+              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 opacity-60'
+          }`}
+          title="Mostra/Nascondi punti Margini Naturando"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-500 shrink-0" />
+          <span className="truncate">Marg. Nat</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowBestMarginTrend(!showBestMarginTrend)}
+          className={`px-1 py-1 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center justify-center gap-0.5 min-w-0 ${
+            showBestMarginTrend
+              ? 'bg-amber-500/20 border-amber-500 text-amber-700 dark:text-amber-300'
+              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 opacity-60'
+          }`}
+          title="Mostra/Nascondi picco massimo margine"
+        >
+          <Sparkles className="w-2.5 h-2.5 text-amber-500 shrink-0" />
+          <span className="truncate">Top Peak</span>
+        </button>
       </div>
     </div>
   );

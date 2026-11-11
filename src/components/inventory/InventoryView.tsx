@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { InventoryCategory, InventoryItem } from '../../types';
 import { InventoryModal } from './InventoryModal';
 import { ManualMaintenanceModal } from './ManualMaintenanceModal';
+import { EquipmentDetailModal } from './EquipmentDetailModal';
 import {
   Package,
   Wrench,
@@ -21,6 +22,7 @@ import {
 export const InventoryView: React.FC = () => {
   const {
     inventory,
+    jobs,
     shoppingList,
     addInventoryItem,
     updateInventoryItem,
@@ -34,6 +36,7 @@ export const InventoryView: React.FC = () => {
   );
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedItemForEdit, setSelectedItemForEdit] = useState<InventoryItem | null>(null);
+  const [selectedEquipmentForDetail, setSelectedEquipmentForDetail] = useState<InventoryItem | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [newCategoryType, setNewCategoryType] = useState<InventoryCategory>('material');
   const [maintenanceModalItem, setMaintenanceModalItem] = useState<InventoryItem | null>(null);
@@ -370,7 +373,16 @@ export const InventoryView: React.FC = () => {
             return (
               <div
                 key={item.id}
+                onClick={() => {
+                  if (isEquipment) {
+                    setSelectedEquipmentForDetail(item);
+                  }
+                }}
                 className={`bg-white dark:bg-slate-900 border rounded-[7px] p-1.5 shadow-xs transition-all flex flex-col justify-between space-y-[3px] ${
+                  isEquipment
+                    ? 'cursor-pointer hover:border-emerald-500/80 dark:hover:border-emerald-500/80 hover:shadow-2xs'
+                    : ''
+                } ${
                   isMaintenanceAlert
                     ? 'border-rose-300 dark:border-rose-800 ring-2 ring-rose-50 dark:ring-rose-950/40'
                     : isLowStock
@@ -408,14 +420,18 @@ export const InventoryView: React.FC = () => {
                     {currentUser?.role === 'admin' && (
                       <div className="flex items-center gap-[3px] shrink-0">
                         <button
-                          onClick={() => setSelectedItemForEdit(item)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedItemForEdit(item);
+                          }}
                           className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-[5px] cursor-pointer"
                           title="Modifica"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (confirm(`Eliminare l'articolo ${item.name}?`)) {
                               deleteInventoryItem(item.id);
                             }
@@ -595,6 +611,18 @@ export const InventoryView: React.FC = () => {
         <ManualMaintenanceModal
           equipmentItem={maintenanceModalItem}
           onClose={() => setMaintenanceModalItem(null)}
+        />
+      )}
+
+      {/* Equipment Detail & History Modal */}
+      {selectedEquipmentForDetail && (
+        <EquipmentDetailModal
+          item={
+            inventory.find((i) => i.id === selectedEquipmentForDetail.id) || selectedEquipmentForDetail
+          }
+          jobs={jobs}
+          onClose={() => setSelectedEquipmentForDetail(null)}
+          onOpenMaintenance={(equip) => setMaintenanceModalItem(equip)}
         />
       )}
     </div>

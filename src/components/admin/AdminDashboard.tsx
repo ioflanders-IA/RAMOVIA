@@ -44,6 +44,55 @@ interface AdminDashboardProps {
   onNavigateTab: (tab: 'dashboard' | 'map' | 'calendar' | 'clients' | 'inventory' | 'reports' | 'payments' | 'weather') => void;
 }
 
+/**
+ * Rimuove le parti dell'indirizzo successive alla città (provincia, regione, CAP, nazione)
+ * mantenendo solo luogo/via e comune/città per le card nella Home.
+ */
+export const formatShortAddressUpToCity = (address?: string): string => {
+  if (!address || typeof address !== 'string') return '';
+  const raw = address.trim();
+  if (!raw) return '';
+
+  const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
+  if (parts.length <= 2) {
+    const last = parts[parts.length - 1];
+    if (/^(italia|italy)$/i.test(last) || /^\d{5}$/.test(last)) {
+      return parts.slice(0, -1).join(', ');
+    }
+    return raw;
+  }
+
+  const isCountry = (s: string) => /^(italia|italy)$/i.test(s);
+  const isPostalCode = (s: string) => /^\d{5}$/.test(s) || /^\d{3}\.\.\.$/.test(s) || /^\d{5}/.test(s);
+  const isRegion = (s: string) =>
+    /^(lazio|abruzzo|basilicata|calabria|campania|emilia-romagna|emilia romagna|friuli-venezia giulia|friuli venezia giulia|liguria|lombardia|marche|molise|piemonte|puglia|sardegna|sicilia|toscana|trentino-alto adige|trentino alto adige|umbria|valle d'aosta|veneto)$/i.test(
+      s
+    );
+  const isProvince = (s: string) =>
+    /^(rm|lt|fr|vt|ri|roma|latina|frosinone|viterbo|rieti|milano|mi|napoli|na|torino|to|firenze|fi|bologna|bo)$/i.test(
+      s
+    ) ||
+    /^citt[àa]\s+metropolitana(\s+di\s+.*)?$/i.test(s) ||
+    /^provincia(\s+di\s+.*)?$/i.test(s) ||
+    /^[A-Z]{2}$/.test(s);
+
+  let endIndex = parts.length - 1;
+  while (endIndex >= 1) {
+    const p = parts[endIndex];
+    if (isCountry(p) || isPostalCode(p) || isRegion(p)) {
+      endIndex--;
+      continue;
+    }
+    if (isProvince(p) && endIndex >= 2) {
+      endIndex--;
+      continue;
+    }
+    break;
+  }
+
+  return parts.slice(0, endIndex + 1).join(', ');
+};
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab }) => {
   const { jobs, users, inventory, reports, clients, shoppingList, workedDays, payouts, addJob, updateJob } = useApp();
 
@@ -583,7 +632,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
 
                     {job.clientAddress && (
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                        {job.clientAddress}
+                        {formatShortAddressUpToCity(job.clientAddress)}
                       </div>
                     )}
 
@@ -720,7 +769,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
 
                     {job.clientAddress && (
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                        {job.clientAddress}
+                        {formatShortAddressUpToCity(job.clientAddress)}
                       </div>
                     )}
 

@@ -503,89 +503,30 @@ export const JobDetailViewModal: React.FC<JobDetailViewModalProps> = ({
                 )}
               </div>
 
-              {/* Macchinari ed Attrezzature Usate & Manutenzioni */}
+              {/* Macchinari ed Attrezzature Usate (Solo macchinari usati con gap a 3px, senza tasti o diciture manutenzione) */}
               {currentJob.equipmentRequired && currentJob.equipmentRequired.length > 0 && (
                 <div className="pt-1 space-y-[3px]">
-                  <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    <div className="flex items-center gap-1.5">
-                      <Wrench className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <span>Macchinari Usati ({currentJob.equipmentRequired.length})</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setMaintenanceEquipItem({ id: '', name: '' })}
-                      className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 font-bold px-1.5 py-0.5 rounded hover:bg-amber-100/60 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
-                      title="Registra manutenzione per questo intervento"
-                    >
-                      <Plus className="w-3 h-3" />
-                      <span>Manutenzione</span>
-                    </button>
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    <Wrench className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span>Macchinari Usati ({currentJob.equipmentRequired.length})</span>
                   </div>
 
-                  <div className="space-y-[3px] pt-0.5">
-                    {currentJob.equipmentRequired.map((eq) => {
-                      const eqMaints = linkedMaintenances.filter(
-                        (m) =>
-                          m.itemId === eq.itemId ||
-                          (m.toolName && eq.name && m.toolName.trim().toLowerCase() === eq.name.trim().toLowerCase())
-                      );
-
-                      return (
-                        <div
-                          key={eq.itemId}
-                          className="p-1 px-1.5 bg-slate-50 dark:bg-slate-800/40 rounded border border-slate-200 dark:border-slate-800 text-xs space-y-1"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
-                                {eq.name}
-                              </span>
-                              <span className="font-mono text-[10px] text-slate-400 shrink-0">
-                                ({eq.hoursUsed}h)
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setMaintenanceEquipItem({ id: eq.itemId, name: eq.name })}
-                              className="inline-flex items-center gap-0.5 text-[9.5px] font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 px-1 py-0.5 rounded hover:bg-amber-100/60 dark:hover:bg-amber-950/40 transition-colors shrink-0 cursor-pointer"
-                              title={`Aggiungi manutenzione a ${eq.name}`}
-                            >
-                              <Plus className="w-2.5 h-2.5" />
-                              <span>Manutenzione</span>
-                            </button>
-                          </div>
-
-                          {/* Manutenzioni registrate per questo attrezzo */}
-                          {eqMaints.length > 0 && (
-                            <div className="space-y-1 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
-                              {eqMaints.map((m) => (
-                                <div
-                                  key={m.id}
-                                  className="flex items-center justify-between gap-2 text-[10.5px] p-1 px-1.5 rounded bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/70 dark:border-amber-900/60"
-                                >
-                                  <div className="flex items-center gap-1.5 min-w-0">
-                                    <Wrench className="w-3 h-3 text-amber-500 shrink-0" />
-                                    <span className="font-semibold text-amber-900 dark:text-amber-200 truncate">
-                                      {m.description}
-                                    </span>
-                                    {m.date && (
-                                      <span className="font-mono text-[9.5px] text-amber-700/80 dark:text-amber-400/80 shrink-0">
-                                        · {m.date}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {m.cost !== undefined && m.cost > 0 && (
-                                    <span className="font-mono font-bold text-rose-600 dark:text-rose-400 shrink-0">
-                                      -€ {Math.round(m.cost)}
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                  <div className="space-y-[3px]">
+                    {currentJob.equipmentRequired.map((eq) => (
+                      <div
+                        key={eq.itemId || eq.name}
+                        className="p-1 px-1.5 bg-slate-50 dark:bg-slate-800/40 rounded-[5px] border border-slate-200 dark:border-slate-800 text-xs flex items-center justify-between gap-[3px]"
+                      >
+                        <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                          {eq.name}
+                        </span>
+                        {eq.hoursUsed !== undefined && (
+                          <span className="font-mono text-[10px] text-slate-400 shrink-0">
+                            ({eq.hoursUsed}h)
+                          </span>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

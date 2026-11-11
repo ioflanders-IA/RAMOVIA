@@ -7,7 +7,7 @@ export const DEFAULT_CATEGORIES: { id: string; label: string }[] = [
   { id: 'materiale', label: 'Materiali & Concimi' },
   { id: 'attrezzatura', label: 'Nuova Attrezzatura' },
   { id: 'noleggio', label: 'Noleggio Mezzi' },
-  { id: 'manutenzione', label: 'Manutenzione Macchinari' },
+  { id: 'manutenzione', label: 'Manutenzione' },
   { id: 'manodopera', label: 'Manodopera' },
   { id: 'stipendio', label: 'Stipendi / Compensi' },
   { id: 'generale', label: 'Spese Generali' },

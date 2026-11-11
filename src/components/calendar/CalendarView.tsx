@@ -565,7 +565,7 @@ export const CalendarView: React.FC = () => {
             
             {/* ROW 1: Search + Filters (Operai & Stati) + Nuovo all on the SAME row, with dashed line below */}
             <div className="flex items-center gap-[3px] pb-1.5 border-b border-dashed border-slate-300 dark:border-slate-700">
-              <div className="relative flex-1 min-w-[90px]">
+              <div className="relative flex-1 min-w-[70px]">
                 <Search className="w-3.5 h-3.5 absolute left-2 top-2 text-slate-400" />
                 <input
                   type="text"
@@ -579,7 +579,7 @@ export const CalendarView: React.FC = () => {
               <select
                 value={workerFilter}
                 onChange={(e) => setWorkerFilter(e.target.value)}
-                className="w-auto max-w-[120px] sm:max-w-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[5px] px-1.5 sm:px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-emerald-600 truncate shrink-0"
+                className="w-auto max-w-[105px] sm:max-w-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[5px] px-1.5 sm:px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-emerald-600 truncate shrink-0"
               >
                 <option value="all">Tutti gli Operai</option>
                 {currentUser && (
@@ -599,7 +599,7 @@ export const CalendarView: React.FC = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-auto max-w-[110px] sm:max-w-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[5px] px-1.5 sm:px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-emerald-600 truncate shrink-0"
+                className="w-auto max-w-[95px] sm:max-w-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[5px] px-1.5 sm:px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-emerald-600 truncate shrink-0"
               >
                 <option value="all">Tutti gli stati</option>
                 <option value="scheduled">Programmati</option>
@@ -609,14 +609,15 @@ export const CalendarView: React.FC = () => {
 
               {currentUser?.role === 'admin' && (
                 <button
+                  type="button"
                   onClick={() => {
                     setNewJobDate(todayStr);
                     setIsCreatingNew(true);
                   }}
-                  className="flex items-center gap-1 px-2.5 sm:px-3 py-1 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-[5px] shadow-xs transition-colors shrink-0 cursor-pointer"
+                  className="w-7 h-7 sm:w-8 sm:h-8 bg-emerald-700 hover:bg-emerald-600 text-white rounded-[5px] flex items-center justify-center transition-colors shrink-0 shadow-xs cursor-pointer"
+                  title="Pianifica Nuovo Intervento"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Nuovo</span>
+                  <Plus className="w-4 h-4" />
                 </button>
               )}
             </div>

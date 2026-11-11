@@ -231,8 +231,28 @@ export const SquadWorkersRegistry: React.FC = () => {
     return map;
   }, [monthPayouts]);
 
-  // Calculate worker stats for this month
+  // Calculate worker stats for this month and expanded history
   const workerStats = useMemo(() => {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const d30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const d30Str = d30.toISOString().split('T')[0];
+
+    const currentDayOfWeek = (now.getDay() + 6) % 7; // Lunedì=0, Domenica=6
+    const thisWeekMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - currentDayOfWeek);
+    const lastWeekSunday = new Date(thisWeekMonday.getFullYear(), thisWeekMonday.getMonth(), thisWeekMonday.getDate() - 1);
+    const lastWeekMonday = new Date(thisWeekMonday.getFullYear(), thisWeekMonday.getMonth(), thisWeekMonday.getDate() - 7);
+
+    const formatISO = (dt: Date) => {
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const d = String(dt.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+
+    const lastWeekStart = formatISO(lastWeekMonday);
+    const lastWeekEnd = formatISO(lastWeekSunday);
+
     return workers.map((worker) => {
       const days = monthWorkedDays.filter((wd) => wd.workerId === worker.uid);
       const totalDaysCount = days.reduce((sum, d) => {
@@ -253,6 +273,34 @@ export const SquadWorkersRegistry: React.FC = () => {
 
       const pendingToPay = Math.max(0, totalEarned - totalPaid);
 
+      // Statistiche per card espansa operaio
+      const allWorkerDays = workedDays.filter((wd) => wd.workerId === worker.uid && wd.date);
+
+      // 1. Media mensile (tutti i mesi in cui l'operaio ha giornate)
+      const monthlyEarningsMap: Record<string, number> = {};
+      allWorkerDays.forEach((wd) => {
+        const ym = wd.date.substring(0, 7);
+        monthlyEarningsMap[ym] = (monthlyEarningsMap[ym] || 0) + (Number(wd.amount) || 0);
+      });
+      const monthSums = Object.values(monthlyEarningsMap);
+      const avgMonthly = monthSums.length > 0
+        ? Math.round(monthSums.reduce((acc, v) => acc + v, 0) / monthSums.length)
+        : 0;
+
+      // 2. Ultimi 30 giorni
+      const last30gg = Math.round(
+        allWorkerDays
+          .filter((wd) => wd.date >= d30Str && wd.date <= todayStr)
+          .reduce((acc, wd) => acc + (Number(wd.amount) || 0), 0)
+      );
+
+      // 3. Scorsa settimana (settimana Lun-Dom precedente)
+      const scorsaSettimana = Math.round(
+        allWorkerDays
+          .filter((wd) => wd.date >= lastWeekStart && wd.date <= lastWeekEnd)
+          .reduce((acc, wd) => acc + (Number(wd.amount) || 0), 0)
+      );
+
       return {
         worker,
         days,
@@ -260,9 +308,12 @@ export const SquadWorkersRegistry: React.FC = () => {
         totalEarned,
         totalPaid,
         pendingToPay,
+        avgMonthly,
+        last30gg,
+        scorsaSettimana,
       };
     });
-  }, [workers, monthWorkedDays, payouts, selectedMonth]);
+  }, [workers, monthWorkedDays, workedDays, payouts, selectedMonth]);
 
   // Global KPIs for the month
   const totalDueAllWorkers = useMemo(() => {
@@ -954,12 +1005,47 @@ export const SquadWorkersRegistry: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Accordion Elenco Giornate Operaio - gap a 3px */}
+                  {/* Accordion Elenco Giornate Operaio - con 3 riepiloghi su un rigo a 3px */}
                   {isExpanded && (
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      className="p-1 sm:p-1.5 bg-slate-50 dark:bg-slate-950/80 rounded-[5px] border border-slate-200 dark:border-slate-800 space-y-[3px] max-h-48 overflow-y-auto text-[11px] animate-in fade-in duration-150"
+                      className="space-y-[3px] animate-in fade-in duration-150"
                     >
+                      {/* Tre piccoli riepiloghi su un rigo: media mensile, ultimi 30gg, scorsa settimana (senza decimali) */}
+                      {/* Tre piccoli riepiloghi su un rigo: media mensile, ultimi 30gg, scorsa settimana (scritti tutto su un rigo senza decimali) */}
+                      <div className="grid grid-cols-3 gap-[3px] text-center">
+                        <div className="py-1 px-1 rounded-[5px] bg-sky-50/60 dark:bg-sky-950/25 border border-sky-100 dark:border-sky-900/50 flex items-center justify-center gap-1 min-w-0">
+                          <span className="text-[8px] sm:text-[8.5px] uppercase font-bold text-sky-700 dark:text-sky-400 truncate">
+                            <span className="hidden sm:inline">Media mensile</span>
+                            <span className="sm:hidden">Media mese</span>
+                          </span>
+                          <span className="font-mono font-extrabold text-sky-600 dark:text-sky-400 text-[11px] sm:text-xs shrink-0 whitespace-nowrap">
+                            € {st.avgMonthly}
+                          </span>
+                        </div>
+
+                        <div className="py-1 px-1 rounded-[5px] bg-emerald-50/60 dark:bg-emerald-950/25 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center gap-1 min-w-0">
+                          <span className="text-[8px] sm:text-[8.5px] uppercase font-bold text-emerald-700 dark:text-emerald-400 truncate">
+                            Ultimi 30gg
+                          </span>
+                          <span className="font-mono font-extrabold text-emerald-600 dark:text-emerald-400 text-[11px] sm:text-xs shrink-0 whitespace-nowrap">
+                            € {st.last30gg}
+                          </span>
+                        </div>
+
+                        <div className="py-1 px-1 rounded-[5px] bg-purple-50/60 dark:bg-purple-950/25 border border-purple-100 dark:border-purple-900/50 flex items-center justify-center gap-1 min-w-0">
+                          <span className="text-[8px] sm:text-[8.5px] uppercase font-bold text-purple-700 dark:text-purple-400 truncate">
+                            <span className="hidden sm:inline">Scorsa settimana</span>
+                            <span className="sm:hidden">Scorsa sett.</span>
+                          </span>
+                          <span className="font-mono font-extrabold text-purple-600 dark:text-purple-400 text-[11px] sm:text-xs shrink-0 whitespace-nowrap">
+                            € {st.scorsaSettimana}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Sotto le giornate come ora */}
+                      <div className="p-1 sm:p-1.5 bg-slate-50 dark:bg-slate-950/80 rounded-[5px] border border-slate-200 dark:border-slate-800 space-y-[3px] max-h-48 overflow-y-auto text-[11px]">
                       {st.days.length === 0 ? (
                         <div className="text-slate-400 text-center py-2 text-xs">
                           Nessuna giornata inserita in questo mese.
@@ -1008,6 +1094,7 @@ export const SquadWorkersRegistry: React.FC = () => {
                           </div>
                         ))
                       )}
+                    </div>
                     </div>
                   )}
                 </div>

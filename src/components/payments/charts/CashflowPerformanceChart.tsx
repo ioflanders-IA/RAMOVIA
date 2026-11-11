@@ -168,7 +168,7 @@ export const CashflowPerformanceChart: React.FC<CashflowPerformanceChartProps> =
   // SVG Dimension Constants
   const svgWidth = 500;
   const svgHeight = 220;
-  const padLeft = 32;
+  const padLeft = 36;
   const padRight = 16;
   const padTop = 18;
   const padBottom = 26;
@@ -237,131 +237,72 @@ export const CashflowPerformanceChart: React.FC<CashflowPerformanceChartProps> =
   const zeroY = padTop + chartH - ((0 - minVal) / valueRange) * chartH;
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[7px] shadow-xs space-y-[7px]">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[7px] p-[3px] shadow-xs space-y-[3px]">
       {/* Top Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-slate-100 dark:border-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-1.5 pb-1 border-b border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-1.5 min-w-0">
           <Wallet className="w-4 h-4 text-sky-500 shrink-0" />
           <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-wider truncate">
-            Cashflow Reale & Redditività Cantiere vs Manodopera
+            Analisi redditività
           </h3>
         </div>
         <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold">
-          <span className="text-slate-500">Saldo Netto Cassa:</span>
+          <span className="text-slate-500">Saldo Netto:</span>
           <span className={summary.isPositive ? 'text-emerald-500' : 'text-rose-500'}>
             € {summary.netLiquidity.toFixed(0)}
           </span>
         </div>
       </div>
 
-      {/* Financial Asset KPI Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-[3px] text-[10.5px]">
-        <div className="p-1 px-1.5 rounded-[5px] bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50">
-          <span className="text-[9px] uppercase font-bold text-emerald-700 dark:text-emerald-400 block truncate">
-            Incassi Reali (Inflow)
+      {/* 4 Financial KPI Stat Cards - SU UN SOLO RIGO A 3PX */}
+      <div className="grid grid-cols-4 gap-[3px] text-center">
+        <div className="p-1 px-1 rounded-[5px] bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50 flex flex-col justify-between">
+          <span className="text-[8.5px] uppercase font-bold text-emerald-700 dark:text-emerald-400 truncate">
+            Incassi
           </span>
-          <div className="flex items-baseline justify-between gap-1">
-            <span className="font-mono font-extrabold text-emerald-600 dark:text-emerald-400 text-xs">
-              € {summary.totalInflow.toFixed(0)}
-            </span>
-            <span className="text-[9px] text-slate-500 font-semibold">Cassa entrata</span>
-          </div>
+          <span className="font-mono font-extrabold text-emerald-600 dark:text-emerald-400 text-xs truncate">
+            € {summary.totalInflow.toFixed(0)}
+          </span>
+          <span className="text-[8.5px] text-slate-500 font-semibold truncate">
+            Entrate
+          </span>
         </div>
 
-        <div className="p-1 px-1.5 rounded-[5px] bg-rose-50/60 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/50">
-          <span className="text-[9px] uppercase font-bold text-rose-700 dark:text-rose-400 block truncate">
-            Uscite Totali (Outflow)
+        <div className="p-1 px-1 rounded-[5px] bg-rose-50/60 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/50 flex flex-col justify-between">
+          <span className="text-[8.5px] uppercase font-bold text-rose-700 dark:text-rose-400 truncate">
+            Uscite
           </span>
-          <div className="flex items-baseline justify-between gap-1">
-            <span className="font-mono font-extrabold text-rose-600 dark:text-rose-400 text-xs">
-              € {summary.totalOutflow.toFixed(0)}
-            </span>
-            <span className="text-[9px] text-slate-500 font-semibold">Spese + Operai</span>
-          </div>
+          <span className="font-mono font-extrabold text-rose-600 dark:text-rose-400 text-xs truncate">
+            € {summary.totalOutflow.toFixed(0)}
+          </span>
+          <span className="text-[8.5px] text-slate-500 font-semibold truncate">
+            Spese
+          </span>
         </div>
 
-        <div className="p-1 px-1.5 rounded-[5px] bg-sky-50/60 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/50">
-          <span className="text-[9px] uppercase font-bold text-sky-700 dark:text-sky-400 block truncate">
-            Liquidità Netta Generata
+        <div className="p-1 px-1 rounded-[5px] bg-sky-50/60 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/50 flex flex-col justify-between">
+          <span className="text-[8.5px] uppercase font-bold text-sky-700 dark:text-sky-400 truncate">
+            Saldo Netto
           </span>
-          <div className="flex items-baseline justify-between gap-1">
-            <span className={`font-mono font-extrabold text-xs ${summary.isPositive ? 'text-sky-600 dark:text-sky-400' : 'text-rose-600 dark:text-rose-400'}`}>
-              € {summary.netLiquidity.toFixed(0)}
-            </span>
-            <span className="text-[9px] text-slate-500 font-semibold">
-              {summary.isPositive ? 'In Attivo' : 'Deficit'}
-            </span>
-          </div>
+          <span className={`font-mono font-extrabold text-xs truncate ${summary.isPositive ? 'text-sky-600 dark:text-sky-400' : 'text-rose-600 dark:text-rose-400'}`}>
+            € {summary.netLiquidity.toFixed(0)}
+          </span>
+          <span className="text-[8.5px] text-slate-500 font-semibold truncate">
+            {summary.isPositive ? 'Attivo' : 'Deficit'}
+          </span>
         </div>
 
-        <div className="p-1 px-1.5 rounded-[5px] bg-amber-50/60 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/50">
-          <span className="text-[9px] uppercase font-bold text-amber-700 dark:text-amber-400 block truncate">
-            Moltiplicatore Resa Squadra
+        <div className="p-1 px-1 rounded-[5px] bg-amber-50/60 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/50 flex flex-col justify-between">
+          <span className="text-[8.5px] uppercase font-bold text-amber-700 dark:text-amber-400 truncate">
+            Resa
           </span>
-          <div className="flex items-baseline justify-between gap-1">
-            <span className="font-mono font-extrabold text-amber-600 dark:text-amber-400 text-xs">
-              {summary.avgMultiplier}x
-            </span>
-            <span className="text-[9px] text-slate-500 font-semibold">
-              {summary.avgMultiplier >= 2.5 ? 'Ottima Resa' : 'Margine Standard'}
-            </span>
-          </div>
+          <span className="font-mono font-extrabold text-amber-600 dark:text-amber-400 text-xs truncate">
+            {summary.avgMultiplier}x
+          </span>
+          <span className="text-[8.5px] text-slate-500 font-semibold truncate">
+            Manodopera
+          </span>
         </div>
-      </div>
-
-      {/* Interactive Financial Toggles */}
-      <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[10px]">
-        <button
-          type="button"
-          onClick={() => setShowInflow(!showInflow)}
-          className={`px-1.5 py-0.5 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center gap-1 ${
-            showInflow
-              ? 'bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300'
-              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 line-through'
-          }`}
-        >
-          <span className="w-2 h-0.5 bg-emerald-500 rounded" />
-          <span>Incassi (Inflow)</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setShowOutflow(!showOutflow)}
-          className={`px-1.5 py-0.5 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center gap-1 ${
-            showOutflow
-              ? 'bg-rose-500/15 border-rose-500 text-rose-700 dark:text-rose-300'
-              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 line-through'
-          }`}
-        >
-          <span className="w-2 h-0.5 bg-rose-500 rounded" />
-          <span>Uscite (Outflow)</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setShowNetCash(!showNetCash)}
-          className={`px-1.5 py-0.5 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center gap-1 ${
-            showNetCash
-              ? 'bg-sky-500/15 border-sky-500 text-sky-700 dark:text-sky-300'
-              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 line-through'
-          }`}
-        >
-          <span className="w-2 h-0.5 bg-sky-500 rounded" />
-          <span>Liquidità Netta</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setShowLaborEfficiency(!showLaborEfficiency)}
-          className={`px-1.5 py-0.5 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center gap-1 ${
-            showLaborEfficiency
-              ? 'bg-amber-500/15 border-amber-500 text-amber-700 dark:text-amber-300'
-              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 line-through'
-          }`}
-        >
-          <Zap className="w-2.5 h-2.5 text-amber-500" />
-          <span>Resa Squadra (x)</span>
-        </button>
       </div>
 
       {/* SVG Canvas Stile TradingView Asset */}
@@ -416,8 +357,9 @@ export const CashflowPerformanceChart: React.FC<CashflowPerformanceChartProps> =
                   x={padLeft - 4}
                   y={y + 3}
                   textAnchor="end"
-                  fontSize="7.5"
-                  fill="#64748b"
+                  fontSize="9.5"
+                  fontWeight="600"
+                  fill="#94a3b8"
                   fontFamily="monospace"
                 >
                   €{val}
@@ -522,7 +464,8 @@ export const CashflowPerformanceChart: React.FC<CashflowPerformanceChartProps> =
                 x={pt.x}
                 y={svgHeight - 10}
                 textAnchor="middle"
-                fontSize="7.5"
+                fontSize="9"
+                fontWeight="600"
                 fill="#94a3b8"
                 fontFamily="monospace"
               >
@@ -586,9 +529,63 @@ export const CashflowPerformanceChart: React.FC<CashflowPerformanceChartProps> =
         )}
       </div>
 
-      <div className="text-[9.5px] text-slate-500 italic px-1 flex items-center justify-between">
-        <span>* Analisi cashflow reale: Incamerato da clienti vs esborsi operai e spese cantieri</span>
-        <span className="font-mono">Fonte: Cassa & Compensi</span>
+      {/* Interactive Financial Toggles - SU UN SOLO RIGO A 4 COLONNE */}
+      <div className="grid grid-cols-4 gap-[2px] pt-0.5 text-[8px] sm:text-[9.5px]">
+        <button
+          type="button"
+          onClick={() => setShowInflow(!showInflow)}
+          className={`px-1 py-1 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center justify-center gap-1 min-w-0 ${
+            showInflow
+              ? 'bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300'
+              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 opacity-60'
+          }`}
+          title="Mostra/Nascondi Incassi"
+        >
+          <span className="w-1.5 h-0.5 bg-emerald-500 rounded shrink-0" />
+          <span className="truncate">Incassi</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowOutflow(!showOutflow)}
+          className={`px-1 py-1 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center justify-center gap-1 min-w-0 ${
+            showOutflow
+              ? 'bg-rose-500/15 border-rose-500 text-rose-700 dark:text-rose-300'
+              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 opacity-60'
+          }`}
+          title="Mostra/Nascondi Uscite"
+        >
+          <span className="w-1.5 h-0.5 bg-rose-500 rounded shrink-0" />
+          <span className="truncate">Uscite</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowNetCash(!showNetCash)}
+          className={`px-1 py-1 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center justify-center gap-1 min-w-0 ${
+            showNetCash
+              ? 'bg-sky-500/15 border-sky-500 text-sky-700 dark:text-sky-300'
+              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 opacity-60'
+          }`}
+          title="Mostra/Nascondi Saldo Cassa"
+        >
+          <span className="w-1.5 h-0.5 bg-sky-400 rounded shrink-0" />
+          <span className="truncate">Saldo Cassa</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowLaborEfficiency(!showLaborEfficiency)}
+          className={`px-1 py-1 rounded-[4px] font-bold border transition-colors cursor-pointer flex items-center justify-center gap-1 min-w-0 ${
+            showLaborEfficiency
+              ? 'bg-amber-500/15 border-amber-500 text-amber-700 dark:text-amber-300'
+              : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400 opacity-60'
+          }`}
+          title="Mostra/Nascondi Resa Operai"
+        >
+          <Zap className="w-2.5 h-2.5 text-amber-500 shrink-0" />
+          <span className="truncate">Resa Operai</span>
+        </button>
       </div>
     </div>
   );
